@@ -971,7 +971,7 @@ void dvaIDLE( void )
 
 			for( i=0; i<16; i++ ){
 				backup_data.nowEMGHL[i] = DUALPORT.mcpMode.EMGPHL[i];
-				DUALPORT.nowEMGHL[i] |= backup_data.nowEMGHL[i];
+				DUALPORT.nowEMGHL[i] = backup_data.nowEMGHL[i];
 //				DUALPORT.mcpMode.EMGPHL[i] = 0;
 			}
 			backup_data.rootOpeMode = OPEMODE_IDLE;
@@ -1391,7 +1391,7 @@ void dvaAUTO( void )
 			DUALPORT.mcpMode.EMGPOn = 0;
 			for( i=0; i<16; i++ ){
 				backup_data.nowEMGHL[i] = DUALPORT.mcpMode.EMGPHL[i];
-				DUALPORT.nowEMGHL[i] |= backup_data.nowEMGHL[i];
+				DUALPORT.nowEMGHL[i] = backup_data.nowEMGHL[i];
 //				DUALPORT.mcpMode.EMGPHL[i] = 0;
 			}
 			backup_data.rootOpeMode = OPEMODE_AUTO;
@@ -1993,7 +1993,7 @@ void dvaTRS( void )
 			DUALPORT.mcpMode.EMGPOn = 0;
 			for( i=0; i<16; i++ ){
 				backup_data.nowEMGHL[i] = DUALPORT.mcpMode.EMGPHL[i];
-				DUALPORT.nowEMGHL[i] |= backup_data.nowEMGHL[i];
+				DUALPORT.nowEMGHL[i] = backup_data.nowEMGHL[i];
 //				DUALPORT.mcpMode.EMGPHL[i] = 0;
 			}
 			backup_data.opeMode = OPEMODE_EMGHL;
@@ -2308,7 +2308,7 @@ void dvaSPCMA( void )
 			DUALPORT.mcpMode.EMGPOn = 0;
 			for( i=0; i<16; i++ ){
 				backup_data.nowEMGHL[i] = DUALPORT.mcpMode.EMGPHL[i];
-				DUALPORT.nowEMGHL[i] |= backup_data.nowEMGHL[i];
+				DUALPORT.nowEMGHL[i] = backup_data.nowEMGHL[i];
 //				DUALPORT.mcpMode.EMGPHL[i] = 0;
 			}
 			backup_data.opeMode = OPEMODE_EMGHL;
@@ -2468,7 +2468,7 @@ void dvaEMGHL( void )
 			DUALPORT.mcpMode.EMGPOn = 0;
 			for( i=0; i<16; i++ ){
 				backup_data.nowEMGHL[i] = DUALPORT.mcpMode.EMGPHL[i];
-				DUALPORT.nowEMGHL[i] |= backup_data.nowEMGHL[i];
+				DUALPORT.nowEMGHL[i] = backup_data.nowEMGHL[i];
 //				DUALPORT.mcpMode.EMGPHL[i] = 0;
 			}
 		}

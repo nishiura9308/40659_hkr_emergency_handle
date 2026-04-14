@@ -3,7 +3,7 @@ BEGIN
   MultiUse = -1  'True
   Persistable = 0  'NotPersistable
   DataBindingBehavior = 0  'vbNone
-  DataSourceBehavior  = 0  'vbNone
+  DataSourceBehavior  = 1  'vbDataSource
   MTSTransactionMode  = 0  'NotAnMTSObject
 END
 Attribute VB_Name = "clsMenteComm"
@@ -329,7 +329,7 @@ Private Function RecvCommandLoop(ByVal sRecvData As String) As Boolean
             mblnResponseFlag = True
             mintRetriedCount = 0
         End If
-        If Mid$(sRecvData, 1, 4) = "SDRB" Then
+        If Mid$(sRecvData, 1, 4) = "SDRC" Then
             requestType = 0
         End If
         RaiseEvent RecvSDR(sRecvData)
@@ -684,6 +684,8 @@ Public Function STOPRequest() As Boolean
 End Function
 
 
+' // Imports System.IO.Ports
+
 '/////  SDR要求コマンド　/////
 Public Function SDRRequest() As Boolean
     '// 変数宣言及び初期設定
@@ -704,7 +706,7 @@ Public Function SDRRequest() As Boolean
     bytSend(5) = Asc("D")
     bytSend(6) = Asc("R")
     bytSend(9) = &H3
-    
+     
     lngBCC = 0
     For intCount = 1 To 6
         lngBCC = lngBCC + bytSend(intCount)
@@ -1328,7 +1330,7 @@ Private Sub SimulateTimer_Timer()
             simPhase = 1
             RecvCommandLoop "SDR1                                                                   "
         ElseIf bytSend(1) = Asc("T") And bytSend(2) = Asc("M") And bytSend(3) = Asc("S") And bytSend(4) = Asc("S") And bytSend(5) = Asc("D") And bytSend(6) = Asc(" ") Then
-            simPhase = 11
+            simPhase = 12
             RecvCommandLoop "SD1                                                                   "
         ElseIf bytSend(1) = Asc("D") And bytSend(2) = Asc("O") And bytSend(3) = Asc("W") And bytSend(4) = Asc("N") Then
             RecvCommandLoop "OK"
@@ -1369,18 +1371,20 @@ Private Sub SimulateTimer_Timer()
             simPhase = 10
         Case 10
             RecvCommandLoop "SDRB                                                                   "
-            simPhase = 0
-            
+            simPhase = 11
         Case 11
-            RecvCommandLoop "SD2                                                                   "
+            RecvCommandLoop "SDRC                                                                   "
             simPhase = 12
         Case 12
-            RecvCommandLoop "SD3                                                                   "
+            RecvCommandLoop "SD2                                                                   "
             simPhase = 13
         Case 13
-            RecvCommandLoop "SD4                                                                   "
+            RecvCommandLoop "SD3                                                                   "
             simPhase = 14
         Case 14
+            RecvCommandLoop "SD4                                                                   "
+            simPhase = 15
+        Case 15
             RecvCommandLoop "SD5                                                                   "
             simPhase = 0
 

@@ -1,4 +1,4 @@
-*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  03/14/23 09:40:48                                                                PAGE     1
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  08/26/25 09:47:03                                                                PAGE     1
 PROGRAM NAME =
 
     1                             1     ;------------------------------------------------------------------------
@@ -43,7 +43,7 @@ PROGRAM NAME =
    40                            40              .END
   *****TOTAL ERRORS       0
   *****TOTAL WARNINGS     0
-*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  03/14/23 09:40:48                                                                PAGE     2
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  08/26/25 09:47:03                                                                PAGE     2
 
 *** CROSS REFERENCE LIST
 
@@ -53,7 +53,7 @@ P                                P        SCT  00000000     13*
 _Halt                            P        EXPT 00000004     24    29*
 _RESET                           P        EXPT 00000008     33    37*
 _dosaccs_trap                    P        EXPT 00000000     15    20*
-*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  03/14/23 09:40:48                                                                PAGE     3
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  08/26/25 09:47:03                                                                PAGE     3
 
 *** SECTION DATA LIST
 

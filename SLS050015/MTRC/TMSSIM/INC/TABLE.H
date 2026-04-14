@@ -3,12 +3,16 @@
 /********************************************************************
 *	【香港地下鉄向け自動列車放送制御装置】							*
 *-------------------------------------------------------------------*
-*	テーブルフォーマット定義													*
+*	テーブルフォーマット定義										*
 *-------------------------------------------------------------------*
-*	Author		TOA Corporation									*
+*	Author		TOA Corporation										*
 *																	*
 *	Revision	a00. 2000/06/27		K.Honda							*
-*																	*
+*				a01. 2013/03/26		h.nishiura						*
+*						 到着案内放送の起動(Extra timing)のbit追加	*
+*				a02. 2023/03/07		h.nishiura						*
+*						手動放送の情報追加							*
+*				a03. 2024/03/11		h,nishiura  RTTF用放送中情報をDualPortRamにアップデート	*
 *********************************************************************/
 
 //
@@ -137,7 +141,9 @@ union SDRFORM {
 		struct {					// 車両毎の車両タイプと番号
 			unsigned short	carNo:12;
 			unsigned short	carType:4;
-		} carInfo2[8];
+		} carInfo2[8];		
+		unsigned char	text49;
+		unsigned char   PadReset[8];  // 非常通報器のリセット要求
 	} SDR;
 	struct {
 		unsigned char	lowadr;			// 下位アドレス
@@ -246,7 +252,7 @@ union SDFORM {
 			unsigned char	BYTE;
 			struct {
 				unsigned char	b7:1;
-				unsigned char	doorChimeMode:1;	// Door Chime 
+				unsigned char	doorChimeMode:1;	// Door Chime
 				unsigned char	doorMode:1;			// Door Announce
 				unsigned char	autoMode:1;			// Auto Announce
 				unsigned char	specialMode:1;		// Special Message
@@ -323,6 +329,11 @@ struct	EIDS_FORMAT {
 //	放送文構造定義
 //
 
+#define	SENTENCE_STATION	1
+#define	SENTENCE_EMERGENCY	2
+#define	SENTENCE_SPECIAL	3
+#define	SENTENCE_DOOR		4
+
 #define	MAX_SEQUENCE	6			// 最大シーケンス
 union EV5000_SEQUENCE {
 	struct {
@@ -362,7 +373,7 @@ struct EMGMAINFO {		// 非常放送文
 	union EV5000_SEQUENCE	sequence[MAX_SEQUENCE];	// 放送文
 };
 
-#define	MAX_SPCMA	40
+#define	MAX_SPCMA	64
 struct SPCINFO {		// スペシャル放送文
 	unsigned char	eidsChar;		// ＥＩＤＳ送信コード
 
@@ -372,6 +383,9 @@ struct SPCINFO {		// スペシャル放送文
 	union EV5000_SEQUENCE	sequence[MAX_SEQUENCE];	// 放送文
 };
 
+#define	ATC_SPCMA	48		// ＡＴＣ用放送文開始番号
+#define	TEST_SPCMA	63		// テスト用放送文番号
+
 #define	MAX_STATION		64			// １ルートあたりの最大駅数
 struct STATIONINFO {	// １ルートあたりの駅情報
 	unsigned char	stationCode;		// 駅コード
@@ -380,7 +394,7 @@ struct STATIONINFO {	// １ルートあたりの駅情報
 	unsigned char	stationNumber;		// ライン番号とステーション番号
 	unsigned char	Arriving:1;			// 到着案内フラグ(arriving)
 	unsigned char	Arrived:1;			// 到着案内フラグ(arrived)
-	unsigned char	b5:1;
+	unsigned char	Extra:1;			// 到着案内フラグ(extra)
 	unsigned char	b4:1;
 	unsigned char	b3:1;
 	unsigned char	b2:1;
@@ -448,7 +462,7 @@ struct BACKUP_DATA {		// バックアップの情報
 		unsigned char	nowStationName;	// 現在処理中駅名コード
 		unsigned char	nowStationNo;	// 現在処理中駅名テーブルの番号
 		struct STATIONINFO *Station;	// 現在のステーション情報
-		unsigned char	nowEMGHL[8];	// 選択要求中非常通報器
+		unsigned char	nowEMGHL[16];	// 選択要求中非常通報器
 		unsigned char	nowEMGCode;		// 選択中非常放送コード
 		unsigned char	nowSPCCode;		// 選択中スペシャル放送コード
 
@@ -569,15 +583,19 @@ struct st_dualport{
 			} doorInfo;							// +14 ドア情報
 			union {		// 音声バス使用状況
 				struct {
-					unsigned char	BYTE[9];
+					unsigned char	BYTE[17];
 				} BYTE;
 				struct {
 					unsigned char	mode;		// 音声モード
-												//   0=CAB/CAB
-												//   1=Microphone
-												//   2=非常通報モード
-												//   3=列車無線モード
-												//   4=自動放送
+												//   00h=Active Car MCP CAB/CAB
+												//   10h=Active Car ACP CAB/CAB
+												//   20h=InActive Car MCP CAB/CAB
+												//   30h=InActive Car ACP CAB/CAB
+												//   01h=Microphone
+												//   02h=非常通報モード
+												//   03h=列車無線モード
+												//   04h=自動放送
+												//   05h=TEST Mode
 					struct {
 						unsigned char	b7:1;
 						unsigned char	b6:1;
@@ -587,7 +605,7 @@ struct st_dualport{
 						unsigned char	SP3:1;		// 非常通報器３
 						unsigned char	SP2:1;		// 非常通報器２
 						unsigned char	SP1:1;		// 非常通報器１
-					} paa[8];
+					} paa[16];
 				} BIT;
 			} voiceBus;							// +15,16,17,18,19,20,21,22,23 音声バス使用状況
 			union {		// ＭＣＰ表示灯データ
@@ -616,7 +634,7 @@ struct st_dualport{
 							unsigned short	RIGHT:1;
 							unsigned short	REP:1;
 						} BIT;
-					} swLED;							// +24 
+					} swLED;							// +24
 					unsigned char	lineDisplay[4][6];	// +25-+49 マトリックスデータ
 					union {
 						unsigned short	BYTE;
@@ -655,6 +673,19 @@ struct st_dualport{
 			unsigned char	dvau3;		// 非アクティブＤＶＡＵ信号
 			unsigned char	dvau_trouble;
 
+			unsigned short	otherCarNo;			// １６両編成時の車両番号（識別番号）
+			struct {
+				unsigned short	carNo:12;
+				unsigned short	carType:4;
+			} carInfo[8];						// １６両編成時の車両番号（ＰＡＡ識別用）
+			struct {
+
+				unsigned char	dvau1;		// 非アクティブＤＶＡＵ信号
+				unsigned char	dvau2;		// 非アクティブＤＶＡＵ信号
+				unsigned char	dvau3;		// 非アクティブＤＶＡＵ信号
+				unsigned char	dvau_trouble;
+			} otherCar[2];
+
 			union MCPSW {			// ＭＣＰからのスイッチ情報
 				struct {
 					unsigned char	BYTE[3];
@@ -687,7 +718,7 @@ struct st_dualport{
 					unsigned char	CAB:1;
 					unsigned char	EMGP:1;
 				} BIT;
-			} mcpSW[2];		// ＭＣＰからのスイッチ情報
+			} mcpSW[4];		// ＭＣＰからのスイッチ情報
 
 			union {				// ＰＡＡからの非常通報の情報
 				unsigned char	BYTE;
@@ -701,7 +732,7 @@ struct st_dualport{
 					unsigned char	RSC2:1;		// 非常通報器２
 					unsigned char	RSC1:1;		// 非常通報器１
 				} BIT;
-			} rscSW[8];			// PAA RSC Switch (Now)
+			} rscSW[16];			// PAA RSC Switch (Now)
 			union {				// ＰＡＡからのトラブル情報
 				unsigned char	BYTE;
 				struct {
@@ -714,7 +745,7 @@ struct st_dualport{
 					unsigned char	AMP2:1;		// アンプＣＨ．２故障
 					unsigned char	AMP1:1;		// アンプＣＨ．１故障
 				} BIT;
-			} trouble[8];		// PAA Trouble (Now) 
+			} trouble[16];		// PAA Trouble (Now)
 		} answerData;		// 下位からの通信情報
 
 
@@ -751,6 +782,12 @@ struct st_dualport{
 			unsigned char	broadCastOff:1;		// 自動放送禁止
 			unsigned char	doorOpenEffective:1;	// ドア状態変化
 			unsigned char	doorOpen:2;			// ドアオープン状態
+			unsigned char	doorStatus:1;		// ドアオープン状態 2001/07/10 add
+			struct {
+				unsigned short	carNo:12;
+				unsigned short	carType:4;
+			} carInfo[8];						// １６両編成時の車両番号（ＰＡＡ識別用）
+			unsigned char   PadReset[8];  // 非常通報器のリセット要求
 		} tms_request;		// ＴＭＳからの受信情報
 
 		struct {		// ＴＭＳへの情報
@@ -758,7 +795,7 @@ struct st_dualport{
 			union TMS_SD_COMMERR dvaCommError;
 			union TMS_SD_STATUS dvaStatus;
 		} tms_answer;		// ＴＭＳへの送信情報
-			
+
 		struct {		// ＥＶ５０００への情報
 			unsigned char	Initial:1;		// 初期設定要求
 			unsigned char	Request:1;		// 放送要求
@@ -768,14 +805,18 @@ struct st_dualport{
 			unsigned char	Repeat:1;		// リピート応答中
 			unsigned char	ev5000_error;	// エラーコード
 											//   0:Normal, 1:Timeout, 2:Error Responce
+			unsigned short	SentenceNo;		// 文章番号
 			union EV5000_SEQUENCE *Sequence;	// 放送シーケンスコード
 		} ev5000_request;
 
-		struct {	// ＥＩＤＳ送信情報
+		struct EIDS_MSG {	// ＥＩＤＳ送信情報
+			unsigned char	Reset;			// リセット信号状態 2001/07/04 追加
 			unsigned char	Message;		// メッセージコード
 			unsigned char	Door;			// ドア状態コード
 			unsigned char	Route;			// ルートコード
 			unsigned char	Station;		// 駅名コード
+			unsigned char	sendreq;			// 送信要求
+			unsigned char	ResetStatus;	// ＳＵＢ　ＣＰＵからＭＡＩＮ　ＣＰＵへ　リセット信号状態を通知する 2001/07/10 追加
 		} eids;		// ＥＩＤＳ送信情報
 
 		struct {	// ＭＣＰ／ＡＣＰコントロール状態
@@ -797,7 +838,8 @@ struct st_dualport{
 			unsigned char	REPOn:1;		// リピート放送要求
 			unsigned char	EMGPOn:1;		// 非常通報の要求
 			unsigned char	INUSE:1;		// １行目を使用中
-			unsigned char	EMGPHL[8];		// 非常通報器の選択番号
+			unsigned char	EMGPHL[16];		// 非常通報器の選択番号
+			unsigned char	PadReset[16];	// 非常通報器のリセット要求
 			unsigned char	EMGOn:1;		// 非常放送の放送要求
 			unsigned char	SPCOn:1;		// スペシャル放送の放送要求
 			unsigned char	EMGCode;		// 非常放送・スペシャル放送コード
@@ -807,13 +849,38 @@ struct st_dualport{
 			unsigned char	testRelease:1;	// テスト終了要求
 		} mcpMode;
 
+		unsigned char nowSPCCode;			// 放送中のスペシャル放送コード
+		unsigned char nowEMGCode;			// 放送中の非常放送コード
+
+		unsigned char	mn_stn_busy;		// 手動放送中
+		unsigned char	mn_nextStation;		// 次駅コード（手動放送中）
+		unsigned char	mn_destination;		// 最終駅コード（手動放送中）
+		unsigned char	mn_routeCode;		// ルートコード（手動放送中）
+
+		unsigned char	rttf_an_busy;		// a03. RTTF用放送中情報（0:停止中/1:放送中)
+		unsigned char	rttf_an_sendCode;	// a03. RTTF用放送中アナウンスコード
+
+		union {										// Pad Reset & Dry Contact コマンド設定
+			unsigned char	BYTE;
+			struct {
+				unsigned char	DryContact2:1;		// ドライコンタクト２設定
+				unsigned char	DryContact1:1;		// ドライコンタクト１設定
+				unsigned char	PadReset6:1;		// Pad Reset 6
+				unsigned char	PadReset5:1;		// Pad Reset 5
+				unsigned char	PadReset4:1;		// Pad Reset 4
+				unsigned char	PadReset3:1;		// Pad Reset 3
+				unsigned char	PadReset2:1;		// Pad Reset 2
+				unsigned char	PadReset1:1;		// Pad Reset 1
+			} BIT;
+		} PadRseetDryContact[16];
+	
 		unsigned char	download_active;
 		unsigned char	download_seq;
 		unsigned char	download_filename[16];	// ダウンロードファイル名
 		unsigned short	download_date;			// 日時情報
 		unsigned short	download_time;
 		unsigned short	download_size;			// ダウンロードデータサイズ
-		unsigned char	download_data[512];		// ダウンロードデータ
+		unsigned char	download_data[64];		// ダウンロードデータ
 
 		unsigned char	upload_active;
 		unsigned char	upload_seq;
@@ -821,9 +888,9 @@ struct st_dualport{
 		unsigned short	upload_date;			// 日時情報
 		unsigned short	upload_time;
 		unsigned short	upload_size;			// アップロードデータサイズ
-		unsigned char	upload_data[512];		// アップロードデータ
+		unsigned char	upload_data[64];		// アップロードデータ
 
-		unsigned char	dummy[774];
+		unsigned char	dummy[1553];
 
 		unsigned char	subActive;		// サブＣＰＵ起動中
 		unsigned char	mainActive;		// メインＣＰＵ起動中

@@ -29,7 +29,7 @@
 
 #include	"timer.h"
 
-#define		VERSION_INFO	0x0304
+#define		VERSION_INFO	0x0305
 
 /*@@@S*/
 /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・

@@ -1,0 +1,33 @@
+VERSION 5.00
+Begin VB.Form frmSDRSet 
+   BorderStyle     =   1  'å≈íË(é¿ê¸)
+   Caption         =   "TMS SET"
+   ClientHeight    =   6855
+   ClientLeft      =   45
+   ClientTop       =   330
+   ClientWidth     =   7395
+   BeginProperty Font 
+      Name            =   "Courier New"
+      Size            =   9
+      Charset         =   0
+      Weight          =   400
+      Underline       =   0   'False
+      Italic          =   0   'False
+      Strikethrough   =   0   'False
+   EndProperty
+   LinkTopic       =   "Form2"
+   MaxButton       =   0   'False
+   MDIChild        =   -1  'True
+   MinButton       =   0   'False
+   ScaleHeight     =   6855
+   ScaleWidth      =   7395
+   Begin VB.Timer CheckTImer 
+      Interval        =   2000
+      Left            =   6930
+      Top             =   810
+   End
+   Begin VB.CommandButton cmdClose 
+      Caption         =   "Close"
+      Height          =   555
+      Left            =   7590
+      TabIndex        =   0

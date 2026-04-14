@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:07  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -221,25 +221,25 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    107:                    if( DUALPORT.ev5000_request.Request ){
     000136 7A04001800             MOV.L       #1572864:32,ER4
            00           
-    00013C 6E4800F6               MOV.B       @(246:16,ER4),R0L
+    00013C 6E4800FE               MOV.B       @(254:16,ER4),R0L
     000140 7768                   BLD.B       #6,R0L
     000142 4440                   BCC         L333:8
                    108:                            tracep->eventID[6] = (DUALPORT.ev5000_request.Sequence[0].sendRequest.sendCode>>8);
-    000144 6E4000FA               MOV.B       @(250:16,ER4),R0H
-    000148 6E4800FB               MOV.B       @(251:16,ER4),R0L
+    000144 6E400102               MOV.B       @(258:16,ER4),R0H
+    000148 6E480103               MOV.B       @(259:16,ER4),R0L
     00014C 0D08                   MOV.W       R0,E0
-    00014E 6E4000FC               MOV.B       @(252:16,ER4),R0H
-    000152 6E4800FD               MOV.B       @(253:16,ER4),R0L
+    00014E 6E400104               MOV.B       @(260:16,ER4),R0H
+    000152 6E480105               MOV.B       @(261:16,ER4),R0L
     000156 6E010002               MOV.B       @(2:16,ER0),R1H
     00015A E101                   AND.B       #1:8,R1H
     00015C 0C19                   MOV.B       R1H,R1L
     00015E 6EE9000A               MOV.B       R1L,@(10:16,ER6)
                    109:                            tracep->eventID[7] = (DUALPORT.ev5000_request.Sequence[0].sendRequest.sendCode);
-    000162 6E4000FA               MOV.B       @(250:16,ER4),R0H
-    000166 6E4800FB               MOV.B       @(251:16,ER4),R0L
+    000162 6E400102               MOV.B       @(258:16,ER4),R0H
+    000166 6E480103               MOV.B       @(259:16,ER4),R0L
     00016A 0D08                   MOV.W       R0,E0
-    00016C 6E4000FC               MOV.B       @(252:16,ER4),R0H
-    000170 6E4800FD               MOV.B       @(253:16,ER4),R0L
+    00016C 6E400104               MOV.B       @(260:16,ER4),R0H
+    000170 6E480105               MOV.B       @(261:16,ER4),R0L
     000174 6E010002               MOV.B       @(2:16,ER0),R1H
     000178 6E090003               MOV.B       @(3:16,ER0),R1L
     00017C E101                   AND.B       #1:8,R1H
@@ -1843,7 +1843,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     008CB0 00000002               .RES.W      1
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:07  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

@@ -186,7 +186,12 @@ static	char	findOtherDVAUPollingCnt;	// 他の編成のポーリングを見つけたカウント 2
 
 static	int		max_receive_time;
 
-static	unsigned char	rtifsendbuff[256];	// RTIF用送信バッファー*/
+static	unsigned char	rtifsendbuff[256];	// RTIF用送信バッファー
+
+
+static	short dryContactCtrl_ph[8];					// ドライコントロールの管理フェーズ 0:スタンバイ/1:応答後
+static	short dryContactCtrl_checkin[8];			// ドライコントロールの非常ハンドル受付済記録
+static	short dryContactCtrl_polingrequest;			// ドライコントロールポーリングリクエスト
 
 /*@@@E*/
 /************************************************************************
@@ -223,6 +228,7 @@ void asci_0_send_ir( char tend )
 *************************************************************************/
 void dvauCommInitialize( void )
 {
+		int i;
 
 		asci_0_Initialize( 9600, 8, 'E', 0 );
 
@@ -239,6 +245,13 @@ void dvauCommInitialize( void )
 		otherDVAUPolling=0;
 		findOtherDVAUPollingCnt=0; // 2004/09/13 h.nishiura １６両編成新チェックロジック用
 		befCarNo = 0x0FFFF;		// 前回の車両番号をあり得ない値にして強制送信する
+		
+		for( i = 0 ; i < 8 ; i++ )
+		{
+			dryContactCtrl_ph[i] = 0;		// ドライコントロールの管理フェーズ
+			dryContactCtrl_checkin[i] = 0;	// ドライコントロールの非常ハンドル受付済記録
+			dryContactCtrl_polingrequest = 1; // ドライコントロールポーリングリクエスト
+		}
 }
 
 /************************************************************************
@@ -449,6 +462,95 @@ void dvauRTTFSend( unsigned char *senddata, int length, unsigned char *senddata_
 		}
 
 //		sendbuff[sendlen++] = 0;		/*ＲＴＳ切り替えタイミング用ダミー*/
+
+		max_receive_time = sendlen*12/10/10+3;
+		timedata.CommRecvTimer = max_receive_time;
+
+		recvActive = 0;
+
+		asci_0_transmit( sendbuff[sendcnt++] );		/*最初の１バイトを送信*/
+}
+
+/************************************************************************
+
+	Function name	<< dvauPadResetDryContactCmdSend >>
+					PadReset & DryContactコマンドの送信処理
+	Syntax			dvauPadResetDryContactCmdSend( void )
+	Argument		none
+	Author			TOA Corporation  h.nishiura
+	Revision		a00 2025/06/23
+*************************************************************************/
+void dvauPadResetDryContactSend( unsigned char *senddata )
+{
+		unsigned char	*p;			/*送信データポインター*/
+		unsigned char	sendbcc;	/*送信ＢＣＣ計算エリア*/
+		int		i,length;
+
+		if( DUALPORT2.mainActive==0 ){
+			return;
+		}
+
+		asci_0_tx_enable();		/*送信開始  RTS=ON*/
+
+		length = 10;
+	
+		sendcnt = 0;					/* 送信ポインター０クリア */
+		sendlen = 0;					/* 送信バイト数０クリア*/
+
+		/* DLE+STX を設定*/
+		sendbuff[sendlen++] = DLE;
+		sendbuff[sendlen++] = STX;
+	
+		sendbcc = 0;					/* 送信ＢＣＣの計算クリア */
+		p = senddata;					/* 送信エリアの内容をそのまま送信 */
+
+		/* データ長 [0] */
+		sendbcc ^= length;						/* 送信ＢＣＣの計算 */
+		if( length==STX || length==ETX || length==DLE ){
+			sendbuff[sendlen++] = DLE;			/*データのＤＬＥ拡張*/
+			sendbuff[sendlen++] = length + 0x40;
+		}
+		else {
+			sendbuff[sendlen++] = length;
+		}
+
+		/* アドレス [1-2] */
+		for( i=0; i<2; i++, p++ ){
+			sendbcc ^= *p;				/* 送信ＢＣＣの計算 */
+			if( *p==STX || *p==ETX || *p==DLE ){
+				sendbuff[sendlen++] = DLE;			/*データのＤＬＥ拡張*/
+				sendbuff[sendlen++] = *p + 0x40;
+			}
+			else {
+				sendbuff[sendlen++] = *p;
+			}
+		}
+	
+		/* PadReset,DryContact[3-10] */
+		for( i=0; i<8; i++ ){
+			p = &DUALPORT2.PadRseetDryContact[i].BYTE;
+			sendbcc ^= *p;				/* 送信ＢＣＣの計算 */
+			if( *p==STX || *p==ETX || *p==DLE ){
+				sendbuff[sendlen++] = DLE;			/*データのＤＬＥ拡張*/
+				sendbuff[sendlen++] = *p + 0x40;
+			}
+			else {
+				sendbuff[sendlen++] = *p;
+			}
+		}
+	
+		/* DLE+ETX を設定*/
+		sendbuff[sendlen++] = DLE;
+		sendbuff[sendlen++] = ETX;
+		sendbcc ^= ETX;			/* 送信ＢＣＣの計算*/
+
+		if( sendbcc==STX || sendbcc==ETX || sendbcc==DLE ){
+			sendbuff[sendlen++] = DLE;			/* ＢＣＣのＤＬＥ拡張 */
+			sendbuff[sendlen++] = sendbcc + 0x40;
+		}
+		else {
+			sendbuff[sendlen++] = sendbcc;		/* ＢＣＣの設定 */
+		}
 
 		max_receive_time = sendlen*12/10/10+3;
 		timedata.CommRecvTimer = max_receive_time;
@@ -1030,6 +1132,138 @@ unsigned short FilterPriorityMCPNo( unsigned short adr )
 
 }
 
+/************************************************************************
+
+	Function name	<< PADResetCtrl >>
+					PADリセット制御
+	Syntax			r=CheckPADReset();
+	Argument		unsigned cher r	o 	  : PADリセット要求 1:変化あり / 0:変化なし
+					Author			TOA Corporation  h.nishiura
+	Revision		a00 2025/06/23
+*************************************************************************/
+unsigned char PADResetDrycontCtrl()
+{
+	int i;
+	unsigned char pad_reset[8];
+	unsigned char ret = 0;
+	
+	for( i = 0 ; i < 8 ; i++ )
+	{
+		pad_reset[i] = DUALPORT2.tms_request.PadReset[i];
+		DUALPORT2.tms_request.PadReset[i]= 0;
+	}
+	for( i = 0 ; i < 8 ; i++ )
+	{
+		pad_reset[i] |= DUALPORT2.mcpMode.PadReset[i];
+		DUALPORT2.mcpMode.PadReset[i]= 0;
+	}
+
+	for( i = 0 ; i < 8 ; i++ )
+	{
+//		if( ((( DUALPORT2.PadRseetDryContact[i].BYTE & 0x3f ) ^ pad_reset[i]) & pad_reset[i] ) != 0 )
+		if( (( DUALPORT2.PadRseetDryContact[i].BYTE & 0x3f ) ^ pad_reset[i]) != 0 )
+		{
+			ret = 1;
+		}
+	}
+	
+	for( i = 0 ; i < 8 ; i++ )
+	{
+		DUALPORT2.PadRseetDryContact[i].BYTE = pad_reset[i] |( DUALPORT2.PadRseetDryContact[i].BYTE & 0xc0 );
+	}
+	
+	return ret;
+}
+
+/************************************************************************
+
+	Function name	<< DryContactCtrl >>
+					ドライコンタクト制御
+	Syntax			r=CheckPADReset();
+	Argument		unsigned cher r	o 	  : ドライコンタクト状態 1:変化あり / 0:変化なし
+					Author			TOA Corporation  h.nishiura
+	Revision		a00 2025/06/23
+*************************************************************************/
+unsigned char DryContactCtrl()
+{
+	int i;
+	unsigned char diffbit,ret = 0;
+	
+	
+	for( i = 0 ; i < 8 ; i++ )
+	{
+		switch(dryContactCtrl_ph[i])
+		{
+			case 0:
+				// スタンバイ
+				if( DUALPORT2.answerData.rscSW[i].BYTE == 0 )
+				{	// 非常ハンドル操作がなければDrycontactがopen(1)ならclose(0)へ
+					if( DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 == 1 )
+					{
+						DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 = 0;
+						ret = 1;
+					}
+					break;
+				}
+				else
+				{
+					dryContactCtrl_ph[i] = 1;
+				}
+			case 1:
+				diffbit = DUALPORT2.nowEMGHL[i] ^ DUALPORT2.answerData.rscSW[i].BYTE;
+				if ( diffbit == 0 )
+				{
+					/* トークバックとハンドルリクエストが一致 */
+					if ( DUALPORT2.answerData.rscSW[i].BYTE != 0 ) /* ハンドルリクエスト有り */
+					{
+						if( DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 == 1 )	/* Drycontactがopen(1)ならclose(0)へ */
+						{
+							DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 = 0;
+							ret = 1;
+							dryContactCtrl_checkin[i] |= DUALPORT2.nowEMGHL[i];		/* 受付済み記録 */
+						}
+					}
+					else	/* ハンドルリクエスト無し */
+					{
+						dryContactCtrl_checkin[i] = 0; /* 受付済み記録クリア */
+						dryContactCtrl_ph[i] = 0;	/* スタンバイへ */
+					}
+				}
+				else
+				{	
+					/* トークバックとハンドルリクエストが不一致 */
+					/* 現在のトークバックを除く受付済み記録でマスク */
+					diffbit = diffbit & ~(dryContactCtrl_checkin[i] & ~DUALPORT2.nowEMGHL[i] );
+					if( diffbit != 0)
+					{	/* 受付済み以外で差がある */
+						if( DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 == 0 )	/* Drycontactがclose(0)ならopen(1)へ */
+						{
+							DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 = 1;
+							ret = 1;
+						}
+					}
+					else
+					{	/* 受付済み以外で差がない */
+						if( DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 == 1 )	/* Drycontactがopen(1)ならclose(0)へ */
+						{
+							DUALPORT2.PadRseetDryContact[i].BIT.DryContact1 = 0;
+							ret = 1;
+							dryContactCtrl_checkin[i] |= DUALPORT2.nowEMGHL[i];		/* 受付済み記録 */
+						}
+					}
+				}
+				break;
+		}
+	}
+	
+	if (dryContactCtrl_polingrequest == 1 )
+	{
+		dryContactCtrl_polingrequest = 0;
+		ret = 1;
+	}
+	
+	return ret;
+}
 
 /************************************************************************
 
@@ -1068,34 +1302,66 @@ void dvaCommProc( void )
 					break;
 
 				case 1:		// PAA1
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError1 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError1 = 0;
 					recvretry[1] = 0;
 					break;
 				case 2:		// PAA2
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError2 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError2 = 0;
 					recvretry[2] = 0;
 					break;
 				case 3:		// PAA3
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError3 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError3 = 0;
 					recvretry[3] = 0;
 					break;
 				case 4:		// PAA4
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError4 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError4 = 0;
 					recvretry[4] = 0;
 					break;
 				case 5:		// PAA5
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError5 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError5 = 0;
 					recvretry[5] = 0;
 					break;
 				case 6:		// PAA6
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError6 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError6 = 0;
 					recvretry[6] = 0;
 					break;
 				case 7:		// PAA7
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError7 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError7 = 0;
 					recvretry[7] = 0;
 					break;
 				case 8:		// PAA8
+					if(DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError8 == 1)
+					{
+						dryContactCtrl_polingrequest = 1;
+					}
 					DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError8 = 0;
 					recvretry[8] = 0;
 					break;
@@ -1163,26 +1429,42 @@ void dvaCommProc( void )
 								break;
 							case 1:		// PAA1
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError1 = 1;
+								DUALPORT2.answerData.rscSW[0].BYTE = 0;
+								DUALPORT2.answerData.trouble[0].BYTE = 0;
 								break;
 							case 2:		// PAA2
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError2 = 1;
+								DUALPORT2.answerData.rscSW[1].BYTE = 0;
+								DUALPORT2.answerData.trouble[1].BYTE = 0;
 								break;
 							case 3:		// PAA3
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError3 = 1;
+								DUALPORT2.answerData.rscSW[2].BYTE = 0;
+								DUALPORT2.answerData.trouble[2].BYTE = 0;
 								break;
 							case 4:		// PAA4
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError4 = 1;
+								DUALPORT2.answerData.rscSW[3].BYTE = 0;
+								DUALPORT2.answerData.trouble[3].BYTE = 0;
 								break;
 							case 5:		// PAA5
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError5 = 1;
+								DUALPORT2.answerData.rscSW[4].BYTE = 0;
+								DUALPORT2.answerData.trouble[4].BYTE = 0;
 								break;
 							case 6:		// PAA6
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError6 = 1;
+								DUALPORT2.answerData.rscSW[5].BYTE = 0;
+								DUALPORT2.answerData.trouble[5].BYTE = 0;
 								break;
 							case 7:		// PAA7
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError7 = 1;
+								DUALPORT2.answerData.rscSW[6].BYTE = 0;
+								DUALPORT2.answerData.trouble[6].BYTE = 0;
 								break;
 							case 8:		// PAA8
+								DUALPORT2.answerData.rscSW[7].BYTE = 0;
+								DUALPORT2.answerData.trouble[7].BYTE = 0;
 								DUALPORT2.tms_answer.dvaCommError.BIT.paaCommError8 = 1;
 								break;
 							case 10:	// MCP1
@@ -1431,8 +1713,19 @@ DUALPORT2.dummy[33] = sendpolling.adr & 0x0FF;
 				}
 
 				if( adrTable[adrcnt] == 12 ){
-					sendpolling.adr = (FilterPriorityMCPNo(adrTable[adrcnt]) & 0x000F)
-							| ((DUALPORT2.pollingData.carNo << 4)& 0x0FFF0);
+					if( (PADResetDrycontCtrl() == 1 ) || ( DryContactCtrl() == 1 ) )
+					{	/* Padリセットまたはドライコンタクト制御が必要な場合は、
+						PadReset & DryContactコマンドの送信を優先 */
+						dvauPadResetDryContactSend((unsigned char *)&sendpolling);
+						dryContactCtrl_polingrequest = 0;
+						return;
+					}
+					else
+					{
+						/* 優先MCP-Xをポーリング */
+						sendpolling.adr = (FilterPriorityMCPNo(adrTable[adrcnt]) & 0x000F)
+								| ((DUALPORT2.pollingData.carNo << 4)& 0x0FFF0);
+					}
 				}
 
 				sendpolling.dataid = DUALPORT2.pollingData.dataID;

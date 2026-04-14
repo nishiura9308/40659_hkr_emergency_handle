@@ -1189,8 +1189,8 @@ void dvaMCPSWIn( void )
 
 		if( acceptSW==MCPSW_RST ){
 
-			if( mcp_phase == MCP_EMGP1 )
-			{
+			if( !(( backup_data.opeMode == OPEMODE_INITIAL_TEST ) || ( backup_data.opeMode == OPEMODE_SELF_TEST )) )
+			{	// テストモードで無い場合
 				goON = 0;
 				for( i=0; i<16; i++ ){
 					if( DUALPORT.answerData.rscSW[i].BYTE ){

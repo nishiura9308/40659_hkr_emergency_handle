@@ -17,9 +17,14 @@
 struct	POLLING {
 	unsigned short	adr;		/* Polling Address  */
 	unsigned char	kind;		/* Kind of Data
-									'P' = Normal Polling
-									'C' = Change nonActive DVAU
-									'I' = Initial Test
+									'S' = 車両番号登録ポーリング
+									'N' = 車両番号無視通常ポーリング
+									'M' = 車両番号付き通常ポーリング
+									'C' = ＨＣＲによるアクティブ変更ポーリング
+											非アクティブＤＶＡＵに対してアクティブになるよう要求
+									'I' = イニシャルテストによるアクティブ変更ポーリング
+									'T' = セルフテスト・ＴＭＳテストによるアクティブ変更ポーリング
+									'R' = リセット要求ポーリング
 								*/
 	unsigned char	dataid;		/* Data ID
 									00 = Test Abort
@@ -86,6 +91,7 @@ struct	DVAUSEND {
 	unsigned char	signal3;	/* InputSignal */
 	unsigned char	trouble;	/* Trouble Info */
 	unsigned short	version;	/* Software Version */
+	unsigned short	carNo[8];	/* Car No. PAA x 8 */
 };
 
 struct	DOWNLOAD {
@@ -100,7 +106,7 @@ struct	DOWNLOAD {
 	unsigned short	filedate;		/* Download File Date */
 	unsigned short	filetime;		/* Download File Time */
 	unsigned short	datasize;		/* Download Data Size */
-	unsigned char	data[512];		/* Download Data */
+	unsigned char	data[64];		/* Download Data */
 };
 
 struct	DOWNLOAD_ACK {
@@ -113,3 +119,4 @@ struct	DOWNLOAD_ACK {
 
 };
 
+

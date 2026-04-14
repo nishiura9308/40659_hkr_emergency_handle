@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:22  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:05  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -451,7 +451,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000272 4410                   BCC         L104:8
                    184:                                    DUALPORT.eids.Reset = 1;                        // リセット信号アクティブ 2001/07/04
     000274 F801                   MOV.B       #1:8,R0L
-    000276 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+    000276 6EE80106               MOV.B       R0L,@(262:16,ER6)
                    185:    
                    186:                                    dvaIOOut( 
                    187:                                            0
@@ -491,7 +491,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0002A2              L107:                             
                    203:                                    DUALPORT.eids.Reset = 1;                        // リセット信号アクティブ 2001/07/04
     0002A2 F801                   MOV.B       #1:8,R0L
-    0002A4 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+    0002A4 6EE80106               MOV.B       R0L,@(262:16,ER6)
                    204:    
                    205:                                    dvaIOOut( 
                    206:                                            0
@@ -520,7 +520,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0002C6              L109:                             
                    216:                                    DUALPORT.eids.Reset = 1;                        // リセット信号アクティブ 2001/07/04
     0002C6 F801                   MOV.B       #1:8,R0L
-    0002C8 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+    0002C8 6EE80106               MOV.B       R0L,@(262:16,ER6)
     0002CC              L108:                             
                    217:                            }
                    218:    
@@ -581,7 +581,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000014 00000002               .RES.W      1
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:22  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:05  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

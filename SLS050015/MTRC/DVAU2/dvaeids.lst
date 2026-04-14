@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)      9-Jan-2025  15:32:42  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:46:27  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -395,15 +395,15 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    242:                                    // リセット信号の確認
                    243:                                    if( befEIDS.Reset != DUALPORT2.eids.Reset ){    // リセット信号変化時 2001/07/04
     00016A 6858                   MOV.B       @ER5,R0L
-    00016C 6E6900FE               MOV.B       @(254:16,ER6),R1L
+    00016C 6E690106               MOV.B       @(262:16,ER6),R1L
     000170 1C98                   CMP.B       R1L,R0L
     000172 473E                   BEQ         L198:8
                    244:                                            befEIDS.Reset = DUALPORT2.eids.Reset;
-    000174 6E6800FE               MOV.B       @(254:16,ER6),R0L
+    000174 6E680106               MOV.B       @(262:16,ER6),R0L
     000178 68D8                   MOV.B       R0L,@ER5
                    245:                                            DUALPORT2.eids.Reset = 0;               // リセット信号の終了
     00017A 1888                   SUB.B       R0L,R0L
-    00017C 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+    00017C 6EE80106               MOV.B       R0L,@(262:16,ER6)
                    246:                                            if( befEIDS.Reset ){                    // Reset 0->1 Detect
     000180 6858                   MOV.B       @ER5,R0L
     000182 472E                   BEQ         L199:8
@@ -430,14 +430,14 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    254:    
                    255:                                                    DUALPORT2.eids.ResetStatus = 1; // リセット信号の通知 2001/07/10 add
     0001A0 F801                   MOV.B       #1:8,R0L
-    0001A2 6EE80104               MOV.B       R0L,@(260:16,ER6)
+    0001A2 6EE8010C               MOV.B       R0L,@(268:16,ER6)
                    256:    
                    257:                                                    eidsarea.Messages = 0x20;       // メッセージのＯＦＦ
     0001A6 F820                   MOV.B       #32:8,R0L
     0001A8 6EB80001               MOV.B       R0L,@(1:16,ER3)
                    258:                                                    DUALPORT2.eids.Message = 0;             // メッセージの終了
     0001AC 1888                   SUB.B       R0L,R0L
-    0001AE 6EE800FF               MOV.B       R0L,@(255:16,ER6)
+    0001AE 6EE80107               MOV.B       R0L,@(263:16,ER6)
     0001B2              L199:                             
     0001B2              L198:                             
                    259:                                            }
@@ -453,7 +453,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    265:                                            if( eidsResetCounter==0 ){              // リセット信号のタイムアップ
     0001BA 4622                   BNE         L203:8
                    266:                                                    if( DUALPORT2.eids.Reset==0 ){
-    0001BC 6E6800FE               MOV.B       @(254:16,ER6),R0L
+    0001BC 6E680106               MOV.B       @(262:16,ER6),R0L
     0001C0 4612                   BNE         L204:8
                    267:                                                            eidsarea.status.BIT.reset = 0;  // リセット信号のＯＦＦ
     0001C2 7A00                   MOV.L       #_$eidsarea+2:32,ER0
@@ -461,14 +461,14 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0001C8 7D007240               BCLR.B      #4,@ER0
                    268:                                                            DUALPORT2.eids.ResetStatus = 0; // リセット信号の通知 2001/07/10 add
     0001CC 1888                   SUB.B       R0L,R0L
-    0001CE 6EE80104               MOV.B       R0L,@(260:16,ER6)
+    0001CE 6EE8010C               MOV.B       R0L,@(268:16,ER6)
     0001D2 400A                   BRA         L205:8
     0001D4              L204:                             
                    269:                                                    }
                    270:                                                    else {
                    271:                                                            DUALPORT2.eids.Reset = 0;               // リセット信号の終了
     0001D4 1888                   SUB.B       R0L,R0L
-    0001D6 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+    0001D6 6EE80106               MOV.B       R0L,@(262:16,ER6)
                    272:                                                            eidsResetCounter=1;                             // 次回に再度チェックする
     0001DA F801                   MOV.B       #1:8,R0L
     0001DC 68C8                   MOV.B       R0L,@ER4
@@ -481,19 +481,19 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    276:    
                    277:                                    // メッセージと駅案内の確認
                    278:                                    if( DUALPORT2.eids.sendreq ){           // 送信要求あり
-    0001DE 6E680103               MOV.B       @(259:16,ER6),R0L
+    0001DE 6E68010B               MOV.B       @(267:16,ER6),R0L
     0001E2 474C                   BEQ         L206:8
                    279:                                            DUALPORT2.eids.sendreq = 0;
     0001E4 1888                   SUB.B       R0L,R0L
-    0001E6 6EE80103               MOV.B       R0L,@(259:16,ER6)
+    0001E6 6EE8010B               MOV.B       R0L,@(267:16,ER6)
                    280:    
                    281:                                            if( befEIDS.Message != DUALPORT2.eids.Message ){        // メッセージ変化あり 2001/07/04
     0001EA 6E580001               MOV.B       @(1:16,ER5),R0L
-    0001EE 6E6900FF               MOV.B       @(255:16,ER6),R1L
+    0001EE 6E690107               MOV.B       @(263:16,ER6),R1L
     0001F2 1C98                   CMP.B       R1L,R0L
     0001F4 472A                   BEQ         L207:8
                    282:                                                    befEIDS.Message = DUALPORT2.eids.Message;
-    0001F6 6E6800FF               MOV.B       @(255:16,ER6),R0L
+    0001F6 6E680107               MOV.B       @(263:16,ER6),R0L
     0001FA 6ED80001               MOV.B       R0L,@(1:16,ER5)
                    283:                                                    if( befEIDS.Message!=0 ){
     0001FE 4720                   BEQ         L208:8
@@ -511,17 +511,17 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000216 7D007240               BCLR.B      #4,@ER0
                    288:                                                            DUALPORT2.eids.ResetStatus = 0; // リセット信号の通知 2001/07/10 add
     00021A 1888                   SUB.B       R0L,R0L
-    00021C 6EE80104               MOV.B       R0L,@(260:16,ER6)
+    00021C 6EE8010C               MOV.B       R0L,@(268:16,ER6)
     000220              L208:                             
     000220              L207:                             
                    289:                                                    }
                    290:                                            }
                    291:    
                    292:                                            eidsarea.Station = DUALPORT2.eids.Station;                              // 駅名情報を送信
-    000220 6E680102               MOV.B       @(258:16,ER6),R0L
+    000220 6E68010A               MOV.B       @(266:16,ER6),R0L
     000224 6EB80005               MOV.B       R0L,@(5:16,ER3)
                    293:                                            eidsarea.Route = DUALPORT2.eids.Route;                                  // ルート情報を送信
-    000228 6E680101               MOV.B       @(257:16,ER6),R0L
+    000228 6E680109               MOV.B       @(265:16,ER6),R0L
     00022C 6EB80004               MOV.B       R0L,@(4:16,ER3)
     000230              L206:                             
                    294:                                    }
@@ -546,7 +546,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00024E 6EB80001               MOV.B       R0L,@(1:16,ER3)
                    301:                                                    DUALPORT2.eids.Message = 0;             // メッセージの終了
     000252 1888                   SUB.B       R0L,R0L
-    000254 6EE800FF               MOV.B       R0L,@(255:16,ER6)
+    000254 6EE80107               MOV.B       R0L,@(263:16,ER6)
                    302:                                                    befEIDS.Message = 0;
     000258 1888                   SUB.B       R0L,R0L
     00025A 6ED80001               MOV.B       R0L,@(1:16,ER5)
@@ -558,7 +558,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    306:                                    eidsarea.status.BIT.doorstatus = DUALPORT2.eids.Door;   // ドア情報を送信
     00025E 7A00                   MOV.L       #_$eidsarea+2:32,ER0
            <00000000>   
-    000264 6E690100               MOV.B       @(256:16,ER6),R1L
+    000264 6E690108               MOV.B       @(264:16,ER6),R1L
     000268 7709                   BLD.B       #0,R1L
     00026A 7D006730               BST.B       #3,@ER0
     00026E              L197:                             
@@ -1708,7 +1708,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00041B 00000204               .RES.B      516
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)      9-Jan-2025  15:32:42  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:46:27  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

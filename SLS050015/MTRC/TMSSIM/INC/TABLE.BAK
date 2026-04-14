@@ -513,8 +513,8 @@ struct st_dualboot{
 		unsigned char	ack;			/*  0=Boot Request, 1=Initial Ack, 2=Data Ack, 3=Reboot Ack */
 		unsigned char	request;		/*  0=None, 1=Initial, 2=Data, 3=Reboot */
 };
-#define DUALBOOT   (*(volatile struct st_dualboot *)0x180000) /* Dual Port Address*/
-#define DUALBOOT2   (*(volatile struct st_dualboot *)0x0C0000) /* Dual Port Address*/
+#define DUALBOOT   (*(volatile struct st_dualboot *)0x0C0000) /* Dual Port Address*/
+
 
 /** アプリケーション時のマップ **/
 struct st_dualport{
@@ -861,8 +861,6 @@ struct st_dualport{
 		unsigned char	rttf_an_busy;		// a03. RTTF用放送中情報（0:停止中/1:放送中)
 		unsigned char	rttf_an_sendCode;	// a03. RTTF用放送中アナウンスコード
 
-		unsigned char	nowEMGHL[16];		// 対応中の非常通報
-
 		union {										// Pad Reset & Dry Contact コマンド設定
 			unsigned char	BYTE;
 			struct {
@@ -893,7 +891,7 @@ struct st_dualport{
 		unsigned short	upload_size;			// アップロードデータサイズ
 		unsigned char	upload_data[64];		// アップロードデータ
 
-		unsigned char	dummy[1521];
+		unsigned char	dummy[1553];
 
 		unsigned char	subActive;		// サブＣＰＵ起動中
 		unsigned char	mainActive;		// メインＣＰＵ起動中
@@ -903,7 +901,6 @@ struct st_dualport{
 };
 
 
-#define DUALPORT   (*(volatile struct st_dualport *)0x180000) /* Dual Port Address*/
-#define DUALPORT2   (*(volatile struct st_dualport *)0x0C0000) /* Dual Port Address*/
+#define DUALPORT   (*(volatile struct st_dualport *)0x0C0000) /* Dual Port Address*/
 
 #endif

@@ -2,23 +2,23 @@ VERSION 5.00
 Begin VB.Form frmSD 
    BorderStyle     =   1  'å≈íË(é¿ê¸)
    Caption         =   "SD Monitor"
-   ClientHeight    =   5820
+   ClientHeight    =   6105
    ClientLeft      =   45
    ClientTop       =   330
-   ClientWidth     =   8715
+   ClientWidth     =   8505
    ControlBox      =   0   'False
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MDIChild        =   -1  'True
    MinButton       =   0   'False
-   ScaleHeight     =   5820
-   ScaleWidth      =   8715
+   ScaleHeight     =   6105
+   ScaleWidth      =   8505
    Begin VB.Frame SDFrame 
       Caption         =   "TMS SD Monitor"
-      Height          =   5745
-      Left            =   90
+      Height          =   5865
+      Left            =   120
       TabIndex        =   0
-      Top             =   60
+      Top             =   240
       Width           =   8595
       Begin VB.Frame Frame11 
          Caption         =   "Car Info"

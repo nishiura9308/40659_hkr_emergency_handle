@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:45  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:46:26  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -103,8 +103,8 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                     79:                    strcpy( DUALPORT2.dummy, "END " );
     000022 7A01                   MOV.L       #L94:32,ER1
            <00000000>   
-    000028 7A00000001             MOV.L       #467:32,ER0
-           D3           
+    000028 7A00000002             MOV.L       #523:32,ER0
+           0B           
     00002E 0AE0                   ADD.L       ER6,ER0
     000030 5E                     JSR         @_strcpy:24
            <000000>     
@@ -179,7 +179,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000002 00000800               .RES.B      2048
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:45  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:46:26  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

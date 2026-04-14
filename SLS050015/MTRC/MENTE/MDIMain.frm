@@ -1,12 +1,12 @@
 VERSION 5.00
 Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
-Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.2#0"; "comdlg32.ocx"
+Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.2#0"; "COMDLG32.OCX"
 Begin VB.MDIForm MDIMain 
    BackColor       =   &H8000000C&
    Caption         =   "Maintenance Terminal"
    ClientHeight    =   6150
    ClientLeft      =   165
-   ClientTop       =   735
+   ClientTop       =   855
    ClientWidth     =   9570
    LinkTopic       =   "MDIForm1"
    StartUpPosition =   3  'Windows ‚ÌŠù’è’l
@@ -24,25 +24,25 @@ Begin VB.MDIForm MDIMain
          NumPanels       =   6
          BeginProperty Panel1 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             AutoSize        =   1
-            Object.Width           =   3175
+            Object.Width           =   3149
             Text            =   "Connect"
             TextSave        =   "Connect"
          EndProperty
          BeginProperty Panel2 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             AutoSize        =   1
-            Object.Width           =   3175
+            Object.Width           =   3149
             Text            =   "Action"
             TextSave        =   "Action"
          EndProperty
          BeginProperty Panel3 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             AutoSize        =   1
-            Object.Width           =   3175
+            Object.Width           =   3149
             Text            =   "Filename"
             TextSave        =   "Filename"
          EndProperty
          BeginProperty Panel4 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             AutoSize        =   1
-            Object.Width           =   3175
+            Object.Width           =   3149
             Text            =   "Progress"
             TextSave        =   "Progress"
          EndProperty
@@ -50,13 +50,13 @@ Begin VB.MDIForm MDIMain
             Style           =   6
             Object.Width           =   1764
             MinWidth        =   1764
-            TextSave        =   "2005/04/18"
+            TextSave        =   "2025/08/25"
          EndProperty
          BeginProperty Panel6 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             Style           =   5
             Object.Width           =   1764
             MinWidth        =   1764
-            TextSave        =   "13:58"
+            TextSave        =   "11:33"
          EndProperty
       EndProperty
    End
@@ -401,6 +401,12 @@ Private Sub menteComm_RecvSDR(ByVal str As String)
                 frmSDR.carType2(i).Text = Mid$(str, 5 + i * 4 + 3, 1)
             Next i
             Exit Sub
+        Case "SDRC"
+            For i = 0 To 39
+                frmSDR.EAHR(i).Text = Mid$(str, 5 + i * 4, 4)
+            Next i
+            Exit Sub
+            
         End Select
 End Sub
 

@@ -2,10 +2,10 @@ VERSION 5.00
 Begin VB.Form frmSDR 
    BorderStyle     =   1  'å≈íË(é¿ê¸)
    Caption         =   "TMS SDR monitor"
-   ClientHeight    =   7200
+   ClientHeight    =   8595
    ClientLeft      =   45
    ClientTop       =   330
-   ClientWidth     =   9885
+   ClientWidth     =   8295
    BeginProperty Font 
       Name            =   "Courier New"
       Size            =   9
@@ -19,22 +19,22 @@ Begin VB.Form frmSDR
    MaxButton       =   0   'False
    MDIChild        =   -1  'True
    MinButton       =   0   'False
-   ScaleHeight     =   7200
-   ScaleWidth      =   9885
+   ScaleHeight     =   8595
+   ScaleWidth      =   8295
    Begin VB.CommandButton cmdClose 
       Caption         =   "Close"
       Height          =   555
-      Left            =   7590
+      Left            =   7200
       TabIndex        =   97
-      Top             =   6120
+      Top             =   8040
       Width           =   1065
    End
    Begin VB.Frame TBLFrame 
       Caption         =   "Trouble Information"
       Height          =   3915
-      Left            =   0
+      Left            =   240
       TabIndex        =   184
-      Top             =   0
+      Top             =   120
       Width           =   7995
       Begin VB.TextBox Trouble 
          Enabled         =   0   'False
@@ -688,9 +688,9 @@ Begin VB.Form frmSDR
       Begin VB.CommandButton Command1 
          Caption         =   "SDR Monitor"
          Height          =   555
-         Left            =   6240
+         Left            =   6360
          TabIndex        =   189
-         Top             =   270
+         Top             =   360
          Width           =   1455
       End
       Begin VB.Label Label14 
@@ -778,9 +778,9 @@ Begin VB.Form frmSDR
    Begin VB.Frame SDFrame 
       Caption         =   "TMS SD Monitor"
       Height          =   5775
-      Left            =   0
+      Left            =   240
       TabIndex        =   98
-      Top             =   0
+      Top             =   120
       Width           =   7995
       Begin VB.Frame Frame17 
          Caption         =   "Version"
@@ -819,7 +819,7 @@ Begin VB.Form frmSDR
       Begin VB.Frame Frame16 
          Caption         =   "TEST"
          Height          =   1455
-         Left            =   150
+         Left            =   120
          TabIndex        =   145
          Top             =   240
          Width           =   3495
@@ -1584,33 +1584,33 @@ Begin VB.Form frmSDR
    End
    Begin VB.Frame SDRFrame 
       Caption         =   "TMS SDR Monitor"
-      Height          =   6825
-      Left            =   0
+      Height          =   8025
+      Left            =   120
       TabIndex        =   0
-      Top             =   0
-      Width           =   7995
+      Top             =   120
+      Width           =   8115
       Begin VB.CommandButton cmdSD 
          Caption         =   "SD Monitor"
          Height          =   555
-         Left            =   6270
+         Left            =   6320
          TabIndex        =   1
          Top             =   180
          Width           =   1545
       End
       Begin VB.Frame Frame8 
          Caption         =   "Open Active"
-         Height          =   1515
+         Height          =   915
          Left            =   150
          TabIndex        =   85
-         Top             =   3030
-         Width           =   1395
+         Top             =   3000
+         Width           =   2805
          Begin VB.TextBox doorEffective 
-            Height          =   315
-            Left            =   180
+            Height          =   330
+            Left            =   1380
             Locked          =   -1  'True
             TabIndex        =   178
             Text            =   "DOOR"
-            Top             =   1020
+            Top             =   480
             Width           =   645
          End
          Begin VB.TextBox DoorLeft 
@@ -1634,9 +1634,9 @@ Begin VB.Form frmSDR
          Begin VB.Label Label11 
             Caption         =   "Door Effect"
             Height          =   285
-            Left            =   180
+            Left            =   1380
             TabIndex        =   179
-            Top             =   840
+            Top             =   285
             Width           =   1035
          End
          Begin VB.Label Label9 
@@ -1659,167 +1659,577 @@ Begin VB.Form frmSDR
       Begin VB.Frame Frame5 
          Caption         =   "Car Info"
          Height          =   3675
-         Left            =   2490
+         Left            =   150
          TabIndex        =   27
-         Top             =   3000
-         Width           =   4755
+         Top             =   3960
+         Width           =   7815
+         Begin VB.Frame FrameReset 
+            Caption         =   "EAH Reset(Physical layout)"
+            Height          =   3315
+            Index           =   1
+            Left            =   4390
+            TabIndex        =   256
+            Top             =   210
+            Width           =   3290
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   0
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   296
+               Text            =   "V1"
+               Top             =   300
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   1
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   295
+               Text            =   "V2"
+               Top             =   300
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   2
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   294
+               Text            =   "V3"
+               Top             =   300
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   3
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   293
+               Text            =   "V4"
+               Top             =   300
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   4
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   292
+               Text            =   "V5"
+               Top             =   300
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   5
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   291
+               Text            =   "Z1"
+               Top             =   640
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   6
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   290
+               Text            =   "Z2"
+               Top             =   640
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   7
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   289
+               Text            =   "Z3"
+               Top             =   640
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   8
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   288
+               Text            =   "Z4"
+               Top             =   645
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   9
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   287
+               Text            =   "Z5"
+               Top             =   645
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   10
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   286
+               Text            =   "X1"
+               Top             =   975
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   11
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   285
+               Text            =   "X2"
+               Top             =   975
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   12
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   284
+               Text            =   "X3"
+               Top             =   975
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   13
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   283
+               Text            =   "X4"
+               Top             =   975
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   14
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   282
+               Text            =   "X5"
+               Top             =   975
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   15
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   281
+               Text            =   "W1"
+               Top             =   1335
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   16
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   280
+               Text            =   "W2"
+               Top             =   1335
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   17
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   279
+               Text            =   "W3"
+               Top             =   1335
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   18
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   278
+               Text            =   "W4"
+               Top             =   1335
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   19
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   277
+               Text            =   "W5"
+               Top             =   1335
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   20
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   276
+               Text            =   "Y1"
+               Top             =   1680
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   21
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   275
+               Text            =   "Y2"
+               Top             =   1680
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   22
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   274
+               Text            =   "Y3"
+               Top             =   1680
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   23
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   273
+               Text            =   "Y4"
+               Top             =   1680
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   24
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   272
+               Text            =   "Y5"
+               Top             =   1680
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   25
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   271
+               Text            =   "X1"
+               Top             =   2040
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   26
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   270
+               Text            =   "X2"
+               Top             =   2040
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   27
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   269
+               Text            =   "X3"
+               Top             =   2040
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   28
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   268
+               Text            =   "X4"
+               Top             =   2040
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   29
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   267
+               Text            =   "X5"
+               Top             =   2040
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   30
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   266
+               Text            =   "Z1"
+               Top             =   2385
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   31
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   265
+               Text            =   "Z2"
+               Top             =   2385
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   32
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   264
+               Text            =   "Z3"
+               Top             =   2385
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   33
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   263
+               Text            =   "Z4"
+               Top             =   2385
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   34
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   262
+               Text            =   "Z5"
+               Top             =   2385
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   35
+               Left            =   120
+               Locked          =   -1  'True
+               TabIndex        =   261
+               Text            =   "V1"
+               Top             =   2715
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   36
+               Left            =   740
+               Locked          =   -1  'True
+               TabIndex        =   260
+               Text            =   "V2"
+               Top             =   2715
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   37
+               Left            =   1340
+               Locked          =   -1  'True
+               TabIndex        =   259
+               Text            =   "V3"
+               Top             =   2715
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   330
+               Index           =   38
+               Left            =   1940
+               Locked          =   -1  'True
+               TabIndex        =   258
+               Text            =   "V4"
+               Top             =   2715
+               Width           =   600
+            End
+            Begin VB.TextBox EAHR 
+               Height          =   360
+               Index           =   39
+               Left            =   2540
+               Locked          =   -1  'True
+               TabIndex        =   257
+               Text            =   "V5"
+               Top             =   2715
+               Width           =   600
+            End
+         End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   7
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   84
             Text            =   "0"
             Top             =   2880
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   6
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   83
             Text            =   "0"
             Top             =   2520
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   5
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   82
             Text            =   "0"
             Top             =   2175
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   4
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   81
             Text            =   "0"
             Top             =   1845
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   3
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   80
             Text            =   "0"
             Top             =   1500
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   2
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   79
             Text            =   "0"
             Top             =   1155
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   1
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   78
             Text            =   "0"
             Top             =   825
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox carType2 
             Height          =   330
             Index           =   0
-            Left            =   720
+            Left            =   550
             Locked          =   -1  'True
             TabIndex        =   77
             Text            =   "0"
             Top             =   480
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   7
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   76
             Text            =   "000"
             Top             =   2880
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   6
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   75
             Text            =   "000"
             Top             =   2520
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   5
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   74
             Text            =   "000"
             Top             =   2175
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   4
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   73
             Text            =   "000"
             Top             =   1845
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   3
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   72
             Text            =   "000"
             Top             =   1500
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   2
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   71
             Text            =   "000"
             Top             =   1155
-            Width           =   465
+            Width           =   385
          End
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   1
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   70
             Text            =   "000"
             Top             =   825
-            Width           =   465
+            Width           =   385
          End
-         Begin VB.Frame Frame6 
+         Begin VB.Frame FrameTalkback 
             Caption         =   "EAH Talkback(Physical layout)"
             Height          =   3315
-            Left            =   1260
+            Index           =   0
+            Left            =   1040
             TabIndex        =   29
             Top             =   210
-            Width           =   3315
+            Width           =   3290
             Begin VB.TextBox EAH 
                Height          =   360
                Index           =   39
@@ -2224,12 +2634,12 @@ Begin VB.Form frmSDR
          Begin VB.TextBox CarNo2 
             Height          =   330
             Index           =   0
-            Left            =   150
+            Left            =   120
             Locked          =   -1  'True
             TabIndex        =   28
             Text            =   "000"
             Top             =   480
-            Width           =   465
+            Width           =   385
          End
       End
       Begin VB.Frame Frame4 
@@ -2542,7 +2952,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
-Option Explicit
+ Option Explicit
 
 Public Sub DoModeless()
 

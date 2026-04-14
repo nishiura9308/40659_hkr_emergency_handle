@@ -464,6 +464,22 @@ int TMSSDR_command(char *p)
 				p += sprintf( p, "%1X", tms_sdr_data.SDR.carInfo2[i].carType );
 			}
 
+			sendmode++;
+			break;
+
+		case 12:
+				// 非常通報器リセット
+			p += sprintf( p, "SDRC" );
+			for( i=0; i<8; i++ ){
+				for( j=0; j<5; j++ ){
+					if( tms_sdr_data.SDR.PadReset[i] & (0x01<<j) ){
+						p+= sprintf( p, "%s", TalkBackTable[i][j] );
+					}
+					else {
+						p+= sprintf( p, "    " );
+					}
+				}
+			}
 			sendmode=0;
 			break;
 		}
@@ -2223,6 +2239,33 @@ int SDRB_command(char *p)
 		return( 0 );
 }
 
+/****** SDRC ******/
+int SDRC_command(char *p)
+{
+		int		i,j;
+
+		sendmode = 0;
+
+				// 非常通報器リセット
+		for( i=0; i<8; i++ ){
+			for( j=0; j<5; j++ ){
+				if( memcmp( p, TalkBackTable[i][j], 4 )==0 ){
+					tms_sdr_data.SDR.PadReset[i] |= (0x0001<<j);
+				}
+				else {
+					tms_sdr_data.SDR.PadReset[i] &= ~(0x0001<<j);
+				}
+				p+=4;
+			}
+		}
+
+			tms_simulate();
+
+			sprintf( sendbuff, "OK" );
+
+		return( 0 );
+}
+
 #endif
 
 struct JUMP_STR {
@@ -2252,6 +2295,7 @@ static	struct JUMP_STR cmdtable[] = {
 	"SDR9",	SDR9_command,
 	"SDRA",	SDRA_command,
 	"SDRB",	SDRB_command,
+	"SDRC",	SDRC_command,
 #endif
 
 	"D ",		D_command,

@@ -1,12 +1,12 @@
 VERSION 5.00
 Object = "{831FDD16-0C5C-11D2-A9FC-0000F8754DA1}#2.0#0"; "MSCOMCTL.OCX"
-Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.2#0"; "comdlg32.ocx"
+Object = "{F9043C88-F6F2-101A-A3C9-08002B2F49FB}#1.2#0"; "Comdlg32.ocx"
 Begin VB.MDIForm MDIMain 
    BackColor       =   &H8000000C&
    Caption         =   "TMS Simulator"
    ClientHeight    =   5130
    ClientLeft      =   165
-   ClientTop       =   735
+   ClientTop       =   855
    ClientWidth     =   10800
    LinkTopic       =   "MDIForm1"
    StartUpPosition =   3  'Windows ‚ÌŠù’è’l
@@ -104,13 +104,13 @@ Begin VB.MDIForm MDIMain
             Style           =   6
             Object.Width           =   1764
             MinWidth        =   1764
-            TextSave        =   "2005/04/18"
+            TextSave        =   "2001/01/01"
          EndProperty
          BeginProperty Panel6 {8E3867AB-8586-11D1-B16A-00C0F0283628} 
             Style           =   5
             Object.Width           =   1764
             MinWidth        =   1764
-            TextSave        =   "13:56"
+            TextSave        =   "1:51"
          EndProperty
       EndProperty
    End
@@ -357,6 +357,7 @@ Private Sub menteComm_RecvSD(ByVal str As String)
             Exit Sub
         Case "SD3"
             For i = 0 To 39
+            '    frmSDR.EAHActive(i).Text = Mid$(str, 5 + i * 4, 4)
                 frmSDR.EAHActive(i).Text = Mid$(str, 4 + i * 4, 4)
             Next i
             Exit Sub
@@ -414,9 +415,10 @@ Private Sub menteComm_RecvSDR(ByVal str As String)
             Exit Sub
         Case "SDR8"
             For i = 0 To 39
-                frmSDR.EAH(i).Text = Mid$(str, 5 + i * 4, 4)
+                 frmSDR.EAH(i).Text = Mid$(str, 5 + i * 4, 4)
             Next i
             Exit Sub
+            
         Case "SDR9"
             If Mid$(str, 5, 2) = "PA" Then
                 frmSDR.broadcast.Text = "ATC"
@@ -441,6 +443,13 @@ Private Sub menteComm_RecvSDR(ByVal str As String)
                 frmSDR.carType2(i).Text = Mid$(str, 5 + i * 4 + 3, 1)
             Next i
             Exit Sub
+            
+        Case "SDRC"
+            For i = 0 To 39
+                 frmSDR.EAHR(i).Text = Mid$(str, 5 + i * 4, 4)
+            Next i
+            Exit Sub
+            
         End Select
 End Sub
 

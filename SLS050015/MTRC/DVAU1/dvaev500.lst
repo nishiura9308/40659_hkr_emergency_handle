@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:07  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -147,32 +147,32 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00002C 7A06001800             MOV.L       #1572864:32,ER6
            00           
     000032 1A80                   SUB.L       ER0,ER0
-    000034 F8F6                   MOV.B       #-10:8,R0L
+    000034 F8FE                   MOV.B       #-2:8,R0L
     000036 0AE0                   ADD.L       ER6,ER0
     000038 7D007070               BSET.B      #7,@ER0
                    121:                    DUALPORT.ev5000_request.Abort=0;
     00003C 1A80                   SUB.L       ER0,ER0
-    00003E F8F6                   MOV.B       #-10:8,R0L
+    00003E F8FE                   MOV.B       #-2:8,R0L
     000040 0AE0                   ADD.L       ER6,ER0
     000042 7D007250               BCLR.B      #5,@ER0
                    122:                    DUALPORT.ev5000_request.Complete=0;
     000046 1A80                   SUB.L       ER0,ER0
-    000048 F8F6                   MOV.B       #-10:8,R0L
+    000048 F8FE                   MOV.B       #-2:8,R0L
     00004A 0AE0                   ADD.L       ER6,ER0
     00004C 7D007240               BCLR.B      #4,@ER0
                    123:                    DUALPORT.ev5000_request.Request=0;
     000050 1A80                   SUB.L       ER0,ER0
-    000052 F8F6                   MOV.B       #-10:8,R0L
+    000052 F8FE                   MOV.B       #-2:8,R0L
     000054 0AE0                   ADD.L       ER6,ER0
     000056 7D007260               BCLR.B      #6,@ER0
                    124:                    DUALPORT.ev5000_request.Repeat=0;
     00005A 1A80                   SUB.L       ER0,ER0
-    00005C F8F6                   MOV.B       #-10:8,R0L
+    00005C F8FE                   MOV.B       #-2:8,R0L
     00005E 0AE0                   ADD.L       ER6,ER0
     000060 7D007220               BCLR.B      #2,@ER0
                    125:                    DUALPORT.ev5000_request.ev5000_error = 0;
     000064 1888                   SUB.B       R0L,R0L
-    000066 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000066 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    126:    
                    127:                    timedata.dateActive = 0;
     00006A 79000000               MOV.W       #0:16,R0
@@ -386,10 +386,10 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    205:                            DUALPORT.rttf_an_busy = 0;              // a05 RTTF用放送中情報（0:停止中/1:放送中) － SETUPフェーズは初期化を兼ねて放送停止中
     0001B0 1888                   SUB.B       R0L,R0L
-    0001B2 6EE80121               MOV.B       R0L,@(289:16,ER6)
+    0001B2 6EE80139               MOV.B       R0L,@(313:16,ER6)
                    206:    
                    207:                            if( DUALPORT.ev5000_request.Initial ){  // 初期設定要求受け付け
-    0001B6 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001B6 6E6800FE               MOV.B       @(254:16,ER6),R0L
     0001BA 4A06                   BPL         L257:8
                    208:                                    phase = SEND_INITIAL;           // 初期設定処理へ
     0001BC F801                   MOV.B       #1:8,R0L
@@ -399,21 +399,21 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0001C2              L257:                             
                    210:                            }
                    211:                            if( DUALPORT.ev5000_request.Abort ){    // 放送中止受け付け
-    0001C2 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001C2 6E6800FE               MOV.B       @(254:16,ER6),R0L
     0001C6 7758                   BLD.B       #5,R0L
     0001C8 4422                   BCC         L258:8
                    212:                                    DUALPORT.ev5000_request.Abort=0;
     0001CA 1A80                   SUB.L       ER0,ER0
-    0001CC F8F6                   MOV.B       #-10:8,R0L
+    0001CC F8FE                   MOV.B       #-2:8,R0L
     0001CE 0AE0                   ADD.L       ER6,ER0
     0001D0 7D007250               BCLR.B      #5,@ER0
                    213:                                    if( DUALPORT.ev5000_request.Request==0 ){
-    0001D4 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001D4 6E6800FE               MOV.B       @(254:16,ER6),R0L
     0001D8 7768                   BLD.B       #6,R0L
     0001DA 58500F32               BCS         L256:16
                    214:                                            DUALPORT.ev5000_request.Complete = 1;   // 放送中断時、次の要求がなければ　完了したとする
     0001DE 1A80                   SUB.L       ER0,ER0
-    0001E0 F8F6                   MOV.B       #-10:8,R0L
+    0001E0 F8FE                   MOV.B       #-2:8,R0L
     0001E2 0AE0                   ADD.L       ER6,ER0
     0001E4 7D007040               BSET.B      #4,@ER0
                    215:    
@@ -427,12 +427,12 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0001EC              L258:                             
                    221:                            }
                    222:                            if( DUALPORT.ev5000_request.Request ){  // 放送要求受付
-    0001EC 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001EC 6E6800FE               MOV.B       @(254:16,ER6),R0L
     0001F0 7768                   BLD.B       #6,R0L
     0001F2 4420                   BCC         L260:8
                    223:                                    DUALPORT.ev5000_request.Request=0;
     0001F4 1A80                   SUB.L       ER0,ER0
-    0001F6 F8F6                   MOV.B       #-10:8,R0L
+    0001F6 F8FE                   MOV.B       #-2:8,R0L
     0001F8 0AE0                   ADD.L       ER6,ER0
     0001FA 7D007260               BCLR.B      #6,@ER0
                    224:    
@@ -460,12 +460,12 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000214              L260:                             
                    235:                            }
                    236:                            else if( DUALPORT.ev5000_request.Complete==0 ){
-    000214 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    000214 6E6800FE               MOV.B       @(254:16,ER6),R0L
     000218 7748                   BLD.B       #4,R0L
     00021A 4516                   BCS         L262:8
                    237:                                    DUALPORT.ev5000_request.Complete = 1;   // 放送終了
     00021C 1A80                   SUB.L       ER0,ER0
-    00021E F8F6                   MOV.B       #-10:8,R0L
+    00021E F8FE                   MOV.B       #-2:8,R0L
     000220 0AE0                   ADD.L       ER6,ER0
     000222 7D007040               BSET.B      #4,@ER0
                    238:    
@@ -506,11 +506,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    256:    
                    257:                    case SEND_WAIT:         // 放送前ウェイト
                    258:                            timedata.ev5000timer = DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.timewait * 10;
-    00024A 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    00024E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00024A 6E600102               MOV.B       @(258:16,ER6),R0H
+    00024E 6E680103               MOV.B       @(259:16,ER6),R0L
     000252 0D08                   MOV.W       R0,E0
-    000254 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000258 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000254 6E600104               MOV.B       @(260:16,ER6),R0H
+    000258 6E680105               MOV.B       @(261:16,ER6),R0L
     00025C 0FA1                   MOV.L       ER2,ER1
     00025E 0A90                   ADD.L       ER1,ER0
     000260 6801                   MOV.B       @ER0,R1H
@@ -557,11 +557,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
     0002B4              L266:                             
                    269:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
-    0002B4 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0002B8 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0002B4 6E600102               MOV.B       @(258:16,ER6),R0H
+    0002B8 6E680103               MOV.B       @(259:16,ER6),R0L
     0002BC 0D08                   MOV.W       R0,E0
-    0002BE 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0002C2 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0002BE 6E600104               MOV.B       @(260:16,ER6),R0H
+    0002C2 6E680105               MOV.B       @(261:16,ER6),R0L
     0002C6 6849                   MOV.B       @ER4,R1L
     0002C8 17D1                   EXTS.W      R1
     0002CA 17F1                   EXTS.L      ER1
@@ -579,11 +579,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    272:                                                    }
                    273:                                            }
                    274:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
-    0002E0 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0002E4 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0002E0 6E600102               MOV.B       @(258:16,ER6),R0H
+    0002E4 6E680103               MOV.B       @(259:16,ER6),R0L
     0002E8 0D08                   MOV.W       R0,E0
-    0002EA 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0002EE 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0002EA 6E600104               MOV.B       @(260:16,ER6),R0H
+    0002EE 6E680105               MOV.B       @(261:16,ER6),R0L
     0002F2 6849                   MOV.B       @ER4,R1L
     0002F4 17D1                   EXTS.W      R1
     0002F6 17F1                   EXTS.L      ER1
@@ -604,11 +604,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    277:                                                    }
                    278:                                            }
                    279:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
-    000314 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    000318 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000314 6E600102               MOV.B       @(258:16,ER6),R0H
+    000318 6E680103               MOV.B       @(259:16,ER6),R0L
     00031C 0D08                   MOV.W       R0,E0
-    00031E 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000322 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    00031E 6E600104               MOV.B       @(260:16,ER6),R0H
+    000322 6E680105               MOV.B       @(261:16,ER6),R0L
     000326 6849                   MOV.B       @ER4,R1L
     000328 17D1                   EXTS.W      R1
     00032A 17F1                   EXTS.L      ER1
@@ -644,7 +644,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00035A 4D1C                   BLT         L275:8
                    287:                                            DUALPORT.ev5000_request.Complete=1;     //放送文終了
     00035C 1A80                   SUB.L       ER0,ER0
-    00035E F8F6                   MOV.B       #-10:8,R0L
+    00035E F8FE                   MOV.B       #-2:8,R0L
     000360 0AE0                   ADD.L       ER6,ER0
     000362 7D007040               BSET.B      #4,@ER0
                    288:                                            phase = SEND_SETUP;
@@ -679,7 +679,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00037C              L265:                             
                    305:                            }
                    306:                            if( DUALPORT.ev5000_request.Abort ){            // 放送キャンセル
-    00037C 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    00037C 6E6800FE               MOV.B       @(254:16,ER6),R0L
     000380 7758                   BLD.B       #5,R0L
     000382 58400D8A               BCC         L256:16
                    307:                                    phase = SEND_SETUP;
@@ -692,7 +692,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    312:    
                    313:                    case SEND_VOICE:                        // １つの言語の放送文送信       2002/12/11 複数言語同時可に変更
                    314:                            if( DUALPORT.ev5000_request.Abort ){            // 放送キャンセル
-    000388 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    000388 6E6800FE               MOV.B       @(254:16,ER6),R0L
     00038C 7758                   BLD.B       #5,R0L
     00038E 440A                   BCC         L277:8
                    315:                                    phase = SEND_SETUP;
@@ -712,11 +712,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    322:    printf("VOICE\r\n");
                    323:    #endif
                    324:                            backup_data.ev5000code.sendcode = DUALPORT.ev5000_request.Sequence[requestNo].BYTE.Code[1];
-    00039A 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    00039E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00039A 6E600102               MOV.B       @(258:16,ER6),R0H
+    00039E 6E680103               MOV.B       @(259:16,ER6),R0L
     0003A2 0D08                   MOV.W       R0,E0
-    0003A4 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0003A8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0003A4 6E600104               MOV.B       @(260:16,ER6),R0H
+    0003A8 6E680105               MOV.B       @(261:16,ER6),R0L
     0003AC 0FA1                   MOV.L       ER2,ER1
     0003AE 0A90                   ADD.L       ER1,ER0
     0003B0 6E010002               MOV.B       @(2:16,ER0),R1H
@@ -726,11 +726,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0003BE 6AA900                 MOV.B       R1L,@_backup_data+60:24
            <000000>     
                    325:                            DUALPORT.rttf_an_sendCode = (unsigned char)( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0xFF;
-    0003C4 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0003C8 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0003C4 6E600102               MOV.B       @(258:16,ER6),R0H
+    0003C8 6E680103               MOV.B       @(259:16,ER6),R0L
     0003CC 0D08                   MOV.W       R0,E0
-    0003CE 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0003D2 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0003CE 6E600104               MOV.B       @(260:16,ER6),R0H
+    0003D2 6E680105               MOV.B       @(261:16,ER6),R0L
     0003D6 6849                   MOV.B       @ER4,R1L
     0003D8 17D1                   EXTS.W      R1
     0003DA 17F1                   EXTS.L      ER1
@@ -740,7 +740,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0003E2 6E010002               MOV.B       @(2:16,ER0),R1H
     0003E6 6E090003               MOV.B       @(3:16,ER0),R1L
     0003EA E101                   AND.B       #1:8,R1H
-    0003EC 6EE90122               MOV.B       R1L,@(290:16,ER6)
+    0003EC 6EE9013A               MOV.B       R1L,@(314:16,ER6)
                    326:                                                                                                                                                            // a05 放送コードをDualPortRamにもアップデート
                    327:                                                                                                                                                            // RTTFパケットには8bit枠しか無いためbit 9は無視
                    328:    #if 0
@@ -761,8 +761,8 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    343:                            }
                    344:    #else
                    345:                            sprintf( sendbuff, "M000,0%03X,", DUALPORT.ev5000_request.SentenceNo );
-    0003F0 6E6000F8               MOV.B       @(248:16,ER6),R0H
-    0003F4 6E6800F9               MOV.B       @(249:16,ER6),R0L
+    0003F0 6E600100               MOV.B       @(256:16,ER6),R0H
+    0003F4 6E680101               MOV.B       @(257:16,ER6),R0L
     0003F8 6DF0                   PUSH.W      R0
     0003FA 7A00                   MOV.L       #L122:32,ER0
            <00000000>   
@@ -775,11 +775,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000410 0B87                   ADDS.L      #2,SP
                    346:    
                    347:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
-    000412 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    000416 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000412 6E600102               MOV.B       @(258:16,ER6),R0H
+    000416 6E680103               MOV.B       @(259:16,ER6),R0L
     00041A 0D08                   MOV.W       R0,E0
-    00041C 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000420 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    00041C 6E600104               MOV.B       @(260:16,ER6),R0H
+    000420 6E680105               MOV.B       @(261:16,ER6),R0L
     000424 6849                   MOV.B       @ER4,R1L
     000426 17D1                   EXTS.W      R1
     000428 17F1                   EXTS.L      ER1
@@ -797,11 +797,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000444 4458                   BCC         L280:8
                    349:                                            sprintf( sendbuff_tmp, "%03X,",
                    350:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
-    000446 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    00044A 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000446 6E600102               MOV.B       @(258:16,ER6),R0H
+    00044A 6E680103               MOV.B       @(259:16,ER6),R0L
     00044E 0D08                   MOV.W       R0,E0
-    000450 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000454 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000450 6E600104               MOV.B       @(260:16,ER6),R0H
+    000454 6E680105               MOV.B       @(261:16,ER6),R0L
     000458 6849                   MOV.B       @ER4,R1L
     00045A 17D1                   EXTS.W      R1
     00045C 17F1                   EXTS.L      ER1
@@ -844,11 +844,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    356:    
                    357:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
-    0004AE 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0004B2 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0004AE 6E600102               MOV.B       @(258:16,ER6),R0H
+    0004B2 6E680103               MOV.B       @(259:16,ER6),R0L
     0004B6 0D08                   MOV.W       R0,E0
-    0004B8 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0004BC 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0004B8 6E600104               MOV.B       @(260:16,ER6),R0H
+    0004BC 6E680105               MOV.B       @(261:16,ER6),R0L
     0004C0 6849                   MOV.B       @ER4,R1L
     0004C2 17D1                   EXTS.W      R1
     0004C4 17F1                   EXTS.L      ER1
@@ -863,11 +863,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0004D8 4A58                   BPL         L283:8
                    359:                                            sprintf( sendbuff_tmp, "%03X,",
                    360:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
-    0004DA 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0004DE 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0004DA 6E600102               MOV.B       @(258:16,ER6),R0H
+    0004DE 6E680103               MOV.B       @(259:16,ER6),R0L
     0004E2 0D08                   MOV.W       R0,E0
-    0004E4 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0004E8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0004E4 6E600104               MOV.B       @(260:16,ER6),R0H
+    0004E8 6E680105               MOV.B       @(261:16,ER6),R0L
     0004EC 6849                   MOV.B       @ER4,R1L
     0004EE 17D1                   EXTS.W      R1
     0004F0 17F1                   EXTS.L      ER1
@@ -910,11 +910,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    366:    
                    367:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
-    000542 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    000546 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000542 6E600102               MOV.B       @(258:16,ER6),R0H
+    000546 6E680103               MOV.B       @(259:16,ER6),R0L
     00054A 0D08                   MOV.W       R0,E0
-    00054C 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000550 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    00054C 6E600104               MOV.B       @(260:16,ER6),R0H
+    000550 6E680105               MOV.B       @(261:16,ER6),R0L
     000554 6849                   MOV.B       @ER4,R1L
     000556 17D1                   EXTS.W      R1
     000558 17F1                   EXTS.L      ER1
@@ -932,11 +932,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000574 4458                   BCC         L286:8
                    369:                                            sprintf( sendbuff_tmp, "%03X\r\n",
                    370:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
-    000576 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    00057A 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000576 6E600102               MOV.B       @(258:16,ER6),R0H
+    00057A 6E680103               MOV.B       @(259:16,ER6),R0L
     00057E 0D08                   MOV.W       R0,E0
-    000580 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000584 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000580 6E600104               MOV.B       @(260:16,ER6),R0H
+    000584 6E680105               MOV.B       @(261:16,ER6),R0L
     000588 6849                   MOV.B       @ER4,R1L
     00058A 17D1                   EXTS.W      R1
     00058C 17F1                   EXTS.L      ER1
@@ -1056,7 +1056,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    400:                                            DUALPORT.ev5000_request.ev5000_error = 1;
     000674 F801                   MOV.B       #1:8,R0L
-    000676 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000676 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    401:                                            phase = SEND_BUSY;
     00067A F809                   MOV.B       #9:8,R0L
     00067C 68D8                   MOV.B       R0L,@ER5
@@ -1140,7 +1140,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    435:                            DUALPORT.ev5000_request.ev5000_error = 2;
     0006DC F802                   MOV.B       #2:8,R0L
-    0006DE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    0006DE 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    436:                            phase = SEND_SETUP;
     0006E2 1888                   SUB.B       R0L,R0L
                    437:                            break;
@@ -1151,9 +1151,9 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    439:                    case SEND_BUSY:                 // 放送中チェックの送信
                    440:                            DUALPORT.rttf_an_busy = 1; // a05 RTTF用放送中情報（0:停止中/1:放送中) － 実際に放送しているフェーズで放送中ステート
     0006E8 F801                   MOV.B       #1:8,R0L
-    0006EA 6EE80121               MOV.B       R0L,@(289:16,ER6)
+    0006EA 6EE80139               MOV.B       R0L,@(313:16,ER6)
                    441:                            if( DUALPORT.ev5000_request.Abort ){
-    0006EE 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0006EE 6E6800FE               MOV.B       @(254:16,ER6),R0L
     0006F2 7758                   BLD.B       #5,R0L
     0006F4 4420                   BCC         L293:8
                    442:                                    phase = SEND_ABORT;
@@ -1259,7 +1259,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0007B4 4F24                   BLE         L297:8
                    473:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     0007B6 F801                   MOV.B       #1:8,R0L
-    0007B8 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    0007B8 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    474:                                                    DUALPORT.nowTrouble |= 0x04;
     0007BC 6E680007               MOV.B       @(7:16,ER6),R0L
     0007C0 7028                   BSET.B      #2,R0L
@@ -1353,7 +1353,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00083A 68D8                   MOV.B       R0L,@ER5
                    511:                                            DUALPORT.rttf_an_busy = 0;              // a05 RTTF用放送中情報（0:停止中/1:放送中) － 放送完了で停止中ステート
     00083C 1888                   SUB.B       R0L,R0L
-    00083E 6EE80121               MOV.B       R0L,@(289:16,ER6)
+    00083E 6EE80139               MOV.B       R0L,@(313:16,ER6)
                    512:                                            break;
     000842 5A                     JMP         @L256:24
            <000000>     
@@ -1408,7 +1408,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    534:                            DUALPORT.ev5000_request.ev5000_error = 2;
     000884 F802                   MOV.B       #2:8,R0L
-    000886 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000886 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    535:                            DUALPORT.nowTrouble |= 0x04;
     00088A 6E680007               MOV.B       @(7:16,ER6),R0L
     00088E 7028                   BSET.B      #2,R0L
@@ -1424,11 +1424,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    541:                            for( requestNo++; requestNo<MAX_SEQUENCE; requestNo++ ){
     00089A              L304:                             
                    542:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
-    00089A 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    00089E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00089A 6E600102               MOV.B       @(258:16,ER6),R0H
+    00089E 6E680103               MOV.B       @(259:16,ER6),R0L
     0008A2 0D08                   MOV.W       R0,E0
-    0008A4 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0008A8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0008A4 6E600104               MOV.B       @(260:16,ER6),R0H
+    0008A8 6E680105               MOV.B       @(261:16,ER6),R0L
     0008AC 6849                   MOV.B       @ER4,R1L
     0008AE 17D1                   EXTS.W      R1
     0008B0 17F1                   EXTS.L      ER1
@@ -1446,11 +1446,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    545:                                            }
                    546:                                    }
                    547:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
-    0008C6 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0008CA 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0008C6 6E600102               MOV.B       @(258:16,ER6),R0H
+    0008CA 6E680103               MOV.B       @(259:16,ER6),R0L
     0008CE 0D08                   MOV.W       R0,E0
-    0008D0 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    0008D4 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0008D0 6E600104               MOV.B       @(260:16,ER6),R0H
+    0008D4 6E680105               MOV.B       @(261:16,ER6),R0L
     0008D8 6849                   MOV.B       @ER4,R1L
     0008DA 17D1                   EXTS.W      R1
     0008DC 17F1                   EXTS.L      ER1
@@ -1471,11 +1471,11 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    550:                                            }
                    551:                                    }
                    552:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
-    0008FA 6E6000FA               MOV.B       @(250:16,ER6),R0H
-    0008FE 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0008FA 6E600102               MOV.B       @(258:16,ER6),R0H
+    0008FE 6E680103               MOV.B       @(259:16,ER6),R0L
     000902 0D08                   MOV.W       R0,E0
-    000904 6E6000FC               MOV.B       @(252:16,ER6),R0H
-    000908 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000904 6E600104               MOV.B       @(260:16,ER6),R0H
+    000908 6E680105               MOV.B       @(261:16,ER6),R0L
     00090C 6849                   MOV.B       @ER4,R1L
     00090E 17D1                   EXTS.W      R1
     000910 17F1                   EXTS.L      ER1
@@ -1610,7 +1610,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0009EA 4F1A                   BLE         L317:8
                    595:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     0009EC F801                   MOV.B       #1:8,R0L
-    0009EE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    0009EE 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    596:                                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
     0009F2 6A2800                 MOV.B       @_nowSignal+2:24,R0L
            <000000>     
@@ -1707,7 +1707,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    635:                            DUALPORT.ev5000_request.ev5000_error = 2;
     000A60 F802                   MOV.B       #2:8,R0L
-    000A62 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000A62 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    636:    
                    637:                            phase = SEND_ABORTBUSY;
     000A66 F80E                   MOV.B       #14:8,R0L
@@ -1821,7 +1821,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    672:                                                    }
                    673:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     000B2A F801                   MOV.B       #1:8,R0L
-    000B2C 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000B2C 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    674:                                                    DUALPORT.nowTrouble |= 0x04;
     000B30 6E680007               MOV.B       @(7:16,ER6),R0L
     000B34 7028                   BSET.B      #2,R0L
@@ -1965,7 +1965,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    724:                            DUALPORT.ev5000_request.ev5000_error = 2;
     000C00 F802                   MOV.B       #2:8,R0L
-    000C02 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000C02 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    725:                            DUALPORT.nowTrouble |= 0x04;
     000C06 6E680007               MOV.B       @(7:16,ER6),R0L
     000C0A 7028                   BSET.B      #2,R0L
@@ -1980,12 +1980,12 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    729:                    case SEND_INITIAL:              // 接続チェック送信
                    730:                            DUALPORT.ev5000_request.Abort=0;
     000C16 1A80                   SUB.L       ER0,ER0
-    000C18 F8F6                   MOV.B       #-10:8,R0L
+    000C18 F8FE                   MOV.B       #-2:8,R0L
     000C1A 0AE0                   ADD.L       ER6,ER0
     000C1C 7D007250               BCLR.B      #5,@ER0
                    731:                            DUALPORT.ev5000_request.Request=0;
     000C20 1A80                   SUB.L       ER0,ER0
-    000C22 F8F6                   MOV.B       #-10:8,R0L
+    000C22 F8FE                   MOV.B       #-2:8,R0L
     000C24 0AE0                   ADD.L       ER6,ER0
     000C26 7D007260               BCLR.B      #6,@ER0
                    732:    
@@ -2065,7 +2065,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000CC8 4F28                   BLE         L336:8
                    750:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     000CCA F801                   MOV.B       #1:8,R0L
-    000CCC 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000CCC 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    751:                                                    DUALPORT.nowTrouble |= 0x04;
     000CD0 6E680007               MOV.B       @(7:16,ER6),R0L
     000CD4 7028                   BSET.B      #2,R0L
@@ -2079,7 +2079,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    754:                                                    DUALPORT.ev5000_request.Initial=0;
     000CE4 1A80                   SUB.L       ER0,ER0
-    000CE6 F8F6                   MOV.B       #-10:8,R0L
+    000CE6 F8FE                   MOV.B       #-2:8,R0L
     000CE8 0AE0                   ADD.L       ER6,ER0
     000CEA 7D007270               BCLR.B      #7,@ER0
     000CEE 5A                     JMP         @L256:24
@@ -2184,7 +2184,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    795:                            DUALPORT.ev5000_request.ev5000_error = 2;
     000D6C F802                   MOV.B       #2:8,R0L
-    000D6E 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000D6E 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    796:                            DUALPORT.nowTrouble |= 0x04;
     000D72 6E680007               MOV.B       @(7:16,ER6),R0L
     000D76 7028                   BSET.B      #2,R0L
@@ -2194,7 +2194,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000D7E 68D8                   MOV.B       R0L,@ER5
                    798:                            DUALPORT.ev5000_request.Initial=0;
     000D80 1A80                   SUB.L       ER0,ER0
-    000D82 F8F6                   MOV.B       #-10:8,R0L
+    000D82 F8FE                   MOV.B       #-2:8,R0L
     000D84 0AE0                   ADD.L       ER6,ER0
     000D86 7D007270               BCLR.B      #7,@ER0
                    799:                            break;
@@ -2279,7 +2279,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000E2C 4F1E                   BLE         L346:8
                    819:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     000E2E F801                   MOV.B       #1:8,R0L
-    000E30 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000E30 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    820:                                                    phase = SEND_SETUP;
     000E34 1888                   SUB.B       R0L,R0L
     000E36 68D8                   MOV.B       R0L,@ER5
@@ -2289,7 +2289,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    822:                                                    DUALPORT.ev5000_request.Initial=0;
     000E3E 1A80                   SUB.L       ER0,ER0
-    000E40 F8F6                   MOV.B       #-10:8,R0L
+    000E40 F8FE                   MOV.B       #-2:8,R0L
     000E42 0AE0                   ADD.L       ER6,ER0
     000E44 7D007270               BCLR.B      #7,@ER0
     000E48 5A                     JMP         @L256:24
@@ -2364,7 +2364,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000EA8 68D8                   MOV.B       R0L,@ER5
                    846:                                                    DUALPORT.ev5000_request.Initial=0;
     000EAA 1A80                   SUB.L       ER0,ER0
-    000EAC F8F6                   MOV.B       #-10:8,R0L
+    000EAC F8FE                   MOV.B       #-2:8,R0L
     000EAE 0AE0                   ADD.L       ER6,ER0
     000EB0 7D007270               BCLR.B      #7,@ER0
                    847:                                                    break;
@@ -2471,7 +2471,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     000F8E 68D8                   MOV.B       R0L,@ER5
                    864:                                    DUALPORT.ev5000_request.Initial=0;
     000F90 1A80                   SUB.L       ER0,ER0
-    000F92 F8F6                   MOV.B       #-10:8,R0L
+    000F92 F8FE                   MOV.B       #-2:8,R0L
     000F94 0AE0                   ADD.L       ER6,ER0
     000F96 7D007270               BCLR.B      #7,@ER0
                    865:                                    break;
@@ -2507,13 +2507,13 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    877:                            DUALPORT.ev5000_request.ev5000_error = 2;
     000FC0 F802                   MOV.B       #2:8,R0L
-    000FC2 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    000FC2 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    878:                            phase = SEND_SETUP;
     000FC6 1888                   SUB.B       R0L,R0L
     000FC8 68D8                   MOV.B       R0L,@ER5
                    879:                            DUALPORT.ev5000_request.Initial=0;
     000FCA 1A80                   SUB.L       ER0,ER0
-    000FCC F8F6                   MOV.B       #-10:8,R0L
+    000FCC F8FE                   MOV.B       #-2:8,R0L
     000FCE 0AE0                   ADD.L       ER6,ER0
     000FD0 7D007270               BCLR.B      #7,@ER0
                    880:                            break;
@@ -2634,7 +2634,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     0010BA 4F12                   BLE         L360:8
                    909:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
     0010BC F801                   MOV.B       #1:8,R0L
-    0010BE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    0010BE 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    910:                                                    phase = SEND_SETUP;
     0010C2 1888                   SUB.B       R0L,R0L
     0010C4 68D8                   MOV.B       R0L,@ER5
@@ -2698,7 +2698,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
            <000000>     
                    936:                            DUALPORT.ev5000_request.ev5000_error = 2;
     001106 F802                   MOV.B       #2:8,R0L
-    001108 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+    001108 6EE800FF               MOV.B       R0L,@(255:16,ER6)
                    937:                            phase = SEND_SETUP;
     00110C 1888                   SUB.B       R0L,R0L
                    938:                            break;
@@ -2781,7 +2781,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00006D 00000001               .RES.B      1
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:07  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

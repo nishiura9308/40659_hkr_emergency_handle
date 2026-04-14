@@ -5,57 +5,465 @@ Begin VB.Form frmAUTO
    ClientHeight    =   7185
    ClientLeft      =   45
    ClientTop       =   330
-   ClientWidth     =   10740
+   ClientWidth     =   10305
    LinkTopic       =   "Form1"
    MaxButton       =   0   'False
    MDIChild        =   -1  'True
    MinButton       =   0   'False
    ScaleHeight     =   7185
-   ScaleWidth      =   10740
+   ScaleWidth      =   10305
+   Begin VB.Frame EAHReset 
+      Caption         =   "EAH Reset(Physical layout)"
+      Height          =   3315
+      Left            =   2880
+      TabIndex        =   58
+      Top             =   3360
+      Width           =   2650
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V2"
+         Height          =   345
+         Index           =   1
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   98
+         Top             =   270
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V1"
+         Height          =   345
+         Index           =   0
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   97
+         Top             =   270
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V5"
+         Height          =   345
+         Index           =   39
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   96
+         Top             =   2790
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V4"
+         Height          =   345
+         Index           =   38
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   95
+         Top             =   2790
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V3"
+         Height          =   345
+         Index           =   37
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   94
+         Top             =   2790
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V2"
+         Height          =   345
+         Index           =   36
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   93
+         Top             =   2790
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V1"
+         Height          =   345
+         Index           =   35
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   92
+         Top             =   2790
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z5"
+         Height          =   345
+         Index           =   34
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   91
+         Top             =   2430
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z4"
+         Height          =   345
+         Index           =   33
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   90
+         Top             =   2430
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z3"
+         Height          =   345
+         Index           =   32
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   89
+         Top             =   2430
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z2"
+         Height          =   345
+         Index           =   31
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   88
+         Top             =   2430
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z1"
+         Height          =   345
+         Index           =   30
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   87
+         Top             =   2430
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X5"
+         Height          =   345
+         Index           =   29
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   86
+         Top             =   2070
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X4"
+         Height          =   345
+         Index           =   28
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   85
+         Top             =   2070
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X3"
+         Height          =   345
+         Index           =   27
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   84
+         Top             =   2070
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X2"
+         Height          =   345
+         Index           =   26
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   83
+         Top             =   2070
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X1"
+         Height          =   345
+         Index           =   25
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   82
+         Top             =   2070
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Y5"
+         Height          =   345
+         Index           =   24
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   81
+         Top             =   1710
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Y4"
+         Height          =   345
+         Index           =   23
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   80
+         Top             =   1710
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Y3"
+         Height          =   345
+         Index           =   22
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   79
+         Top             =   1710
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Y2"
+         Height          =   345
+         Index           =   21
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   78
+         Top             =   1710
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Y1"
+         Height          =   345
+         Index           =   20
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   77
+         Top             =   1710
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "W5"
+         Height          =   345
+         Index           =   19
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   76
+         Top             =   1350
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "W4"
+         Height          =   345
+         Index           =   18
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   75
+         Top             =   1350
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "W3"
+         Height          =   345
+         Index           =   17
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   74
+         Top             =   1350
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "W2"
+         Height          =   345
+         Index           =   16
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   73
+         Top             =   1350
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "W1"
+         Height          =   345
+         Index           =   15
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   72
+         Top             =   1350
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X5"
+         Height          =   345
+         Index           =   14
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   71
+         Top             =   990
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X4"
+         Height          =   345
+         Index           =   13
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   70
+         Top             =   990
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X3"
+         Height          =   345
+         Index           =   12
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   69
+         Top             =   990
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X2"
+         Height          =   345
+         Index           =   11
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   68
+         Top             =   990
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "X1"
+         Height          =   345
+         Index           =   10
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   67
+         Top             =   990
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z5"
+         Height          =   345
+         Index           =   9
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   66
+         Top             =   630
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z4"
+         Height          =   345
+         Index           =   8
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   65
+         Top             =   630
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z3"
+         Height          =   345
+         Index           =   7
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   64
+         Top             =   630
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z2"
+         Height          =   345
+         Index           =   6
+         Left            =   675
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   63
+         Top             =   630
+         Width           =   450
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "Z1"
+         Height          =   345
+         Index           =   5
+         Left            =   240
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   62
+         Top             =   630
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V5"
+         Height          =   345
+         Index           =   4
+         Left            =   1995
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   61
+         Top             =   270
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V4"
+         Height          =   345
+         Index           =   3
+         Left            =   1560
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   60
+         Top             =   270
+         Width           =   430
+      End
+      Begin VB.CheckBox chkEAHR 
+         Caption         =   "V3"
+         Height          =   345
+         Index           =   2
+         Left            =   1125
+         Style           =   1  '¸Þ×Ì¨¯¸½
+         TabIndex        =   59
+         Top             =   270
+         Width           =   430
+      End
+   End
    Begin VB.Timer CheckTimer 
       Interval        =   1000
-      Left            =   3840
-      Top             =   6540
+      Left            =   6120
+      Top             =   6360
    End
    Begin VB.TextBox txtROUTE 
       Height          =   315
-      Left            =   3450
+      Left            =   5730
       Locked          =   -1  'True
       TabIndex        =   57
       Text            =   "CAB/CAB"
-      Top             =   5400
+      Top             =   5520
       Width           =   855
    End
    Begin VB.TextBox txtMCP 
       Height          =   315
-      Left            =   4350
+      Left            =   6630
       Locked          =   -1  'True
       TabIndex        =   56
       Text            =   "CAB/CAB"
-      Top             =   5400
+      Top             =   5520
       Width           =   945
    End
    Begin VB.Timer StartTimer 
       Interval        =   1000
-      Left            =   3510
-      Top             =   5580
+      Left            =   6720
+      Top             =   6360
    End
    Begin VB.TextBox phaseName 
       Height          =   315
-      Left            =   3450
+      Left            =   5730
       Locked          =   -1  'True
       TabIndex        =   55
       Text            =   "CAB/CAB"
-      Top             =   4980
-      Width           =   3195
+      Top             =   5100
+      Width           =   2555
    End
    Begin VB.Frame ModeFrame 
       Caption         =   "MODE"
       Height          =   1455
-      Left            =   3420
+      Left            =   5700
       TabIndex        =   47
-      Top             =   3270
-      Width           =   2475
+      Top             =   3360
+      Width           =   2555
       Begin VB.TextBox modeRespoince 
          Height          =   315
          Index           =   6
@@ -132,421 +540,421 @@ Begin VB.Form frmAUTO
       Height          =   3315
       Left            =   60
       TabIndex        =   6
-      Top             =   3240
-      Width           =   3315
+      Top             =   3360
+      Width           =   2650
       Begin VB.CheckBox chkEAH 
          Caption         =   "V3"
          Height          =   345
          Index           =   2
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   46
          Top             =   270
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V4"
          Height          =   345
          Index           =   3
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   45
          Top             =   270
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V5"
          Height          =   345
          Index           =   4
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   44
          Top             =   270
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z1"
          Height          =   345
          Index           =   5
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   43
          Top             =   630
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z2"
          Height          =   345
          Index           =   6
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   42
          Top             =   630
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z3"
          Height          =   345
          Index           =   7
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   41
          Top             =   630
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z4"
          Height          =   345
          Index           =   8
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   40
          Top             =   630
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z5"
          Height          =   345
          Index           =   9
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   39
          Top             =   630
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X1"
          Height          =   345
          Index           =   10
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   38
          Top             =   990
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X2"
          Height          =   345
          Index           =   11
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   37
          Top             =   990
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X3"
          Height          =   345
          Index           =   12
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   36
          Top             =   990
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X4"
          Height          =   345
          Index           =   13
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   35
          Top             =   990
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X5"
          Height          =   345
          Index           =   14
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   34
          Top             =   990
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "W1"
          Height          =   345
          Index           =   15
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   33
          Top             =   1350
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "W2"
          Height          =   345
          Index           =   16
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   32
          Top             =   1350
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "W3"
          Height          =   345
          Index           =   17
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   31
          Top             =   1350
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "W4"
          Height          =   345
          Index           =   18
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   30
          Top             =   1350
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "W5"
          Height          =   345
          Index           =   19
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   29
          Top             =   1350
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Y1"
          Height          =   345
          Index           =   20
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   28
          Top             =   1710
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Y2"
          Height          =   345
          Index           =   21
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   27
          Top             =   1710
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Y3"
          Height          =   345
          Index           =   22
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   26
          Top             =   1710
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Y4"
          Height          =   345
          Index           =   23
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   25
          Top             =   1710
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Y5"
          Height          =   345
          Index           =   24
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   24
          Top             =   1710
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X1"
          Height          =   345
          Index           =   25
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   23
          Top             =   2070
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X2"
          Height          =   345
          Index           =   26
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   22
          Top             =   2070
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X3"
          Height          =   345
          Index           =   27
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   21
          Top             =   2070
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X4"
          Height          =   345
          Index           =   28
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   20
          Top             =   2070
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "X5"
          Height          =   345
          Index           =   29
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   19
          Top             =   2070
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z1"
          Height          =   345
          Index           =   30
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   18
          Top             =   2430
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z2"
          Height          =   345
          Index           =   31
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   17
          Top             =   2430
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z3"
          Height          =   345
          Index           =   32
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   16
          Top             =   2430
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z4"
          Height          =   345
          Index           =   33
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   15
          Top             =   2430
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "Z5"
          Height          =   345
          Index           =   34
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   14
          Top             =   2430
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V1"
          Height          =   345
          Index           =   35
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   13
          Top             =   2790
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V2"
          Height          =   345
          Index           =   36
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   12
          Top             =   2790
-         Width           =   615
+         Width           =   450
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V3"
          Height          =   345
          Index           =   37
-         Left            =   1410
+         Left            =   1125
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   11
          Top             =   2790
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V4"
          Height          =   345
          Index           =   38
-         Left            =   2040
+         Left            =   1530
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   10
          Top             =   2790
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V5"
          Height          =   345
          Index           =   39
-         Left            =   2670
+         Left            =   1965
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   9
          Top             =   2790
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V1"
          Height          =   345
          Index           =   0
-         Left            =   150
+         Left            =   240
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   8
          Top             =   270
-         Width           =   615
+         Width           =   430
       End
       Begin VB.CheckBox chkEAH 
          Caption         =   "V2"
          Height          =   345
          Index           =   1
-         Left            =   780
+         Left            =   675
          Style           =   1  '¸Þ×Ì¨¯¸½
          TabIndex        =   7
          Top             =   270
-         Width           =   615
+         Width           =   450
       End
    End
    Begin VB.Timer ExecTimer 
       Enabled         =   0   'False
       Interval        =   500
-      Left            =   3360
-      Top             =   4980
+      Left            =   7320
+      Top             =   6360
    End
    Begin VB.CommandButton cmdSelectRoute 
       Caption         =   "Select"
       Height          =   615
-      Left            =   6990
+      Left            =   8430
       TabIndex        =   5
-      Top             =   3660
+      Top             =   3480
       Width           =   1785
    End
    Begin VB.Frame RouteFrame 
@@ -590,9 +998,9 @@ Begin VB.Form frmAUTO
    Begin VB.CommandButton cmdEXECUTE 
       Caption         =   "EXECUTE"
       Height          =   615
-      Left            =   7020
+      Left            =   8460
       TabIndex        =   0
-      Top             =   4770
+      Top             =   4440
       Width           =   1785
    End
 End
@@ -622,7 +1030,7 @@ Public Sub DoModeless()
 
     If MDIMain.MenteCOMM.OnLine = False Then
         MsgBox "Not Online"
-        Exit Sub
+'        Exit Sub
     End If
     MDIMain.MenteCOMM.SDRMonitor True
 
@@ -741,11 +1149,21 @@ Private Sub ExecTimer_Timer()
         Next i
         
     Case 7
+        g_send_sdr = "SDRB"
+        For i = 0 To 39
+            If chkEAHR(i).Value = 1 Then
+                g_send_sdr = g_send_sdr & Left$(chkEAHR(i).Caption + Space$(4), 4)
+            Else
+                g_send_sdr = g_send_sdr & Space$(4)
+            End If
+        Next i
+        
+    Case 8
         g_send_sdr = "SDR9"
         g_send_sdr = g_send_sdr + "  "
         g_send_sdr = g_send_sdr + "  "
 
-    Case 8
+    Case 9
         g_send_sdr = "SDR7"
         g_send_sdr = g_send_sdr & Right$(String$(2, "0") + Hex$(bdata(1 + 1 + 6 + now_station * STATION_SIZE + 0)), 2)
         g_send_sdr = g_send_sdr & Right$(String$(2, "0") + Hex$(destStation), 2)
@@ -754,7 +1172,7 @@ Private Sub ExecTimer_Timer()
 
         wait_time = 0
         
-    Case 9
+    Case 10
         g_send_sdr = "SDRA"
         g_send_sdr = g_send_sdr + "  "
         g_send_sdr = g_send_sdr + "  "
@@ -766,7 +1184,8 @@ Private Sub ExecTimer_Timer()
 
         Call ReadIniItem("TMSSIM", "AUTO", "DepartureWait", 10, wait_time)
         'Departure wait
-    Case 10
+        
+    Case 11
         phaseName.Text = "Departure Waiting" & str$(wait_time)
         If wait_time > 0 Then
             wait_time = wait_time - 1
@@ -778,7 +1197,7 @@ Beep
         
         now_station = 0
         
-        g_send_sdr = "SDR9    "
+        g_send_sdr = "SDRA    "
 
         Station(0).Value = 0
         stn_mode = False
@@ -787,7 +1206,8 @@ Beep
         Call ReadIniItem("TMSSIM", "AUTO", "SpeedWait", 10, wait_time)
 
         'Leaving Wait
-    Case 11
+        
+    Case 12
         phaseName.Text = "Wait for SPEED" & str$(wait_time)
         If wait_time > 0 Then
             wait_time = wait_time - 1
@@ -812,7 +1232,8 @@ Beep
         g_send_sdr = g_send_sdr & String$(2, "0")
         
         'Leaving Broadcast
-    Case 12
+        
+    Case 13
         phaseName.Text = "Leaving Announce"
 Beep
         g_send_sdr = "SDR9"
@@ -823,7 +1244,8 @@ Beep
         Call ReadIniItem("TMSSIM", "AUTO", "LeavingWait", 10, wait_time)
 
         'Door
-    Case 13
+        
+    Case 14
         phaseName.Text = "Leaving Announce" & str$(wait_time)
         
         If wait_time > 0 Then
@@ -865,11 +1287,12 @@ Beep
 
         g_send_sdr = "SDR9    "
     
-    Case 14
+    Case 15
 '        phaseName.Text = "Door Announce"
 Beep
         Call ReadIniItem("TMSSIM", "AUTO", "ArrivingWait", 10, wait_time)
-    Case 15
+        
+    Case 16
         phaseName.Text = "Arriving" & str$(wait_time)
         If wait_time > 0 Then
             wait_time = wait_time - 1
@@ -893,7 +1316,8 @@ Beep
         g_send_sdr = g_send_sdr & Right$(String$(1, "0") + Hex$((bdata(1 + 1 + 6 + (now_station + 1) * STATION_SIZE + 8) And &HE0) / 32), 1)
 
         'Arriving Flag
-    Case 16
+        
+    Case 17
         If bdata(1 + 1 + 6 + (now_station + 1) * STATION_SIZE + 9) And &H80 Then
             phaseName.Text = "Arriving Announce"
 Beep
@@ -914,7 +1338,8 @@ Beep
         
 
         Call ReadIniItem("TMSSIM", "AUTO", "ArrivingAnnounceWait", 10, wait_time)
-    Case 17
+        
+    Case 18
         If bdata(1 + 1 + 6 + (now_station + 1) * STATION_SIZE + 9) And &H80 Then
             phaseName.Text = "Arriving Announce" & str$(wait_time)
             If wait_time > 0 Then
@@ -978,7 +1403,7 @@ Beep
         
         g_send_sdr = "SDR9    "
 
-    Case 18
+    Case 19
         now_station = now_station + 1
         
         If bdata(1 + 1 + 6 + (now_station + 1) * STATION_SIZE + 9) <> 0 Then
@@ -999,7 +1424,8 @@ Beep
 
         Call ReadIniItem("TMSSIM", "AUTO", "StopStationWait", 10, wait_time)
         'Station Wait
-    Case 19
+        
+    Case 20
         stn_mode = True
         stntostn_mode = False
         
@@ -1160,6 +1586,7 @@ Private Sub RouteShow()
     RouteFrame.Height = RouteFrame.Top + routePicture.Height + 200
 
     EAHFrame.Top = RouteFrame.Top + RouteFrame.Height + 10
+    EAHReset.Top = RouteFrame.Top + RouteFrame.Height + 10
     ModeFrame.Top = EAHFrame.Top
     
     phaseName.Top = ModeFrame.Top + ModeFrame.Height

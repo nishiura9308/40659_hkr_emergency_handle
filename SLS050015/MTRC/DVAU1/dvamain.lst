@@ -1,4 +1,4 @@
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:21  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:04  PAGE   1
 
 ************ OBJECT LISTING ************
 
@@ -38,7 +38,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                     29:    
                     30:    #include        "timer.h"
                     31:    
-                    32:    #define         VERSION_INFO    0x0304
+                    32:    #define         VERSION_INFO    0x0305
                     33:    
                     34:    /*@@@S*/
                     35:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
@@ -132,7 +132,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
                    116:                    int             ret;
                    117:    
                    118:                    VERSION = VERSION_INFO;         // バージョンを設定
-    000012 79000304               MOV.W       #772:16,R0
+    000012 79000305               MOV.W       #773:16,R0
     000016 6BA000                 MOV.W       R0,@_VERSION:24
            <000000>     
                    119:    
@@ -210,7 +210,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00007A 5E                     JSR         @_WatchDogReset:24
            <000000>     
     00007E              L159:                             
-    00007E 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    00007E 6E6800FE               MOV.B       @(254:16,ER6),R0L
     000082 4BF2                   BMI         L158:8
                    149:                    }
                    150:    
@@ -562,7 +562,7 @@ SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
     00000D 00000001               .RES.B      1
 
 
-H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:21  PAGE   1
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     26-Aug-2025  09:47:04  PAGE   1
 
 ******* SECTION SIZE INFORMATION *******
 

@@ -3,13 +3,13 @@
 
 LINK COMMAND LINE
 
-LNK -noecho -sub=J:\$OP3.tmp 
+LNK -noecho -sub=J:\$OP2B.tmp 
 
 
 
 LINK SUBCOMMANDS
 
-INPUT J:\$OP4.tmp
+INPUT J:\$OP2C.tmp
 OUTPUT .\DVAU2.abs
 FORM A
 START PEntryProgram,P,C,D,B(080000)
@@ -54,31 +54,31 @@ P                                 H'00080014  -  H'00080047  H'00000034
               dvaeids                          DVAU2                           
                                   H'00080B56  -  H'00080CBF  H'0000016A
               dvatime                          DVAU2                           
-                                  H'00080CC0  -  H'00082C5D  H'00001F9E
+                                  H'00080CC0  -  H'000831C1  H'00002502
               dvacomm                          DVAU2                           
-                                  H'00082C5E  -  H'00082C9D  H'00000040
+                                  H'000831C2  -  H'00083201  H'00000040
               memset                           DVAU2                           
-                                  H'00082C9E  -  H'00082CC9  H'0000002C
+                                  H'00083202  -  H'0008322D  H'0000002C
               strcpy                           DVAU2                           
-                                  H'00082CCA  -  H'00082D0D  H'00000044
+                                  H'0008322E  -  H'00083271  H'00000044
               bfinir3                          DVAU2                           
-                                  H'00082D0E  -  H'00082D31  H'00000024
+                                  H'00083272  -  H'00083295  H'00000024
               bfui3                            DVAU2                           
-                                  H'00082D32  -  H'00082D53  H'00000022
+                                  H'00083296  -  H'000832B7  H'00000022
               spregsv3                         DVAU2                           
-                                  H'00082D54  -  H'00082D69  H'00000016
+                                  H'000832B8  -  H'000832CD  H'00000016
               sprgld23                         DVAU2                           
 
-* TOTAL ADDRESS *                 H'00080014  -  H'00082D69  H'00002D56
+* TOTAL ADDRESS *                 H'00080014  -  H'000832CD  H'000032BA
 
 
 ATTRIBUTE  :   DATA  NOSHR
 
-C                                 H'00082D6A  -  H'00082D6E  H'00000005
+C                                 H'000832CE  -  H'000832D2  H'00000005
               dvamain                          DVAU2                           
-                                  H'00082D70  -  H'000831A9  H'0000043A
+                                  H'000832D4  -  H'0008370D  H'0000043A
               dvaeids                          DVAU2                           
-                                  H'000831AA  -  H'00083217  H'0000006E
+                                  H'0008370E  -  H'0008377B  H'0000006E
               dvacomm                          DVAU2                           
 
 
@@ -91,33 +91,33 @@ C                                 H'00082D6A  -  H'00082D6E  H'00000005
 SECTION NAME                         START    -     END        LENGTH
               UNIT NAME                        MODULE NAME
 
-* TOTAL ADDRESS *                 H'00082D6A  -  H'00083217  H'000004AE
+* TOTAL ADDRESS *                 H'000832CE  -  H'0008377B  H'000004AE
 
 
 ATTRIBUTE  :   DATA  NOSHR
 
-D                                 H'00083218  -  H'0008321B  H'00000004
+D                                 H'0008377C  -  H'0008377F  H'00000004
               sbrk                             DVAU2                           
-                                  H'0008321C  -  H'00083227  H'0000000C
+                                  H'00083780  -  H'0008378B  H'0000000C
               dvaeids                          DVAU2                           
 
-* TOTAL ADDRESS *                 H'00083218  -  H'00083227  H'00000010
+* TOTAL ADDRESS *                 H'0008377C  -  H'0008378B  H'00000010
 
 
 ATTRIBUTE  :   DATA  NOSHR
 
-B                                 H'00083228  -  H'000832A7  H'00000080
+B                                 H'0008378C  -  H'0008380B  H'00000080
               sbrk                             DVAU2                           
-                                  H'000832A8  -  H'00083AA9  H'00000802
+                                  H'0008380C  -  H'0008400D  H'00000802
               dvamain                          DVAU2                           
-                                  H'00083AAA  -  H'000840C8  H'0000061F
+                                  H'0008400E  -  H'0008462C  H'0000061F
               dvaeids                          DVAU2                           
-                                  H'000840CA  -  H'000840D5  H'0000000C
+                                  H'0008462E  -  H'00084639  H'0000000C
               dvatime                          DVAU2                           
-                                  H'000840D6  -  H'0008470B  H'00000636
+                                  H'0008463A  -  H'00084C91  H'00000658
               dvacomm                          DVAU2                           
 
-* TOTAL ADDRESS *                 H'00083228  -  H'0008470B  H'000014E4
+* TOTAL ADDRESS *                 H'0008378C  -  H'00084C91  H'00001506
 
 
 ATTRIBUTE  :   DATA  NOSHR
@@ -169,14 +169,15 @@ BIntChgTable                      H'00FFFD10  -  H'00FFFD47  H'00000038
 
 SYMBOL NAME                          ADDR                 TYPE
 
-$BFINIR$3                         H'00082CCA               DAT
-$BFUI$3                           H'00082D0E               DAT
-$sp_regsv$3                       H'00082D32               DAT
-$spregld2$3                       H'00082D54               DAT
+$BFINIR$3                         H'0008322E               DAT
+$BFUI$3                           H'00083272               DAT
+$sp_regsv$3                       H'00083296               DAT
+$spregld2$3                       H'000832B8               DAT
+_DryContactCtrl                   H'000821B8               ENT
 _ERI0Jump                         H'00FFFD28               DAT
 _ERI1Jump                         H'00FFFD38               DAT
 _EntryFunction                    H'00080000               ENT
-_FilterPriorityMCPNo              H'00081EB4               ENT
+_FilterPriorityMCPNo              H'00082094               ENT
 _HardwareSetup                    H'000800CE               ENT
 _IMIA0Jump                        H'00FFFD14               DAT
 _IMIA1Jump                        H'00FFFD18               DAT
@@ -184,6 +185,7 @@ _IMIA2Jump                        H'00FFFD1C               DAT
 _IMIA3Jump                        H'00FFFD20               DAT
 _IMIA4Jump                        H'00FFFD24               DAT
 _IRQ4Jump                         H'00FFFD10               DAT
+_PADResetDrycontCtrl              H'000820D8               ENT
 _RXI0Jump                         H'00FFFD2C               DAT
 _RXI1Jump                         H'00FFFD3C               DAT
 _TEI0Jump                         H'00FFFD34               DAT
@@ -197,7 +199,7 @@ _asci_0_Initialize                H'00080214               ENT
 _asci_0_RX                        H'00080148               ENT
 _asci_0_TE                        H'00080196               ENT
 _asci_0_TX                        H'0008017E               ENT
-_asci_0_recv_ir                   H'00081DB0               ENT
+_asci_0_recv_ir                   H'00081F90               ENT
 _asci_0_send_ir                   H'00080CC0               ENT
 _asci_0_transmit                  H'00080320               ENT
 _asci_0_tx_disable                H'00080300               ENT
@@ -217,9 +219,7 @@ _check_date                       H'0009E804               DAT
 _check_time                       H'0009E806               DAT
 _crc32                            H'000806C2               ENT
 _dequeue                          H'000807A6               ENT
-_dvaCommProc                      H'00081EF8               ENT
-_dvauCommInitialize               H'00080CF6               ENT
-_dvauDownloadSend                 H'00080F0E               ENT
+_dvaCommProc                      H'00082352               ENT
 
 
 
@@ -229,34 +229,37 @@ _dvauDownloadSend                 H'00080F0E               ENT
 
 SYMBOL NAME                          ADDR                 TYPE
 
+_dvauCommInitialize               H'00080CF6               ENT
+_dvauDownloadSend                 H'00080F42               ENT
 _dvauEIDSInitialize               H'000804A4               ENT
 _dvauEIDSSend                     H'00080516               ENT
 _dvauEIDSSendCheck                H'0008056A               ENT
+_dvauPadResetDryContactSend       H'00081214               ENT
 _dvauRTIFCtrl                     H'00080802               ENT
-_dvauRTTFSend                     H'0008100E               ENT
-_dvauReceive                      H'000811E0               ENT
-_dvauSend                         H'00080D8E               ENT
+_dvauRTTFSend                     H'00081042               ENT
+_dvauReceive                      H'000813C0               ENT
+_dvauSend                         H'00080DC2               ENT
 _enqueue                          H'0008073C               ENT
 _main                             H'00080048               ENT
-_memset                           H'00082C5E               DAT
+_memset                           H'000831C2               DAT
 _queueinit                        H'00080704               ENT
-_recvActive                       H'00084111               DAT
-_rtif_ph                          H'0008321C               DAT
-_rtif_recv_q                      H'00083EC5               DAT
-_rtif_status                      H'0008321E               DAT
-_rtifarea                         H'00083CC5               DAT
-_rtifarea_delimiter_pos           H'00083222               DAT
-_rtifarea_recvsize                H'00083220               DAT
-_rtifmessage                      H'00083DC5               DAT
-_rtifmessage_flag                 H'00083224               DAT
-_rtifmessage_size                 H'00083226               DAT
+_recvActive                       H'00084675               DAT
+_rtif_ph                          H'00083780               DAT
+_rtif_recv_q                      H'00084429               DAT
+_rtif_status                      H'00083782               DAT
+_rtifarea                         H'00084229               DAT
+_rtifarea_delimiter_pos           H'00083786               DAT
+_rtifarea_recvsize                H'00083784               DAT
+_rtifmessage                      H'00084329               DAT
+_rtifmessage_flag                 H'00083788               DAT
+_rtifmessage_size                 H'0008378A               DAT
 _sbrk                             H'00080014               ENT
-_sendarea                         H'000840D6               DAT
-_strcpy                           H'00082C9E               ENT
-_timedata                         H'000840CA               DAT
+_sendarea                         H'0008463A               DAT
+_strcpy                           H'00083202               ENT
+_timedata                         H'0008462E               DAT
 _timer_0_Initialize               H'00080C54               ENT
 _timer_0_Intr                     H'00080B56               ENT
 _watchDogCount                    H'0009E800               DAT
 _watchDogFlag                     H'0009E801               DAT
 _watchDogON                       H'0009E802               DAT
-_work                             H'000832AA               DAT
+_work                             H'0008380E               DAT
