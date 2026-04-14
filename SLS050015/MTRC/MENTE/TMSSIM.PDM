@@ -1,0 +1,184 @@
+[Root]
+Most Recent Package=TMS Simulator
+
+
+[Package|TMS Simulator|Root]
+SubWizProgID=PDWizard.DepPkgSubWiz
+BuildFolder=z:\MTRC\MENTE
+
+[Package|TMS Simulator|Configure DAO ISAMs]
+Applicable=No
+
+[Package|TMS Simulator|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|TMS Simulator|Files Found]
+CONFIG.DAT=Z:\MTRC\MENTE\CONFIG.DAT
+
+[Package|TMS Simulator|Files Released]
+
+[Package|TMS Simulator|Missing Dependency Information]
+
+[Package|TMS Simulator|Out-of-Date Dependency Information]
+
+[Package|TMS Simulator|Files Added]
+z:\mtrc\mente\route15.dat=
+z:\mtrc\mente\route10.dat=
+z:\mtrc\mente\route11.dat=
+z:\mtrc\mente\route12.dat=
+z:\mtrc\mente\route13.dat=
+z:\mtrc\mente\route14.dat=
+z:\mtrc\mente\config.dat=
+z:\mtrc\mente\line10.nam=
+z:\mtrc\mente\line11.nam=
+z:\mtrc\mente\line12.nam=
+z:\mtrc\mente\line13.nam=
+z:\mtrc\mente\line14.nam=
+z:\mtrc\mente\line15.nam=
+z:\mtrc\mente\route.nam=
+z:\mtrc\mente\station.nam=
+z:\mtrc\mente\stn10.nam=
+z:\mtrc\mente\stn11.nam=
+z:\mtrc\mente\stn12.nam=
+z:\mtrc\mente\stn13.nam=
+
+[Package|TMS Simulator|Files Removed]
+z:\mtrc\mente\config.dat=
+z:\mtrc\mente\line10.nam=
+z:\mtrc\mente\line11.nam=
+z:\mtrc\mente\line12.nam=
+z:\mtrc\mente\line13.nam=
+z:\mtrc\mente\line14.nam=
+z:\mtrc\mente\line15.nam=
+z:\mtrc\mente\route.nam=
+z:\mtrc\mente\route10.dat=
+z:\mtrc\mente\route11.dat=
+z:\mtrc\mente\route12.dat=
+z:\mtrc\mente\route13.dat=
+z:\mtrc\mente\route14.dat=
+z:\mtrc\mente\route15.dat=
+z:\mtrc\mente\station.nam=
+z:\mtrc\mente\stn10.nam=
+z:\mtrc\mente\stn11.nam=
+z:\mtrc\mente\stn12.nam=
+z:\mtrc\mente\stn13.nam=
+
+[Package|TMS Simulator|Files In Project]
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+Z:\MTRC\MENTE\TMSSIM.exe=Yes
+Z:\MTRC\MENTE\ROUTE15.DAT=No
+Z:\MTRC\MENTE\ROUTE10.DAT=No
+Z:\MTRC\MENTE\ROUTE11.DAT=No
+Z:\MTRC\MENTE\ROUTE12.DAT=No
+Z:\MTRC\MENTE\ROUTE13.DAT=No
+Z:\MTRC\MENTE\ROUTE14.DAT=No
+Z:\MTRC\MENTE\CONFIG.DAT=No
+Z:\MTRC\MENTE\LINE10.NAM=No
+Z:\MTRC\MENTE\LINE11.NAM=No
+Z:\MTRC\MENTE\LINE12.NAM=No
+Z:\MTRC\MENTE\LINE13.NAM=No
+Z:\MTRC\MENTE\LINE14.NAM=No
+Z:\MTRC\MENTE\LINE15.NAM=No
+Z:\MTRC\MENTE\ROUTE.NAM=No
+Z:\MTRC\MENTE\STATION.NAM=No
+Z:\MTRC\MENTE\STN10.NAM=No
+Z:\MTRC\MENTE\STN11.NAM=No
+Z:\MTRC\MENTE\STN12.NAM=No
+Z:\MTRC\MENTE\STN13.NAM=No
+C:\WINDOWS\SYSTEM32\msvbvm60.dll=Yes
+C:\WINDOWS\SYSTEM32\VB6JP.DLL=Yes
+C:\WINDOWS\SYSTEM32\MSCOMM32.OCX=Yes
+C:\WINDOWS\SYSTEM32\MSCOMJP.DLL=Yes
+C:\WINDOWS\SYSTEM32\MSCOMCTL.OCX=Yes
+C:\WINDOWS\SYSTEM32\MSCMCJP.DLL=Yes
+C:\WINDOWS\SYSTEM32\COMDLG32.OCX=Yes
+C:\WINDOWS\SYSTEM32\CMDLGJP.DLL=Yes
+
+[Package|TMS Simulator|Configure Registry Files]
+Applicable=
+
+[Package|TMS Simulator|Configure Remote Servers]
+Applicable=
+
+[Package|TMS Simulator|Install Locations]
+D:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+C:\WINNT\system32\MSVBVM60.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINNT\system32\VB6JP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMM32.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCOMJP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCMCJP.DLL=$(WinSysPath)
+C:\WINNT\system32\COMDLG32.OCX=$(WinSysPath)
+C:\WINNT\system32\CMDLGJP.DLL=$(WinSysPath)
+D:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+D:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+D:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+D:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+D:\MTRC\MENTE\STATION.NAM=$(AppPath)
+D:\MTRC\MENTE\STN10.NAM=$(AppPath)
+D:\MTRC\MENTE\STN11.NAM=$(AppPath)
+D:\MTRC\MENTE\STN12.NAM=$(AppPath)
+D:\MTRC\MENTE\STN13.NAM=$(AppPath)
+Z:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+Z:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+Z:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+Z:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+Z:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+Z:\MTRC\MENTE\STATION.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN10.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN11.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN12.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN13.NAM=$(AppPath)
+C:\WINDOWS\SYSTEM32\msvbvm60.dll=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM32\VB6JP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMM32.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMJP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCMCJP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\COMDLG32.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\CMDLGJP.DLL=$(WinSysPath)
+
+[Package|TMS Simulator|Configure Shared Files]
+Applicable=
+
+[Package|TMS Simulator|DepFile]
+DepCabFile=TMSSIM.CAB
+DepCabRun=TMSSIM.INF
+
+[Package|TMS Simulator|Package]
+PackageFolder=z:\MTRC\MENTE
+ProjectFolder=Z:\MTRC\Mente
+ServerSideCab=
+File1=z:\MTRC\MENTE\TMSSIM.DEP
+Handler1=PDWizard.FolderDplySubWiz
+Handler2=PDWizard.WebPostDplySubWiz

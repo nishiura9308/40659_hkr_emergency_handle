@@ -1,0 +1,93 @@
+# ==========================================================================
+#	◇◇◇　香港地下鉄自動放送　◇◇◇
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .mot .obj .c .src
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ H8 ]]
+CC = ch38.exe
+AS = asm38.exe
+LN = optlnk38.exe
+CONV = cnvs.exe
+
+# [[ Compiler Option ]]
+CFLAGS = -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=$(INC),$(COMMINC),$(BOOTINC)
+
+# [[ Assambler Option ]]
+AFLAGS = -cpu=300ha:24 -debug -list -chgincpath -errorpath
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# src -> obj using ICC Assenbler
+{.\src}.src.obj:
+	$(AS) $< $(AFLAGS) -object=$* 
+
+# .c -> obj using ICC Compiler
+{.\src}.c.obj:
+	$(CC) $(CFLAGS) $< -object=$*.obj
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+SRC		= .\src^\
+OBJ		= .\obj^\
+INC		= .\inc^\
+BOOTINC	= ..\dva2boot\inc^\
+COMMINC	= ..\comminc^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	DVAU2
+
+C_OBJS	=	$(OBJ)entry.obj $(OBJ)sbrk.obj \
+		$(OBJ)dvamain.obj $(OBJ)dvainit2.obj $(OBJ)commlib.obj \
+		$(OBJ)dvaeids.obj $(OBJ)dvatime.obj $(OBJ)dvacomm.obj
+
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# OBJ －＞ MOT ファイル
+#
+$(PGM).mot	: $(OBJS) LINK.CMD
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -SubCommand=LINK.CMD
+	$(CONV) ".\DVAU2.abs" ".\DVAU2.mot"
+
+#起動プログラム
+$(OBJ)entry.obj : $(SRC)entry.c
+
+#システム供給
+$(OBJ)sbrk.obj : $(SRC)sbrk.c $(BOOTINC)sbrk.h
+
+#非同期通信処理
+$(OBJ)commlib.obj : $(SRC)commlib.c $(BOOTINC)iodefine.h
+
+
+#メインルーティン
+$(OBJ)dvamain.obj : $(SRC)dvamain.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h
+
+#初期設定
+$(OBJ)dvainit2.obj : $(SRC)dvainit2.c $(BOOTINC)iodefine.h
+
+#タイマー割り込み処理
+$(OBJ)dvatime.obj : $(SRC)dvatime.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h
+
+#ＥＩＤＳ通信処理
+$(OBJ)dvaeids.obj : $(SRC)dvaeids.c $(COMMINC)table.h $(INC)timer.h
+
+#編成間通信処理
+$(OBJ)dvacomm.obj : $(SRC)dvacomm.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(COMMINC)commdef.h
+
+

@@ -1,0 +1,26 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/WIN                                        #
+# Front End V4.20N                                     21/Sep/2000  22:31:06 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  z:\mtrc\mcp\src\mcppio.c                            #
+#       List file     =  z:\mtrc\mcp\debug\list\mcppio.lst                   #
+#       Object file   =  z:\mtrc\mcp\debug\obj\mcppio.r01                    #
+#       ASM file      =  z:\mtrc\mcp\debug\list\mcppio.s01                   #
+#       Command line  =  -v1 -ml -OZ:\MTRC\MCP\Debug\Obj\ -e -K -w -gA       #
+#                        -RCODE -r0 -LZ:\MTRC\MCP\Debug\List\ -q -T -t8      #
+#                        -AZ:\MTRC\MCP\Debug\List\ -IC:\IAR\EW22\Z80\INC\    #
+#                        -IZ:\MTRC\MCP\INC\ Z:\MTRC\MCP\SRC\MCPPIO.C         #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+
+#include "COMMDEF.h"
+--------------------^
+"z:\mtrc\mcp\src\mcppio.c",16  Error[2]: Failed to open #include file 'COMMDEF.h'
+
+Fatal error, compilation aborted

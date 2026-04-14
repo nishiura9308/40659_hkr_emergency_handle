@@ -1,0 +1,1876 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatrace.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            トレース制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:                                                                                                                                            *
+                     8:            Revision        a00. 2000/08/09         K.Honda
+                     9:            Revision        a01. 2000/12/07         K.Honda
+                    10:    
+                    11:    *********************************************************************/
+                    12:    
+                    13:    #include        <stdio.h>
+                    14:    #include    <machine.h>
+                    15:    
+                    16:    #include    "iodefine.h"
+                    17:    #include        "table.h"
+                    18:    
+                    19:    #include    "timer.h"
+                    20:    #include    "trace.h"
+                    21:    
+                    22:    /*@@@S*/
+                    23:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    24:            グローバル変数
+                    25:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    26:    
+                    27:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    28:            定数定義
+                    29:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    30:    
+                    31:    #define MAX_TRACE       3001            // トレース情報を３０００件表示するため　３００１とした
+                    32:    
+                    33:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    34:            構造体定義
+                    35:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    36:    
+                    37:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    38:            テーブル
+                    39:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    40:    
+                    41:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    42:                    外部参照
+                    43:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    44:    extern  struct  TIMER_CONTROL   timedata;
+                    45:    
+                    46:    extern  struct  BACKUP_DATA             backup_data;            // バックアップデータ
+                    47:    
+                    48:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    49:                    ローカル変数
+                    50:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    51:    #pragma section BACKUP
+                    52:    static  struct TRACE traceData[MAX_TRACE];
+                    53:    static  int                     trace_top;
+                    54:    static  int                     trace_end;
+                    55:    static  int                     trace_get;
+                    56:    #pragma section
+                    57:    
+                    58:    
+                    59:    /*@@@E*/
+                    60:    /************************************************************************
+                    61:    
+                    62:            Function name   << TraceClear >>
+                    63:                                            トレース初期設定
+                    64:            Syntax                  TraceClear( void );
+                    65:            Argument                none
+                    66:            Author                  TOA Corporation  K.Honda
+                    67:            Revision                a00 2000/08/09
+                    68:    
+                    69:    *************************************************************************/
+                    70:    int TraceClear( void )
+    000000              _TraceClear:                     ; function: TraceClear
+                    71:    {
+                    72:                    trace_top = 0;
+                    73:                    trace_end = 0;
+    000000 1900                   SUB.W       R0,R0
+    000002 6BA000                 MOV.W       R0,@_$trace_end:24
+           <000000>     
+    000008 6BA000                 MOV.W       R0,@_$trace_top:24
+           <000000>     
+                    74:                    trace_get = 0;
+    00000E 6BA000                 MOV.W       R0,@_$trace_get:24
+           <000000>     
+                    75:                    memset( traceData, 0, sizeof(traceData) );
+    000014 7A0000008C             MOV.L       #36012:32,ER0
+           AC           
+    00001A 01006DF0               PUSH.L      ER0
+    00001E 1911                   SUB.W       R1,R1
+    000020 7A00                   MOV.L       #_$traceData:32,ER0
+           <00000000>   
+    000026 5E                     JSR         @_memset:24
+           <000000>     
+    00002A 0B97                   ADDS.L      #4,SP
+                    76:    }
+    00002C 5470                   RTS
+                    77:    
+                    78:    /************************************************************************
+                    79:    
+                    80:            Function name   << TraceAdd >>  
+                    81:                                            トレース追加設定
+                    82:            Syntax                  TraceAdd( event );
+                    83:            Argument                char event : i : イベントコード
+                    84:            Author                  TOA Corporation  K.Honda
+                    85:            Revision                a00 2000/08/09
+                    86:    
+                    87:    *************************************************************************/
+                    88:    int TraceAdd( char event )
+    00002E              _TraceAdd:                       ; function: TraceAdd
+    00002E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    89:    {
+    000032 7A05                   MOV.L       #_$trace_top:32,ER5
+           <00000000>   
+    000038 0C8B                   MOV.B       R0L,R3L
+                    90:                    struct TRACE    *tracep;
+                    91:                    set_imask_ccr(1);
+    00003A 0480                   ORC.B       #-128:8,CCR
+                    92:    
+                    93:                    tracep = &traceData[trace_top];
+    00003C 6956                   MOV.W       @ER5,R6
+    00003E 790E000C               MOV.W       #12:16,E6
+    000042 01C052E6               MULXS.W     E6,ER6
+    000046 7A16                   ADD.L       #_$traceData:32,ER6
+           <00000000>   
+                    94:                    tracep->tm_mon = timedata.tm_mon;
+    00004C 7A04                   MOV.L       #_timedata:32,ER4
+           <00000000>   
+    000052 6E490003               MOV.B       @(3:16,ER4),R1L
+    000056 1751                   EXTU.W      R1
+    000058 6860                   MOV.B       @ER6,R0H
+    00005A 6E680001               MOV.B       @(1:16,ER6),R0L
+    00005E 79020004               MOV.W       #4:16,R2
+    000062 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000066 68E0                   MOV.B       R0H,@ER6
+    000068 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                    95:                    tracep->tm_day = timedata.tm_day;
+    00006C 6E480004               MOV.B       @(4:16,ER4),R0L
+    000070 1750                   EXTU.W      R0
+    000072 0D01                   MOV.W       R0,R1
+    000074 6860                   MOV.B       @ER6,R0H
+    000076 6E680001               MOV.B       @(1:16,ER6),R0L
+    00007A 79020405               MOV.W       #1029:16,R2
+    00007E 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000082 68E0                   MOV.B       R0H,@ER6
+    000084 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                    96:                    tracep->tm_hour = timedata.tm_hour;
+    000088 6E480005               MOV.B       @(5:16,ER4),R0L
+    00008C 1750                   EXTU.W      R0
+    00008E 0D01                   MOV.W       R0,R1
+    000090 6860                   MOV.B       @ER6,R0H
+    000092 6E680001               MOV.B       @(1:16,ER6),R0L
+    000096 79020905               MOV.W       #2309:16,R2
+    00009A 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    00009E 68E0                   MOV.B       R0H,@ER6
+    0000A0 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                    97:                    tracep->tm_min = timedata.tm_min;
+    0000A4 6E480006               MOV.B       @(6:16,ER4),R0L
+    0000A8 1750                   EXTU.W      R0
+    0000AA 0D01                   MOV.W       R0,R1
+    0000AC 6E600002               MOV.B       @(2:16,ER6),R0H
+    0000B0 6E680003               MOV.B       @(3:16,ER6),R0L
+    0000B4 79020006               MOV.W       #6:16,R2
+    0000B8 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    0000BC 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    0000C0 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                    98:                    tracep->tm_sec = timedata.tm_sec;
+    0000C4 6E480007               MOV.B       @(7:16,ER4),R0L
+    0000C8 1750                   EXTU.W      R0
+    0000CA 0D01                   MOV.W       R0,R1
+    0000CC 6E600002               MOV.B       @(2:16,ER6),R0H
+    0000D0 6E680003               MOV.B       @(3:16,ER6),R0L
+    0000D4 79020606               MOV.W       #1542:16,R2
+    0000D8 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    0000DC 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    0000E0 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                    99:                    tracep->tm_msec = timedata.tm_msec/10;
+    0000E4 6E4C0008               MOV.B       @(8:16,ER4),R4L
+    0000E8 1754                   EXTU.W      R4
+    0000EA 17F4                   EXTS.L      ER4
+    0000EC 7900000A               MOV.W       #10:16,R0
+    0000F0 01D05304               DIVXS.W     R0,ER4
+    0000F4 0CC8                   MOV.B       R4L,R0L
+    0000F6 6E600003               MOV.B       @(3:16,ER6),R0H
+    0000FA E0F0                   AND.B       #-16:8,R0H
+    0000FC E80F                   AND.B       #15:8,R0L
+    0000FE 1480                   OR.B        R0L,R0H
+    000100 6EE00003               MOV.B       R0H,@(3:16,ER6)
+                   100:    
+                   101:                    tracep->eventID[0] = event;
+    000104 6EEB0004               MOV.B       R3L,@(4:16,ER6)
+                   102:                    tracep->eventID[1] = backup_data.nowRouteCode;
+    000108 7A04                   MOV.L       #_backup_data:32,ER4
+           <00000000>   
+    00010E 6E480004               MOV.B       @(4:16,ER4),R0L
+    000112 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   103:                    tracep->eventID[2] = backup_data.nowStationName;
+    000116 6E480005               MOV.B       @(5:16,ER4),R0L
+    00011A 6EE80006               MOV.B       R0L,@(6:16,ER6)
+                   104:                    tracep->eventID[3] = backup_data.stationNumber;
+    00011E 6E480036               MOV.B       @(54:16,ER4),R0L
+    000122 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   105:                    tracep->eventID[4] = backup_data.nowEMGCode;
+    000126 6E48001B               MOV.B       @(27:16,ER4),R0L
+    00012A 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                   106:                    tracep->eventID[5] = backup_data.nowSPCCode;
+    00012E 6E4C001C               MOV.B       @(28:16,ER4),R4L
+    000132 6EEC0009               MOV.B       R4L,@(9:16,ER6)
+                   107:                    if( DUALPORT.ev5000_request.Request ){
+    000136 7A04001800             MOV.L       #1572864:32,ER4
+           00           
+    00013C 6E4800F6               MOV.B       @(246:16,ER4),R0L
+    000140 7768                   BLD.B       #6,R0L
+    000142 4440                   BCC         L333:8
+                   108:                            tracep->eventID[6] = (DUALPORT.ev5000_request.Sequence[0].sendRequest.sendCode>>8);
+    000144 6E4000FA               MOV.B       @(250:16,ER4),R0H
+    000148 6E4800FB               MOV.B       @(251:16,ER4),R0L
+    00014C 0D08                   MOV.W       R0,E0
+    00014E 6E4000FC               MOV.B       @(252:16,ER4),R0H
+    000152 6E4800FD               MOV.B       @(253:16,ER4),R0L
+    000156 6E010002               MOV.B       @(2:16,ER0),R1H
+    00015A E101                   AND.B       #1:8,R1H
+    00015C 0C19                   MOV.B       R1H,R1L
+    00015E 6EE9000A               MOV.B       R1L,@(10:16,ER6)
+                   109:                            tracep->eventID[7] = (DUALPORT.ev5000_request.Sequence[0].sendRequest.sendCode);
+    000162 6E4000FA               MOV.B       @(250:16,ER4),R0H
+    000166 6E4800FB               MOV.B       @(251:16,ER4),R0L
+    00016A 0D08                   MOV.W       R0,E0
+    00016C 6E4000FC               MOV.B       @(252:16,ER4),R0H
+    000170 6E4800FD               MOV.B       @(253:16,ER4),R0L
+    000174 6E010002               MOV.B       @(2:16,ER0),R1H
+    000178 6E090003               MOV.B       @(3:16,ER0),R1L
+    00017C E101                   AND.B       #1:8,R1H
+    00017E 6EE9000B               MOV.B       R1L,@(11:16,ER6)
+    000182 400C                   BRA         L334:8
+    000184              L333:                             
+                   110:                    }
+                   111:                    else {
+                   112:                            tracep->eventID[6] = 0;
+    000184 1888                   SUB.B       R0L,R0L
+    000186 6EE8000A               MOV.B       R0L,@(10:16,ER6)
+                   113:                            tracep->eventID[7] = 0;
+    00018A 1888                   SUB.B       R0L,R0L
+    00018C 6EE8000B               MOV.B       R0L,@(11:16,ER6)
+    000190              L334:                             
+                   114:                    }
+                   115:    
+                   116:                    trace_top++;
+    000190 6950                   MOV.W       @ER5,R0
+    000192 0B50                   INC.W       #1,R0
+    000194 69D0                   MOV.W       R0,@ER5
+                   117:                    if( trace_top>=MAX_TRACE ){
+    000196 79200BB9               CMP.W       #3001:16,R0
+    00019A 4D04                   BLT         L335:8
+                   118:                            trace_top=0;
+    00019C 1900                   SUB.W       R0,R0
+    00019E 69D0                   MOV.W       R0,@ER5
+    0001A0              L335:                             
+                   119:                    }
+                   120:                    if( trace_top==trace_end ){
+    0001A0 7A06                   MOV.L       #_$trace_end:32,ER6
+           <00000000>   
+    0001A6 6950                   MOV.W       @ER5,R0
+    0001A8 6961                   MOV.W       @ER6,R1
+    0001AA 1D10                   CMP.W       R1,R0
+    0001AC 4610                   BNE         L336:8
+                   121:                            trace_end++;
+    0001AE 6960                   MOV.W       @ER6,R0
+    0001B0 0B50                   INC.W       #1,R0
+    0001B2 69E0                   MOV.W       R0,@ER6
+                   122:                            if( trace_end>=MAX_TRACE ){
+    0001B4 79200BB9               CMP.W       #3001:16,R0
+    0001B8 4D04                   BLT         L337:8
+                   123:                                    trace_end=0;
+    0001BA 1900                   SUB.W       R0,R0
+    0001BC 69E0                   MOV.W       R0,@ER6
+    0001BE              L337:                             
+    0001BE              L336:                             
+                   124:                            }
+                   125:                    }
+                   126:                    if( trace_top==trace_get ){
+    0001BE 7A06                   MOV.L       #_$trace_get:32,ER6
+           <00000000>   
+    0001C4 6950                   MOV.W       @ER5,R0
+    0001C6 6961                   MOV.W       @ER6,R1
+    0001C8 1D10                   CMP.W       R1,R0
+    0001CA 4610                   BNE         L338:8
+                   127:                            trace_get++;
+    0001CC 6960                   MOV.W       @ER6,R0
+    0001CE 0B50                   INC.W       #1,R0
+    0001D0 69E0                   MOV.W       R0,@ER6
+                   128:                            if( trace_get>=MAX_TRACE ){
+    0001D2 79200BB9               CMP.W       #3001:16,R0
+    0001D6 4D04                   BLT         L339:8
+                   129:                                    trace_get=0;
+    0001D8 1900                   SUB.W       R0,R0
+    0001DA 69E0                   MOV.W       R0,@ER6
+    0001DC              L339:                             
+    0001DC              L338:                             
+                   130:                            }
+                   131:                    }
+                   132:                    set_imask_ccr(0);
+    0001DC 067F                   ANDC.B      #127:8,CCR
+                   133:    }
+    0001DE 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   134:    
+                   135:    /************************************************************************
+                   136:    
+                   137:            Function name   << TraceTrouble >>
+                   138:                                            トラブルトレース追加設定
+                   139:            Syntax                  TraceTrouble( event, troubleBit );
+                   140:            Argument                char event               : i : イベントコード
+                   141:                                    unsigned char troubleBit : i : 発生したトラブルビット
+                   142:            Author                  TOA Corporation  K.Honda
+                   143:            Revision                a00 2000/11/13
+                   144:    
+                   145:    *************************************************************************/
+                   146:    int TraceTrouble( char event, unsigned char troubleBit )
+    0001E2              _TraceTrouble:                   ; function: TraceTrouble
+    0001E2 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   147:    {
+    0001E6 7A05                   MOV.L       #_$trace_top:32,ER5
+           <00000000>   
+    0001EC 0C83                   MOV.B       R0L,R3H
+    0001EE 0C0B                   MOV.B       R0H,R3L
+                   148:                    struct TRACE    *tracep;
+                   149:                    set_imask_ccr(1);
+    0001F0 0480                   ORC.B       #-128:8,CCR
+                   150:    
+                   151:                    tracep = &traceData[trace_top];
+    0001F2 6956                   MOV.W       @ER5,R6
+    0001F4 790E000C               MOV.W       #12:16,E6
+    0001F8 01C052E6               MULXS.W     E6,ER6
+    0001FC 7A16                   ADD.L       #_$traceData:32,ER6
+           <00000000>   
+                   152:                    tracep->tm_mon = timedata.tm_mon;
+    000202 7A04                   MOV.L       #_timedata:32,ER4
+           <00000000>   
+    000208 6E490003               MOV.B       @(3:16,ER4),R1L
+    00020C 1751                   EXTU.W      R1
+    00020E 6860                   MOV.B       @ER6,R0H
+    000210 6E680001               MOV.B       @(1:16,ER6),R0L
+    000214 79020004               MOV.W       #4:16,R2
+    000218 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    00021C 68E0                   MOV.B       R0H,@ER6
+    00021E 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   153:                    tracep->tm_day = timedata.tm_day;
+    000222 6E480004               MOV.B       @(4:16,ER4),R0L
+    000226 1750                   EXTU.W      R0
+    000228 0D01                   MOV.W       R0,R1
+    00022A 6860                   MOV.B       @ER6,R0H
+    00022C 6E680001               MOV.B       @(1:16,ER6),R0L
+    000230 79020405               MOV.W       #1029:16,R2
+    000234 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000238 68E0                   MOV.B       R0H,@ER6
+    00023A 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   154:                    tracep->tm_hour = timedata.tm_hour;
+    00023E 6E480005               MOV.B       @(5:16,ER4),R0L
+    000242 1750                   EXTU.W      R0
+    000244 0D01                   MOV.W       R0,R1
+    000246 6860                   MOV.B       @ER6,R0H
+    000248 6E680001               MOV.B       @(1:16,ER6),R0L
+    00024C 79020905               MOV.W       #2309:16,R2
+    000250 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000254 68E0                   MOV.B       R0H,@ER6
+    000256 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   155:                    tracep->tm_min = timedata.tm_min;
+    00025A 6E480006               MOV.B       @(6:16,ER4),R0L
+    00025E 1750                   EXTU.W      R0
+    000260 0D01                   MOV.W       R0,R1
+    000262 6E600002               MOV.B       @(2:16,ER6),R0H
+    000266 6E680003               MOV.B       @(3:16,ER6),R0L
+    00026A 79020006               MOV.W       #6:16,R2
+    00026E 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000272 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    000276 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   156:                    tracep->tm_sec = timedata.tm_sec;
+    00027A 6E480007               MOV.B       @(7:16,ER4),R0L
+    00027E 1750                   EXTU.W      R0
+    000280 0D01                   MOV.W       R0,R1
+    000282 6E600002               MOV.B       @(2:16,ER6),R0H
+    000286 6E680003               MOV.B       @(3:16,ER6),R0L
+    00028A 79020606               MOV.W       #1542:16,R2
+    00028E 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000292 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    000296 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   157:                    tracep->tm_msec = timedata.tm_msec/10;
+    00029A 6E4C0008               MOV.B       @(8:16,ER4),R4L
+    00029E 1754                   EXTU.W      R4
+    0002A0 17F4                   EXTS.L      ER4
+    0002A2 7900000A               MOV.W       #10:16,R0
+    0002A6 01D05304               DIVXS.W     R0,ER4
+    0002AA 0CC8                   MOV.B       R4L,R0L
+    0002AC 6E600003               MOV.B       @(3:16,ER6),R0H
+    0002B0 E0F0                   AND.B       #-16:8,R0H
+    0002B2 E80F                   AND.B       #15:8,R0L
+    0002B4 1480                   OR.B        R0L,R0H
+    0002B6 6EE00003               MOV.B       R0H,@(3:16,ER6)
+                   158:    
+                   159:                    tracep->eventID[0] = event;
+    0002BA 6EE30004               MOV.B       R3H,@(4:16,ER6)
+                   160:                    tracep->eventID[1] = backup_data.nowRouteCode;
+    0002BE 7A04                   MOV.L       #_backup_data:32,ER4
+           <00000000>   
+    0002C4 6E480004               MOV.B       @(4:16,ER4),R0L
+    0002C8 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   161:                    tracep->eventID[2] = backup_data.nowStationName;
+    0002CC 6E480005               MOV.B       @(5:16,ER4),R0L
+    0002D0 6EE80006               MOV.B       R0L,@(6:16,ER6)
+                   162:                    tracep->eventID[3] = backup_data.stationNumber;
+    0002D4 6E480036               MOV.B       @(54:16,ER4),R0L
+    0002D8 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   163:                    tracep->eventID[4] = backup_data.nowEMGCode;
+    0002DC 6E48001B               MOV.B       @(27:16,ER4),R0L
+    0002E0 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                   164:                    tracep->eventID[5] = backup_data.nowSPCCode;
+    0002E4 6E4C001C               MOV.B       @(28:16,ER4),R4L
+    0002E8 6EEC0009               MOV.B       R4L,@(9:16,ER6)
+                   165:                    tracep->eventID[6] = troubleBit;
+    0002EC 6EEB000A               MOV.B       R3L,@(10:16,ER6)
+                   166:                    tracep->eventID[7] = 0;
+    0002F0 1888                   SUB.B       R0L,R0L
+    0002F2 6EE8000B               MOV.B       R0L,@(11:16,ER6)
+                   167:    
+                   168:                    trace_top++;
+    0002F6 6950                   MOV.W       @ER5,R0
+    0002F8 0B50                   INC.W       #1,R0
+    0002FA 69D0                   MOV.W       R0,@ER5
+                   169:                    if( trace_top>=MAX_TRACE ){
+    0002FC 79200BB9               CMP.W       #3001:16,R0
+    000300 4D04                   BLT         L340:8
+                   170:                            trace_top=0;
+    000302 1900                   SUB.W       R0,R0
+    000304 69D0                   MOV.W       R0,@ER5
+    000306              L340:                             
+                   171:                    }
+                   172:                    if( trace_top==trace_end ){
+    000306 7A06                   MOV.L       #_$trace_end:32,ER6
+           <00000000>   
+    00030C 6950                   MOV.W       @ER5,R0
+    00030E 6961                   MOV.W       @ER6,R1
+    000310 1D10                   CMP.W       R1,R0
+    000312 4610                   BNE         L341:8
+                   173:                            trace_end++;
+    000314 6960                   MOV.W       @ER6,R0
+    000316 0B50                   INC.W       #1,R0
+    000318 69E0                   MOV.W       R0,@ER6
+                   174:                            if( trace_end>=MAX_TRACE ){
+    00031A 79200BB9               CMP.W       #3001:16,R0
+    00031E 4D04                   BLT         L342:8
+                   175:                                    trace_end=0;
+    000320 1900                   SUB.W       R0,R0
+    000322 69E0                   MOV.W       R0,@ER6
+    000324              L342:                             
+    000324              L341:                             
+                   176:                            }
+                   177:                    }
+                   178:                    if( trace_top==trace_get ){
+    000324 7A06                   MOV.L       #_$trace_get:32,ER6
+           <00000000>   
+    00032A 6950                   MOV.W       @ER5,R0
+    00032C 6961                   MOV.W       @ER6,R1
+    00032E 1D10                   CMP.W       R1,R0
+    000330 4610                   BNE         L343:8
+                   179:                            trace_get++;
+    000332 6960                   MOV.W       @ER6,R0
+    000334 0B50                   INC.W       #1,R0
+    000336 69E0                   MOV.W       R0,@ER6
+                   180:                            if( trace_get>=MAX_TRACE ){
+    000338 79200BB9               CMP.W       #3001:16,R0
+    00033C 4D04                   BLT         L344:8
+                   181:                                    trace_get=0;
+    00033E 1900                   SUB.W       R0,R0
+    000340 69E0                   MOV.W       R0,@ER6
+    000342              L344:                             
+    000342              L343:                             
+                   182:                            }
+                   183:                    }
+                   184:                    set_imask_ccr(0);
+    000342 067F                   ANDC.B      #127:8,CCR
+                   185:    }
+    000344 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   186:    
+                   187:    /************************************************************************
+                   188:    
+                   189:            Function name   << TraceGet >>  
+                   190:                                            トレース取り出し
+                   191:            Syntax                  info = TraceGet( first );
+                   192:            Argument                int first          : i : 1=最初の取り出し
+                   193:                                                             0=次の取り出し
+                   194:                                    struct TRACE *info : o : トレースデータ
+                   195:                                                            NULL = データなし
+                   196:            Author                  TOA Corporation  K.Honda
+                   197:            Revision                a00 2000/08/09
+                   198:    
+                   199:    *************************************************************************/
+                   200:    struct TRACE *TraceGet( int first )
+    000348              _TraceGet:                       ; function: TraceGet
+    000348 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   201:    {
+    00034C 7A05                   MOV.L       #_$trace_get:32,ER5
+           <00000000>   
+    000352 0D06                   MOV.W       R0,R6
+                   202:                    int             getno;
+                   203:                    int             trace_on;
+                   204:    
+                   205:                    trace_on = 1;
+    000354 790E0001               MOV.W       #1:16,E6
+                   206:                    set_imask_ccr(1);
+    000358 0480                   ORC.B       #-128:8,CCR
+                   207:                    if( first ){
+    00035A 0D66                   MOV.W       R6,R6
+    00035C 470C                   BEQ         L345:8
+                   208:                            trace_get = trace_end;
+    00035E 6B2100                 MOV.W       @_$trace_end:24,R1
+           <000000>     
+    000364 69D1                   MOV.W       R1,@ER5
+                   209:                            getno = trace_get;
+    000366 0D16                   MOV.W       R1,R6
+    000368 4004                   BRA         L346:8
+    00036A              L345:                             
+                   210:                    }
+                   211:                    else {
+                   212:                            getno = trace_get;
+    00036A 6956                   MOV.W       @ER5,R6
+                   213:                            getno++;
+    00036C 0B56                   INC.W       #1,R6
+    00036E              L346:                             
+                   214:                    }
+                   215:                    if( getno>=MAX_TRACE ){
+    00036E 79260BB9               CMP.W       #3001:16,R6
+    000372 4D02                   BLT         L347:8
+                   216:                            getno = 0;
+    000374 1966                   SUB.W       R6,R6
+    000376              L347:                             
+                   217:                    }
+                   218:                    if( getno==trace_top )
+    000376 6B2000                 MOV.W       @_$trace_top:24,R0
+           <000000>     
+    00037C 1D06                   CMP.W       R0,R6
+    00037E 4602                   BNE         L348:8
+                   219:                            trace_on = 0;
+    000380 19EE                   SUB.W       E6,E6
+    000382              L348:                             
+                   220:    
+                   221:                    if( traceData[getno].eventID[0]==0 )
+    000382 7900000C               MOV.W       #12:16,R0
+    000386 01C05260               MULXS.W     R6,ER0
+    00038A 78006A2900             MOV.B       @(_$traceData+4:24,ER0),R1L
+           <000000>     
+    000392 4602                   BNE         L349:8
+                   222:                            trace_on = 0;
+    000394 19EE                   SUB.W       E6,E6
+    000396              L349:                             
+                   223:    
+                   224:                    if( trace_on ){
+    000396 0DEE                   MOV.W       E6,E6
+    000398 4702                   BEQ         L350:8
+                   225:                            trace_get = getno;
+    00039A 69D6                   MOV.W       R6,@ER5
+    00039C              L350:                             
+                   226:                    }
+                   227:                    set_imask_ccr(0);
+    00039C 067F                   ANDC.B      #127:8,CCR
+                   228:    
+                   229:                    if( trace_on ){
+    00039E 0DEE                   MOV.W       E6,E6
+    0003A0 4712                   BEQ         L351:8
+                   230:                            return &traceData[getno];
+    0003A2 0D60                   MOV.W       R6,R0
+    0003A4 7908000C               MOV.W       #12:16,E0
+    0003A8 01C05280               MULXS.W     E0,ER0
+    0003AC 7A10                   ADD.L       #_$traceData:32,ER0
+           <00000000>   
+    0003B2 4002                   BRA         L352:8
+    0003B4              L351:                             
+                   231:                    }
+                   232:    
+                   233:                    return( NULL );
+    0003B4 1A80                   SUB.L       ER0,ER0
+                   234:    }
+    0003B6              L352:                             
+    0003B6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   235:    
+                   236:    /************************************************************************
+                   237:    
+                   238:            Function name   << TraceText >> 
+                   239:                                            トレース情報のテキスト化
+                   240:            Syntax                  TraceText( getp, buffer );
+                   241:            Argument                struct TRACE *getp : i : トレース情報
+                   242:                                    char *buffer       : o : テキスト情報
+                   243:            Author                  TOA Corporation  K.Honda
+                   244:            Revision                a00 2000/08/09
+                   245:                                    a01 2000/11/13  トラブル情報の追加
+                   246:    
+                   247:    *************************************************************************/
+                   248:    void TraceText( struct TRACE *getp, char *buffer )
+    0003BA              _TraceText:                      ; function: TraceText
+    0003BA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0003BE 1B97                   SUBS.L      #4,SP
+                   249:    {
+    0003C0 0F85                   MOV.L       ER0,ER5
+    0003C2 0F96                   MOV.L       ER1,ER6
+                   250:                    int             i;
+                   251:                    int             mm,dd,hh,nn,ss,msec;
+                   252:    
+                   253:                    mm = getp->tm_mon;
+    0003C4 6850                   MOV.B       @ER5,R0H
+    0003C6 6E580001               MOV.B       @(1:16,ER5),R0L
+    0003CA 79010004               MOV.W       #4:16,R1
+    0003CE 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    0003D2 6FF00002               MOV.W       R0,@(2:16,SP)
+                   254:                    dd = getp->tm_day;
+    0003D6 6850                   MOV.B       @ER5,R0H
+    0003D8 6E580001               MOV.B       @(1:16,ER5),R0L
+    0003DC 1010                   SHLL.W      R0
+    0003DE E01F                   AND.B       #31:8,R0H
+    0003E0 0C08                   MOV.B       R0H,R0L
+    0003E2 1750                   EXTU.W      R0
+    0003E4 0D0B                   MOV.W       R0,E3
+                   255:                    hh = getp->tm_hour;
+    0003E6 6E580001               MOV.B       @(1:16,ER5),R0L
+    0003EA 1108                   SHLR.B      R0L
+    0003EC 1108                   SHLR.B      R0L
+    0003EE E81F                   AND.B       #31:8,R0L
+    0003F0 1750                   EXTU.W      R0
+    0003F2 0D03                   MOV.W       R0,R3
+                   256:                    nn = getp->tm_min;
+    0003F4 6E580002               MOV.B       @(2:16,ER5),R0L
+    0003F8 1108                   SHLR.B      R0L
+    0003FA 1108                   SHLR.B      R0L
+    0003FC 1750                   EXTU.W      R0
+    0003FE 0D0C                   MOV.W       R0,E4
+                   257:                    ss = getp->tm_sec;
+    000400 6E500002               MOV.B       @(2:16,ER5),R0H
+    000404 6E580003               MOV.B       @(3:16,ER5),R0L
+    000408 79010606               MOV.W       #1542:16,R1
+    00040C 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    000410 0D04                   MOV.W       R0,R4
+                   258:                    msec = getp->tm_msec;
+    000412 6E580003               MOV.B       @(3:16,ER5),R0L
+    000416 E80F                   AND.B       #15:8,R0L
+    000418 1750                   EXTU.W      R0
+    00041A 69F0                   MOV.W       R0,@SP
+                   259:                    if( msec>=10 ){
+    00041C 7920000A               CMP.W       #10:16,R0
+    000420 4D08                   BLT         L353:8
+                   260:                            msec-=10;
+    000422 7930000A               SUB.W       #10:16,R0
+    000426 69F0                   MOV.W       R0,@SP
+                   261:                            ss++;
+    000428 0B54                   INC.W       #1,R4
+    00042A              L353:                             
+                   262:                    }
+                   263:                    if( ss>=60 ){
+    00042A 7924003C               CMP.W       #60:16,R4
+    00042E 4D04                   BLT         L354:8
+                   264:                            ss-=60;
+    000430 7934003C               SUB.W       #60:16,R4
+    000434              L354:                             
+                   265:                    }
+                   266:                    if( nn>=60 ){
+    000434 792C003C               CMP.W       #60:16,E4
+    000438 4D04                   BLT         L355:8
+                   267:                            nn-=60;
+    00043A 793C003C               SUB.W       #60:16,E4
+    00043E              L355:                             
+                   268:                    }
+                   269:                    if( hh>=24 ){
+    00043E 79230018               CMP.W       #24:16,R3
+    000442 4D04                   BLT         L356:8
+                   270:                            hh-=24;
+    000444 79330018               SUB.W       #24:16,R3
+    000448              L356:                             
+                   271:                    }
+                   272:                    if( dd>=32 ){
+    000448 792B0020               CMP.W       #32:16,E3
+    00044C 4D04                   BLT         L357:8
+                   273:                            dd-=32;
+    00044E 793B0020               SUB.W       #32:16,E3
+    000452              L357:                             
+                   274:                    }
+                   275:                    if( mm>=13 ){
+    000452 6F700002               MOV.W       @(2:16,SP),R0
+    000456 7920000D               CMP.W       #13:16,R0
+    00045A 4D0C                   BLT         L358:8
+                   276:                            mm-=12;
+    00045C 6F700002               MOV.W       @(2:16,SP),R0
+    000460 7930000C               SUB.W       #12:16,R0
+    000464 6FF00002               MOV.W       R0,@(2:16,SP)
+    000468              L358:                             
+                   277:                    }
+                   278:                    buffer += sprintf( buffer, "%02u/%02u %02u:%02u:%02u.%01u ",
+                   279:                                    mm,dd,hh,nn,ss,msec );
+    000468 6972                   MOV.W       @SP,R2
+    00046A 6DF2                   PUSH.W      R2
+    00046C 6DF4                   PUSH.W      R4
+    00046E 6DFC                   PUSH.W      E4
+    000470 6DF3                   PUSH.W      R3
+    000472 6DFB                   PUSH.W      E3
+    000474 6F72000C               MOV.W       @(12:16,SP),R2
+    000478 6DF2                   PUSH.W      R2
+    00047A 7A02                   MOV.L       #L141:32,ER2
+           <00000000>   
+    000480 01006DF2               PUSH.L      ER2
+    000484 0FE0                   MOV.L       ER6,ER0
+    000486 5E                     JSR         @_sprintf:24
+           <000000>     
+    00048A 7A17000000             ADD.L       #16:32,SP
+           10           
+    000490 17F0                   EXTS.L      ER0
+    000492 0A86                   ADD.L       ER0,ER6
+                   280:    
+                   281:                    if( getp->eventID[0] & 0x80 ){          // Trouble Trace
+    000494 6E580004               MOV.B       @(4:16,ER5),R0L
+    000498 58A002BC               BPL         L359:16
+                   282:                            buffer += sprintf( buffer, "R%02X S%02X N%02X E%02X S%02X T%02X ",
+                   283:                                            getp->eventID[1],
+                   284:                                            getp->eventID[2],
+                   285:                                            getp->eventID[3],
+                   286:                                            getp->eventID[4],
+                   287:                                            getp->eventID[5],
+                   288:                                            getp->eventID[6] );
+    00049C 0FD4                   MOV.L       ER5,ER4
+    00049E 0B94                   ADDS.L      #4,ER4
+    0004A0 6E4A0006               MOV.B       @(6:16,ER4),R2L
+    0004A4 1752                   EXTU.W      R2
+    0004A6 6DF2                   PUSH.W      R2
+    0004A8 6E4A0005               MOV.B       @(5:16,ER4),R2L
+    0004AC 1752                   EXTU.W      R2
+    0004AE 6DF2                   PUSH.W      R2
+    0004B0 6E4A0004               MOV.B       @(4:16,ER4),R2L
+    0004B4 1752                   EXTU.W      R2
+    0004B6 6DF2                   PUSH.W      R2
+    0004B8 6E4A0003               MOV.B       @(3:16,ER4),R2L
+    0004BC 1752                   EXTU.W      R2
+    0004BE 6DF2                   PUSH.W      R2
+    0004C0 6E4A0002               MOV.B       @(2:16,ER4),R2L
+    0004C4 1752                   EXTU.W      R2
+    0004C6 6DF2                   PUSH.W      R2
+    0004C8 6E4A0001               MOV.B       @(1:16,ER4),R2L
+    0004CC 1752                   EXTU.W      R2
+    0004CE 6DF2                   PUSH.W      R2
+    0004D0 7A02                   MOV.L       #L143:32,ER2
+           <00000000>   
+    0004D6 01006DF2               PUSH.L      ER2
+    0004DA 0FE0                   MOV.L       ER6,ER0
+    0004DC 5E                     JSR         @_sprintf:24
+           <000000>     
+    0004E0 7A17000000             ADD.L       #16:32,SP
+           10           
+    0004E6 17F0                   EXTS.L      ER0
+    0004E8 0A86                   ADD.L       ER0,ER6
+                   289:    
+                   290:                            if( (getp->eventID[0] & 0xF0)==0x80 ){
+    0004EA 6E580004               MOV.B       @(4:16,ER5),R0L
+    0004EE E8F0                   AND.B       #-16:8,R0L
+    0004F0 A880                   CMP.B       #-128:8,R0L
+    0004F2 4662                   BNE         L360:8
+                   291:                                    if( getp->eventID[0] & 0x01 ){
+    0004F4 6E580004               MOV.B       @(4:16,ER5),R0L
+    0004F8 7308                   BTST.B      #0,R0L
+    0004FA 4708                   BEQ         L361:8
+                   292:                                            buffer += sprintf( buffer, "tbl:DVAU2 " );
+    0004FC 7A02                   MOV.L       #L146:32,ER2
+           <00000000>   
+    000502 4006                   BRA         L385:8
+    000504              L361:                             
+                   293:                                    }
+                   294:                                    else {
+                   295:                                            buffer += sprintf( buffer, "tbl:DVAU1 " );
+    000504 7A02                   MOV.L       #L148:32,ER2
+           <00000000>   
+    00050A              L385:                             
+    00050A 01006DF2               PUSH.L      ER2
+    00050E 0FE0                   MOV.L       ER6,ER0
+    000510 5E                     JSR         @_sprintf:24
+           <000000>     
+    000514 0B97                   ADDS.L      #4,SP
+    000516 17F0                   EXTS.L      ER0
+    000518 0A86                   ADD.L       ER0,ER6
+                   296:                                    }
+                   297:                                    if( getp->eventID[6] & 0x01 ){
+    00051A 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00051E 7308                   BTST.B      #0,R0L
+    000520 4716                   BEQ         L363:8
+                   298:                                            buffer += sprintf( buffer, "24V Signal " );
+    000522 7A02                   MOV.L       #L150:32,ER2
+           <00000000>   
+    000528 01006DF2               PUSH.L      ER2
+    00052C 0FE0                   MOV.L       ER6,ER0
+    00052E 5E                     JSR         @_sprintf:24
+           <000000>     
+    000532 0B97                   ADDS.L      #4,SP
+    000534 17F0                   EXTS.L      ER0
+    000536 0A86                   ADD.L       ER0,ER6
+    000538              L363:                             
+                   299:                                    }
+                   300:                                    if( getp->eventID[6] & 0x02 ){
+    000538 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00053C 7318                   BTST.B      #1,R0L
+    00053E 4716                   BEQ         L364:8
+                   301:                                            buffer += sprintf( buffer, "Voice Signal " );
+    000540 7A02                   MOV.L       #L152:32,ER2
+           <00000000>   
+    000546 01006DF2               PUSH.L      ER2
+    00054A 0FE0                   MOV.L       ER6,ER0
+    00054C 5E                     JSR         @_sprintf:24
+           <000000>     
+    000550 0B97                   ADDS.L      #4,SP
+    000552 17F0                   EXTS.L      ER0
+    000554 0A86                   ADD.L       ER0,ER6
+    000556              L364:                             
+    000556              L360:                             
+                   302:                                    }
+                   303:                            }
+                   304:                            if( (getp->eventID[0] & 0xF0)==0x90 ){
+    000556 6E580004               MOV.B       @(4:16,ER5),R0L
+    00055A E8F0                   AND.B       #-16:8,R0L
+    00055C A890                   CMP.B       #-112:8,R0L
+    00055E 586000F6               BNE         L365:16
+                   305:                                    buffer += sprintf( buffer, "tbl:PAA%u ", (getp->eventID[0] & 0x0F)+1 );
+    000562 6E5A0004               MOV.B       @(4:16,ER5),R2L
+    000566 EA0F                   AND.B       #15:8,R2L
+    000568 1752                   EXTU.W      R2
+    00056A 0B52                   INC.W       #1,R2
+    00056C 6DF2                   PUSH.W      R2
+    00056E 7A02                   MOV.L       #L154:32,ER2
+           <00000000>   
+    000574 01006DF2               PUSH.L      ER2
+    000578 0FE0                   MOV.L       ER6,ER0
+    00057A 5E                     JSR         @_sprintf:24
+           <000000>     
+    00057E 0B97                   ADDS.L      #4,SP
+    000580 0B87                   ADDS.L      #2,SP
+    000582 17F0                   EXTS.L      ER0
+    000584 0A86                   ADD.L       ER0,ER6
+                   306:                                    if( getp->eventID[6] & 0x01 ){
+    000586 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00058A 7308                   BTST.B      #0,R0L
+    00058C 4716                   BEQ         L366:8
+                   307:                                            buffer += sprintf( buffer, "AMP1 " );
+    00058E 7A02                   MOV.L       #L156:32,ER2
+           <00000000>   
+    000594 01006DF2               PUSH.L      ER2
+    000598 0FE0                   MOV.L       ER6,ER0
+    00059A 5E                     JSR         @_sprintf:24
+           <000000>     
+    00059E 0B97                   ADDS.L      #4,SP
+    0005A0 17F0                   EXTS.L      ER0
+    0005A2 0A86                   ADD.L       ER0,ER6
+    0005A4              L366:                             
+                   308:                                    }
+                   309:                                    if( getp->eventID[6] & 0x02 ){
+    0005A4 6E58000A               MOV.B       @(10:16,ER5),R0L
+    0005A8 7318                   BTST.B      #1,R0L
+    0005AA 4716                   BEQ         L367:8
+                   310:                                            buffer += sprintf( buffer, "AMP2 " );
+    0005AC 7A02                   MOV.L       #L158:32,ER2
+           <00000000>   
+    0005B2 01006DF2               PUSH.L      ER2
+    0005B6 0FE0                   MOV.L       ER6,ER0
+    0005B8 5E                     JSR         @_sprintf:24
+           <000000>     
+    0005BC 0B97                   ADDS.L      #4,SP
+    0005BE 17F0                   EXTS.L      ER0
+    0005C0 0A86                   ADD.L       ER0,ER6
+    0005C2              L367:                             
+                   311:                                    }
+                   312:                                    if( getp->eventID[6] & 0x04 ){
+    0005C2 6E58000A               MOV.B       @(10:16,ER5),R0L
+    0005C6 7328                   BTST.B      #2,R0L
+    0005C8 4716                   BEQ         L368:8
+                   313:                                            buffer += sprintf( buffer, "SP1 " );
+    0005CA 7A02                   MOV.L       #L160:32,ER2
+           <00000000>   
+    0005D0 01006DF2               PUSH.L      ER2
+    0005D4 0FE0                   MOV.L       ER6,ER0
+    0005D6 5E                     JSR         @_sprintf:24
+           <000000>     
+    0005DA 0B97                   ADDS.L      #4,SP
+    0005DC 17F0                   EXTS.L      ER0
+    0005DE 0A86                   ADD.L       ER0,ER6
+    0005E0              L368:                             
+                   314:                                    }
+                   315:                                    if( getp->eventID[6] & 0x08 ){
+    0005E0 6E58000A               MOV.B       @(10:16,ER5),R0L
+    0005E4 7338                   BTST.B      #3,R0L
+    0005E6 4716                   BEQ         L369:8
+                   316:                                            buffer += sprintf( buffer, "SP2 " );
+    0005E8 7A02                   MOV.L       #L162:32,ER2
+           <00000000>   
+    0005EE 01006DF2               PUSH.L      ER2
+    0005F2 0FE0                   MOV.L       ER6,ER0
+    0005F4 5E                     JSR         @_sprintf:24
+           <000000>     
+    0005F8 0B97                   ADDS.L      #4,SP
+    0005FA 17F0                   EXTS.L      ER0
+    0005FC 0A86                   ADD.L       ER0,ER6
+    0005FE              L369:                             
+                   317:                                    }
+                   318:                                    if( getp->eventID[6] & 0x10 ){
+    0005FE 6E58000A               MOV.B       @(10:16,ER5),R0L
+    000602 7348                   BTST.B      #4,R0L
+    000604 4716                   BEQ         L370:8
+                   319:                                            buffer += sprintf( buffer, "SP3 " );
+    000606 7A02                   MOV.L       #L164:32,ER2
+           <00000000>   
+    00060C 01006DF2               PUSH.L      ER2
+    000610 0FE0                   MOV.L       ER6,ER0
+    000612 5E                     JSR         @_sprintf:24
+           <000000>     
+    000616 0B97                   ADDS.L      #4,SP
+    000618 17F0                   EXTS.L      ER0
+    00061A 0A86                   ADD.L       ER0,ER6
+    00061C              L370:                             
+                   320:                                    }
+                   321:                                    if( getp->eventID[6] & 0x20 ){
+    00061C 6E58000A               MOV.B       @(10:16,ER5),R0L
+    000620 7358                   BTST.B      #5,R0L
+    000622 4716                   BEQ         L371:8
+                   322:                                            buffer += sprintf( buffer, "SP4 " );
+    000624 7A02                   MOV.L       #L166:32,ER2
+           <00000000>   
+    00062A 01006DF2               PUSH.L      ER2
+    00062E 0FE0                   MOV.L       ER6,ER0
+    000630 5E                     JSR         @_sprintf:24
+           <000000>     
+    000634 0B97                   ADDS.L      #4,SP
+    000636 17F0                   EXTS.L      ER0
+    000638 0A86                   ADD.L       ER0,ER6
+    00063A              L371:                             
+                   323:                                    }
+                   324:                                    if( getp->eventID[6] & 0x40 ){
+    00063A 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00063E 7368                   BTST.B      #6,R0L
+    000640 4716                   BEQ         L372:8
+                   325:                                            buffer += sprintf( buffer, "SP5 " );
+    000642 7A02                   MOV.L       #L168:32,ER2
+           <00000000>   
+    000648 01006DF2               PUSH.L      ER2
+    00064C 0FE0                   MOV.L       ER6,ER0
+    00064E 5E                     JSR         @_sprintf:24
+           <000000>     
+    000652 0B97                   ADDS.L      #4,SP
+    000654 17F0                   EXTS.L      ER0
+    000656 0A86                   ADD.L       ER0,ER6
+    000658              L372:                             
+    000658              L365:                             
+                   326:                                    }
+                   327:                            }
+                   328:                            if( (getp->eventID[0] & 0xF0)==0xB0 ){
+    000658 6E580004               MOV.B       @(4:16,ER5),R0L
+    00065C E8F0                   AND.B       #-16:8,R0L
+    00065E A8B0                   CMP.B       #-80:8,R0L
+    000660 5860008E               BNE         L373:16
+                   329:                                    buffer += sprintf( buffer, "tbl:Comm Error " );
+    000664 7A02                   MOV.L       #L170:32,ER2
+           <00000000>   
+    00066A 01006DF2               PUSH.L      ER2
+    00066E 0FE0                   MOV.L       ER6,ER0
+    000670 5E                     JSR         @_sprintf:24
+           <000000>     
+    000674 0B97                   ADDS.L      #4,SP
+    000676 17F0                   EXTS.L      ER0
+    000678 0A86                   ADD.L       ER0,ER6
+                   330:                                    if( getp->eventID[6] & 0x01 ){
+    00067A 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00067E 7308                   BTST.B      #0,R0L
+    000680 4716                   BEQ         L374:8
+                   331:                                            buffer += sprintf( buffer, "FRONT DVAU " );
+    000682 7A02                   MOV.L       #L172:32,ER2
+           <00000000>   
+    000688 01006DF2               PUSH.L      ER2
+    00068C 0FE0                   MOV.L       ER6,ER0
+    00068E 5E                     JSR         @_sprintf:24
+           <000000>     
+    000692 0B97                   ADDS.L      #4,SP
+    000694 17F0                   EXTS.L      ER0
+    000696 0A86                   ADD.L       ER0,ER6
+    000698              L374:                             
+                   332:                                    }
+                   333:                                    if( getp->eventID[6] & 0x02 ){
+    000698 6E58000A               MOV.B       @(10:16,ER5),R0L
+    00069C 7318                   BTST.B      #1,R0L
+    00069E 4716                   BEQ         L375:8
+                   334:                                            buffer += sprintf( buffer, "REAR DVAU " );
+    0006A0 7A02                   MOV.L       #L174:32,ER2
+           <00000000>   
+    0006A6 01006DF2               PUSH.L      ER2
+    0006AA 0FE0                   MOV.L       ER6,ER0
+    0006AC 5E                     JSR         @_sprintf:24
+           <000000>     
+    0006B0 0B97                   ADDS.L      #4,SP
+    0006B2 17F0                   EXTS.L      ER0
+    0006B4 0A86                   ADD.L       ER0,ER6
+    0006B6              L375:                             
+                   335:                                    }
+                   336:                                    if( getp->eventID[6] & 0x04 ){
+    0006B6 6E58000A               MOV.B       @(10:16,ER5),R0L
+    0006BA 7328                   BTST.B      #2,R0L
+    0006BC 4716                   BEQ         L376:8
+                   337:                                            buffer += sprintf( buffer, "FRONT MCP " );
+    0006BE 7A02                   MOV.L       #L176:32,ER2
+           <00000000>   
+    0006C4 01006DF2               PUSH.L      ER2
+    0006C8 0FE0                   MOV.L       ER6,ER0
+    0006CA 5E                     JSR         @_sprintf:24
+           <000000>     
+    0006CE 0B97                   ADDS.L      #4,SP
+    0006D0 17F0                   EXTS.L      ER0
+    0006D2 0A86                   ADD.L       ER0,ER6
+    0006D4              L376:                             
+                   338:                                    }
+                   339:                                    if( getp->eventID[6] & 0x08 ){
+    0006D4 6E58000A               MOV.B       @(10:16,ER5),R0L
+    0006D8 7338                   BTST.B      #3,R0L
+    0006DA 4716                   BEQ         L377:8
+                   340:                                            buffer += sprintf( buffer, "REAR MCP " );
+    0006DC 7A02                   MOV.L       #L178:32,ER2
+           <00000000>   
+    0006E2 01006DF2               PUSH.L      ER2
+    0006E6 0FE0                   MOV.L       ER6,ER0
+    0006E8 5E                     JSR         @_sprintf:24
+           <000000>     
+    0006EC 0B97                   ADDS.L      #4,SP
+    0006EE 17F0                   EXTS.L      ER0
+    0006F0 0A86                   ADD.L       ER0,ER6
+    0006F2              L377:                             
+    0006F2              L373:                             
+                   341:                                    }
+                   342:                            }
+                   343:                            if( (getp->eventID[0] & 0xF0)==0xC0 ){
+    0006F2 6E580004               MOV.B       @(4:16,ER5),R0L
+    0006F6 E8F0                   AND.B       #-16:8,R0L
+    0006F8 A8C0                   CMP.B       #-64:8,R0L
+    0006FA 58600312               BNE         L383:16
+                   344:                                    buffer += sprintf( buffer, "tbl:Comm Error " );
+    0006FE 7A02                   MOV.L       #L180:32,ER2
+           <00000000>   
+    000704 01006DF2               PUSH.L      ER2
+    000708 0FE0                   MOV.L       ER6,ER0
+    00070A 5E                     JSR         @_sprintf:24
+           <000000>     
+    00070E 0B97                   ADDS.L      #4,SP
+    000710 17F0                   EXTS.L      ER0
+    000712 0A86                   ADD.L       ER0,ER6
+                   345:                                    for( i=0; i<8; i++ ){
+    000714 1944                   SUB.W       R4,R4
+    000716              L379:                             
+                   346:                                            if( getp->eventID[6] & (0x01<<i) ){
+    000716 79000001               MOV.W       #1:16,R0
+    00071A 0CC9                   MOV.B       R4L,R1L
+    00071C              L381:                             
+    00071C 1A09                   DEC.B       R1L
+    00071E 4B04                   BMI         L382:8
+    000720 1010                   SHLL.W      R0
+    000722 40F8                   BRA         L381:8
+    000724              L382:                             
+    000724 6E59000A               MOV.B       @(10:16,ER5),R1L
+    000728 1751                   EXTU.W      R1
+    00072A 6601                   AND.W       R0,R1
+    00072C 471E                   BEQ         L380:8
+                   347:                                                    buffer += sprintf( buffer, "PAA%u ", i+1 );
+    00072E 0D42                   MOV.W       R4,R2
+    000730 0B52                   INC.W       #1,R2
+    000732 6DF2                   PUSH.W      R2
+    000734 7A02                   MOV.L       #L183:32,ER2
+           <00000000>   
+    00073A 01006DF2               PUSH.L      ER2
+    00073E 0FE0                   MOV.L       ER6,ER0
+    000740 5E                     JSR         @_sprintf:24
+           <000000>     
+    000744 0B97                   ADDS.L      #4,SP
+    000746 0B87                   ADDS.L      #2,SP
+    000748 17F0                   EXTS.L      ER0
+    00074A 0A86                   ADD.L       ER0,ER6
+    00074C              L380:                             
+    00074C 0B54                   INC.W       #1,R4
+    00074E 79240008               CMP.W       #8:16,R4
+    000752 4DC2                   BLT         L379:8
+                   348:                                            }
+                   349:                                    }
+                   350:                            }
+                   351:                            return;
+    000754 5A                     JMP         @L383:24
+           <000000>     
+    000758              L359:                             
+                   352:                    }
+                   353:    
+                   354:                    buffer += sprintf( buffer, "R%02X S%02X N%02X E%02X S%02X V%02X%02X ",
+                   355:                                    getp->eventID[1],
+                   356:                                    getp->eventID[2],
+                   357:                                    getp->eventID[3],
+                   358:                                    getp->eventID[4],
+                   359:                                    getp->eventID[5],
+                   360:                                    getp->eventID[6],
+                   361:                                    getp->eventID[7] );
+    000758 0FD4                   MOV.L       ER5,ER4
+    00075A 0B94                   ADDS.L      #4,ER4
+    00075C 6E4A0007               MOV.B       @(7:16,ER4),R2L
+    000760 1752                   EXTU.W      R2
+    000762 6DF2                   PUSH.W      R2
+    000764 6E4A0006               MOV.B       @(6:16,ER4),R2L
+    000768 1752                   EXTU.W      R2
+    00076A 6DF2                   PUSH.W      R2
+    00076C 6E4A0005               MOV.B       @(5:16,ER4),R2L
+    000770 1752                   EXTU.W      R2
+    000772 6DF2                   PUSH.W      R2
+    000774 6E4A0004               MOV.B       @(4:16,ER4),R2L
+    000778 1752                   EXTU.W      R2
+    00077A 6DF2                   PUSH.W      R2
+    00077C 6E4A0003               MOV.B       @(3:16,ER4),R2L
+    000780 1752                   EXTU.W      R2
+    000782 6DF2                   PUSH.W      R2
+    000784 6E4A0002               MOV.B       @(2:16,ER4),R2L
+    000788 1752                   EXTU.W      R2
+    00078A 6DF2                   PUSH.W      R2
+    00078C 6E4A0001               MOV.B       @(1:16,ER4),R2L
+    000790 1752                   EXTU.W      R2
+    000792 6DF2                   PUSH.W      R2
+    000794 7A02                   MOV.L       #L184:32,ER2
+           <00000000>   
+    00079A 01006DF2               PUSH.L      ER2
+    00079E 0FE0                   MOV.L       ER6,ER0
+    0007A0 5E                     JSR         @_sprintf:24
+           <000000>     
+    0007A4 7A17000000             ADD.L       #18:32,SP
+           12           
+    0007AA 17F0                   EXTS.L      ER0
+    0007AC 0A86                   ADD.L       ER0,ER6
+                   362:    
+                   363:                    switch( getp->eventID[0] ){
+    0007AE 6E580004               MOV.B       @(4:16,ER5),R0L
+    0007B2 A801                   CMP.B       #1:8,R0L
+    0007B4 587000E8               BEQ         L254:16
+    0007B8 A802                   CMP.B       #2:8,R0L
+    0007BA 587000EC               BEQ         L256:16
+    0007BE A803                   CMP.B       #3:8,R0L
+    0007C0 587000F0               BEQ         L258:16
+    0007C4 A804                   CMP.B       #4:8,R0L
+    0007C6 587000F4               BEQ         L260:16
+    0007CA A805                   CMP.B       #5:8,R0L
+    0007CC 587000F8               BEQ         L262:16
+    0007D0 A806                   CMP.B       #6:8,R0L
+    0007D2 587000FC               BEQ         L264:16
+    0007D6 A807                   CMP.B       #7:8,R0L
+    0007D8 58700100               BEQ         L266:16
+    0007DC A808                   CMP.B       #8:8,R0L
+    0007DE 58700104               BEQ         L268:16
+    0007E2 A809                   CMP.B       #9:8,R0L
+    0007E4 58700108               BEQ         L270:16
+    0007E8 A80A                   CMP.B       #10:8,R0L
+    0007EA 5870010C               BEQ         L272:16
+    0007EE A80B                   CMP.B       #11:8,R0L
+    0007F0 58700110               BEQ         L274:16
+    0007F4 A80C                   CMP.B       #12:8,R0L
+    0007F6 58700114               BEQ         L276:16
+    0007FA A80D                   CMP.B       #13:8,R0L
+    0007FC 58700118               BEQ         L278:16
+    000800 A80E                   CMP.B       #14:8,R0L
+    000802 5870011C               BEQ         L280:16
+    000806 A80F                   CMP.B       #15:8,R0L
+    000808 58700120               BEQ         L282:16
+    00080C A810                   CMP.B       #16:8,R0L
+    00080E 58700124               BEQ         L284:16
+    000812 A811                   CMP.B       #17:8,R0L
+    000814 58700128               BEQ         L286:16
+    000818 A812                   CMP.B       #18:8,R0L
+    00081A 5870012C               BEQ         L288:16
+    00081E A814                   CMP.B       #20:8,R0L
+    000820 58700130               BEQ         L290:16
+    000824 A815                   CMP.B       #21:8,R0L
+    000826 58700134               BEQ         L292:16
+    00082A A816                   CMP.B       #22:8,R0L
+    00082C 58700138               BEQ         L294:16
+    000830 A81E                   CMP.B       #30:8,R0L
+    000832 5870013C               BEQ         L296:16
+    000836 A81F                   CMP.B       #31:8,R0L
+    000838 58700140               BEQ         L298:16
+    00083C A820                   CMP.B       #32:8,R0L
+    00083E 58700144               BEQ         L300:16
+    000842 A821                   CMP.B       #33:8,R0L
+    000844 58700146               BEQ         L302:16
+    000848 A822                   CMP.B       #34:8,R0L
+    00084A 58700148               BEQ         L304:16
+    00084E A823                   CMP.B       #35:8,R0L
+    000850 5870014A               BEQ         L306:16
+    000854 A824                   CMP.B       #36:8,R0L
+    000856 5870014C               BEQ         L308:16
+    00085A A825                   CMP.B       #37:8,R0L
+    00085C 5870014E               BEQ         L310:16
+    000860 A828                   CMP.B       #40:8,R0L
+    000862 58700150               BEQ         L312:16
+    000866 A829                   CMP.B       #41:8,R0L
+    000868 58700152               BEQ         L314:16
+    00086C A82A                   CMP.B       #42:8,R0L
+    00086E 58700154               BEQ         L316:16
+    000872 A82B                   CMP.B       #43:8,R0L
+    000874 58700156               BEQ         L318:16
+    000878 A82C                   CMP.B       #44:8,R0L
+    00087A 58700158               BEQ         L320:16
+    00087E A850                   CMP.B       #80:8,R0L
+    000880 5870015A               BEQ         L322:16
+    000884 A851                   CMP.B       #81:8,R0L
+    000886 5870015C               BEQ         L324:16
+    00088A A852                   CMP.B       #82:8,R0L
+    00088C 5870015E               BEQ         L326:16
+    000890 A853                   CMP.B       #83:8,R0L
+    000892 58700160               BEQ         L328:16
+    000896 A854                   CMP.B       #84:8,R0L
+    000898 58700162               BEQ         L330:16
+    00089C 5A                     JMP         @L384:24
+           <000000>     
+                   364:                    case EVENT_INIT_TEST:
+    0008A0              L254:                             
+                   365:                            buffer += sprintf( buffer, "INIT TEST MODE" );
+    0008A0 7A00                   MOV.L       #L186:32,ER0
+           <00000000>   
+                   366:                            break;
+    0008A6 5A                     JMP         @L423:24
+           <000000>     
+    0008AA              L256:                             
+                   367:                    case EVENT_INIT_TEST2:
+                   368:                            buffer += sprintf( buffer, "INIT TEST MODE(Standby)" );
+    0008AA 7A00                   MOV.L       #L187:32,ER0
+           <00000000>   
+                   369:                            break;
+    0008B0 5A                     JMP         @L423:24
+           <000000>     
+    0008B4              L258:                             
+                   370:                    case EVENT_SELF_TEST:
+                   371:                            buffer += sprintf( buffer, "SELF TEST MODE" );
+    0008B4 7A00                   MOV.L       #L188:32,ER0
+           <00000000>   
+                   372:                            break;
+    0008BA 5A                     JMP         @L423:24
+           <000000>     
+    0008BE              L260:                             
+                   373:                    case EVENT_TEST:
+                   374:                            buffer += sprintf( buffer, "TEST MODE" );
+    0008BE 7A00                   MOV.L       #L189:32,ER0
+           <00000000>   
+                   375:                            break;
+    0008C4 5A                     JMP         @L423:24
+           <000000>     
+    0008C8              L262:                             
+                   376:                    case EVENT_STANDBY:
+                   377:                            buffer += sprintf( buffer, "STANDBY MODE" );
+    0008C8 7A00                   MOV.L       #L190:32,ER0
+           <00000000>   
+                   378:                            break;
+    0008CE 5A                     JMP         @L423:24
+           <000000>     
+    0008D2              L264:                             
+                   379:                    case EVENT_IDLE:
+                   380:                            buffer += sprintf( buffer, "IDLE MODE" );
+    0008D2 7A00                   MOV.L       #L191:32,ER0
+           <00000000>   
+                   381:                            break;
+    0008D8 5A                     JMP         @L423:24
+           <000000>     
+    0008DC              L266:                             
+                   382:                    case EVENT_AUTO:
+                   383:                            buffer += sprintf( buffer, "AUTO MODE" );
+    0008DC 7A00                   MOV.L       #L192:32,ER0
+           <00000000>   
+                   384:                            break;
+    0008E2 5A                     JMP         @L423:24
+           <000000>     
+    0008E6              L268:                             
+                   385:                    case EVENT_TRS:
+                   386:                            buffer += sprintf( buffer, "TRS MODE" );
+    0008E6 7A00                   MOV.L       #L193:32,ER0
+           <00000000>   
+                   387:                            break;
+    0008EC 5A                     JMP         @L423:24
+           <000000>     
+    0008F0              L270:                             
+                   388:                    case EVENT_EMGMA:
+                   389:                            buffer += sprintf( buffer, "EMGMA MODE" );
+    0008F0 7A00                   MOV.L       #L194:32,ER0
+           <00000000>   
+                   390:                            break;
+    0008F6 5A                     JMP         @L423:24
+           <000000>     
+    0008FA              L272:                             
+                   391:                    case EVENT_SPCMA:
+                   392:                            buffer += sprintf( buffer, "SPCMA MODE" );
+    0008FA 7A00                   MOV.L       #L195:32,ER0
+           <00000000>   
+                   393:                            break;
+    000900 5A                     JMP         @L423:24
+           <000000>     
+    000904              L274:                             
+                   394:                    case EVENT_EMGHL:
+                   395:                            buffer += sprintf( buffer, "EMGHL MODE" );
+    000904 7A00                   MOV.L       #L196:32,ER0
+           <00000000>   
+                   396:                            break;
+    00090A 5A                     JMP         @L423:24
+           <000000>     
+    00090E              L276:                             
+                   397:    
+                   398:                    case EVENT_REPEAT:
+                   399:                            buffer += sprintf( buffer, "REPEAT VOICE" );
+    00090E 7A00                   MOV.L       #L197:32,ER0
+           <00000000>   
+                   400:                            break;
+    000914 5A                     JMP         @L423:24
+           <000000>     
+    000918              L278:                             
+                   401:                    case EVENT_EMG:
+                   402:                            buffer += sprintf( buffer, "EMG VOICE" );
+    000918 7A00                   MOV.L       #L198:32,ER0
+           <00000000>   
+                   403:                            break;
+    00091E 5A                     JMP         @L423:24
+           <000000>     
+    000922              L280:                             
+                   404:                    case EVENT_SPC:
+                   405:                            buffer += sprintf( buffer, "SPC VOICE" );
+    000922 7A00                   MOV.L       #L199:32,ER0
+           <00000000>   
+                   406:                            break;
+    000928 5A                     JMP         @L423:24
+           <000000>     
+    00092C              L282:                             
+                   407:                    case EVENT_STN:
+                   408:                            buffer += sprintf( buffer, "STN VOICE" );
+    00092C 7A00                   MOV.L       #L200:32,ER0
+           <00000000>   
+                   409:                            break;
+    000932 5A                     JMP         @L423:24
+           <000000>     
+    000936              L284:                             
+                   410:                    case EVENT_CAB:
+                   411:                            buffer += sprintf( buffer, "CAB IN" );
+    000936 7A00                   MOV.L       #L201:32,ER0
+           <00000000>   
+                   412:                            break;
+    00093C 5A                     JMP         @L423:24
+           <000000>     
+    000940              L286:                             
+                   413:                    case EVENT_MAN:
+                   414:                            buffer += sprintf( buffer, "MAN IN" );
+    000940 7A00                   MOV.L       #L202:32,ER0
+           <00000000>   
+                   415:                            break;
+    000946 5A                     JMP         @L423:24
+           <000000>     
+    00094A              L288:                             
+                   416:                    case EVENT_REL:
+                   417:                            buffer += sprintf( buffer, "CAB/MAN OUT" );
+    00094A 7A00                   MOV.L       #L203:32,ER0
+           <00000000>   
+                   418:                            break;
+    000950 5A                     JMP         @L423:24
+           <000000>     
+    000954              L290:                             
+                   419:    
+                   420:                    case EVENT_TMS_NEXT:
+                   421:                            buffer += sprintf( buffer, "NEXT STATION VOICE" );
+    000954 7A00                   MOV.L       #L204:32,ER0
+           <00000000>   
+                   422:                            break;
+    00095A 5A                     JMP         @L423:24
+           <000000>     
+    00095E              L292:                             
+                   423:                    case EVENT_TMS_SPC:
+                   424:                            buffer += sprintf( buffer, "TMS SPC VOICE" );
+    00095E 7A00                   MOV.L       #L205:32,ER0
+           <00000000>   
+                   425:                            break;
+    000964 5A                     JMP         @L423:24
+           <000000>     
+    000968              L294:                             
+                   426:                    case EVENT_TMS_STN:
+                   427:                            buffer += sprintf( buffer, "STATION VOICE" );
+    000968 7A00                   MOV.L       #L206:32,ER0
+           <00000000>   
+                   428:                            break;
+    00096E 5A                     JMP         @L423:24
+           <000000>     
+    000972              L296:                             
+                   429:    
+                   430:                    case EVENT_DOOR_OPENACHIME:
+                   431:                            buffer += sprintf( buffer, "DOOR OPEN A CHIME" );
+    000972 7A00                   MOV.L       #L207:32,ER0
+           <00000000>   
+                   432:                            break;
+    000978 5A                     JMP         @L423:24
+           <000000>     
+    00097C              L298:                             
+                   433:                    case EVENT_DOOR_CLOSEACHIME:
+                   434:                            buffer += sprintf( buffer, "DOOR CLOSE A CHIME" );
+    00097C 7A00                   MOV.L       #L208:32,ER0
+           <00000000>   
+                   435:                            break;
+    000982 5A                     JMP         @L423:24
+           <000000>     
+    000986              L300:                             
+                   436:                    case EVENT_DOOR_OPENAANNOUNCE:
+                   437:                            buffer += sprintf( buffer, "DOOR OPEN A ANNOUNCE" );
+    000986 7A00                   MOV.L       #L209:32,ER0
+           <00000000>   
+                   438:                            break;
+    00098C 4076                   BRA         L423:8
+    00098E              L302:                             
+                   439:                    case EVENT_DOOR_CLOSEAANNOUNCE:
+                   440:                            buffer += sprintf( buffer, "DOOR OPEN A ANNOUNCE" );
+    00098E 7A00                   MOV.L       #L210:32,ER0
+           <00000000>   
+                   441:                            break;
+    000994 406E                   BRA         L423:8
+    000996              L304:                             
+                   442:                    case EVENT_DOOR_OPENBCHIME:
+                   443:                            buffer += sprintf( buffer, "DOOR OPEN B CHIME" );
+    000996 7A00                   MOV.L       #L211:32,ER0
+           <00000000>   
+                   444:                            break;
+    00099C 4066                   BRA         L423:8
+    00099E              L306:                             
+                   445:                    case EVENT_DOOR_CLOSEBCHIME:
+                   446:                            buffer += sprintf( buffer, "DOOR CLOSE B CHIME" );
+    00099E 7A00                   MOV.L       #L212:32,ER0
+           <00000000>   
+                   447:                            break;
+    0009A4 405E                   BRA         L423:8
+    0009A6              L308:                             
+                   448:                    case EVENT_DOOR_OPENBANNOUNCE:
+                   449:                            buffer += sprintf( buffer, "DOOR OPEN B ANNOUNCE" );
+    0009A6 7A00                   MOV.L       #L213:32,ER0
+           <00000000>   
+                   450:                            break;
+    0009AC 4056                   BRA         L423:8
+    0009AE              L310:                             
+                   451:                    case EVENT_DOOR_CLOSEBANNOUNCE:
+                   452:                            buffer += sprintf( buffer, "DOOR OPEN B ANNOUNCE" );
+    0009AE 7A00                   MOV.L       #L214:32,ER0
+           <00000000>   
+                   453:                            break;
+    0009B4 404E                   BRA         L423:8
+    0009B6              L312:                             
+                   454:    
+                   455:                    case EVENT_DOWNLOAD_CONFIG:
+                   456:                            buffer += sprintf( buffer, "DOWNLOAD CONFIG" );
+    0009B6 7A00                   MOV.L       #L215:32,ER0
+           <00000000>   
+                   457:                            break;
+    0009BC 4046                   BRA         L423:8
+    0009BE              L314:                             
+                   458:                    case EVENT_DOWNLOAD_ROUTE:
+                   459:                            buffer += sprintf( buffer, "DOWNLOAD ROUTE" );
+    0009BE 7A00                   MOV.L       #L216:32,ER0
+           <00000000>   
+                   460:                            break;
+    0009C4 403E                   BRA         L423:8
+    0009C6              L316:                             
+                   461:                    case EVENT_DOWNLOAD_PROG:
+                   462:                            buffer += sprintf( buffer, "DOWNLOAD PROGRAM" );
+    0009C6 7A00                   MOV.L       #L217:32,ER0
+           <00000000>   
+                   463:                            break;
+    0009CC 4036                   BRA         L423:8
+    0009CE              L318:                             
+                   464:                    case EVENT_DOWNLOAD_RECONF:
+                   465:                            buffer += sprintf( buffer, "RECONFIG" );
+    0009CE 7A00                   MOV.L       #L218:32,ER0
+           <00000000>   
+                   466:                            break;
+    0009D4 402E                   BRA         L423:8
+    0009D6              L320:                             
+                   467:                    case EVENT_DOWNLOAD_REBOOT:
+                   468:                            buffer += sprintf( buffer, "REBOOT" );
+    0009D6 7A00                   MOV.L       #L219:32,ER0
+           <00000000>   
+                   469:                            break;
+    0009DC 4026                   BRA         L423:8
+    0009DE              L322:                             
+                   470:    
+                   471:                    case EVENT_VOICE:
+                   472:                            buffer += sprintf( buffer, "VOICE" );
+    0009DE 7A00                   MOV.L       #L220:32,ER0
+           <00000000>   
+                   473:                            break;
+    0009E4 401E                   BRA         L423:8
+    0009E6              L324:                             
+                   474:                    case EVENT_VOICE_OK:
+                   475:                            buffer += sprintf( buffer, "VOICE END" );
+    0009E6 7A00                   MOV.L       #L221:32,ER0
+           <00000000>   
+                   476:                            break;
+    0009EC 4016                   BRA         L423:8
+    0009EE              L326:                             
+                   477:                    case EVENT_VOICE_NG:
+                   478:                            buffer += sprintf( buffer, "VOICE ERR" );
+    0009EE 7A00                   MOV.L       #L222:32,ER0
+           <00000000>   
+                   479:                            break;
+    0009F4 400E                   BRA         L423:8
+    0009F6              L328:                             
+                   480:                    case EVENT_VOICE_ABORT:
+                   481:                            buffer += sprintf( buffer, "VOICE ABORT" );
+    0009F6 7A00                   MOV.L       #L223:32,ER0
+           <00000000>   
+                   482:                            break;
+    0009FC 4006                   BRA         L423:8
+    0009FE              L330:                             
+                   483:                    case EVENT_EVCOMM_NG:
+                   484:                            buffer += sprintf( buffer, "EV5000 COMM ERROR" );
+    0009FE 7A00                   MOV.L       #L224:32,ER0
+           <00000000>   
+                   485:                            break;
+    000A04              L423:                             
+    000A04 01006DF0               PUSH.L      ER0
+    000A08 0FE0                   MOV.L       ER6,ER0
+    000A0A 5E                     JSR         @_sprintf:24
+           <000000>     
+    000A0E 0B97                   ADDS.L      #4,SP
+    000A10              L384:                             
+                   486:                    }
+                   487:    }
+    000A10              L383:                             
+    000A10 0B97                   ADDS.L      #4,SP
+    000A12 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   488:    
+                   489:    void debugTime( void )
+    000A16              _debugTime:                      ; function: debugTime
+    000A16 01006DF6               PUSH.L      ER6
+                   490:    {
+                   491:                    printf( "%02u/%02u %02u:%02u:%02u.%01u ",
+                   492:                                    timedata.tm_mon, timedata.tm_day,
+                   493:                                    timedata.tm_hour, timedata.tm_min, timedata.tm_sec,
+                   494:                                    timedata.tm_msec/10 );
+    000A1A 7A06                   MOV.L       #_timedata:32,ER6
+           <00000000>   
+    000A20 6E680008               MOV.B       @(8:16,ER6),R0L
+    000A24 1750                   EXTU.W      R0
+    000A26 17F0                   EXTS.L      ER0
+    000A28 7901000A               MOV.W       #10:16,R1
+    000A2C 01D05310               DIVXS.W     R1,ER0
+    000A30 6DF0                   PUSH.W      R0
+    000A32 6E680007               MOV.B       @(7:16,ER6),R0L
+    000A36 1750                   EXTU.W      R0
+    000A38 6DF0                   PUSH.W      R0
+    000A3A 6E680006               MOV.B       @(6:16,ER6),R0L
+    000A3E 1750                   EXTU.W      R0
+    000A40 6DF0                   PUSH.W      R0
+    000A42 6E680005               MOV.B       @(5:16,ER6),R0L
+    000A46 1750                   EXTU.W      R0
+    000A48 6DF0                   PUSH.W      R0
+    000A4A 6E680004               MOV.B       @(4:16,ER6),R0L
+    000A4E 1750                   EXTU.W      R0
+    000A50 6DF0                   PUSH.W      R0
+    000A52 6E680003               MOV.B       @(3:16,ER6),R0L
+    000A56 1750                   EXTU.W      R0
+    000A58 6DF0                   PUSH.W      R0
+    000A5A 7A00                   MOV.L       #L227:32,ER0
+           <00000000>   
+    000A60 01006DF0               PUSH.L      ER0
+    000A64 5E                     JSR         @_printf:24
+           <000000>     
+    000A68 7A17000000             ADD.L       #16:32,SP
+           10           
+                   495:    }
+    000A6E 01006D76               POP.L       ER6
+    000A72 5470                   RTS
+                   496:    
+  C                                                      ; section
+    000000              L141:
+    000000              L227:
+    000000 253032752F             .SDATAZ     "%02u/%02u %02u:%02u:%02u.%01u "
+           2530327520   
+           253032753A   
+           253032753A   
+           253032752E   
+           2530317520   
+           00           
+    00001F              L143:
+    00001F 5225303258             .SDATAZ     "R%02X S%02X N%02X E%02X S%02X T%02X "
+           2053253032   
+           58204E2530   
+           3258204525   
+           3032582053   
+           2530325820   
+           5425303258   
+           2000         
+    000044              L146:
+    000044 74626C3A44             .SDATAZ     "tbl:DVAU2 "
+           5641553220   
+           00           
+    00004F              L148:
+    00004F 74626C3A44             .SDATAZ     "tbl:DVAU1 "
+           5641553120   
+           00           
+    00005A              L150:
+    00005A 3234562053             .SDATAZ     "24V Signal "
+           69676E616C   
+           2000         
+    000066              L152:
+    000066 566F696365             .SDATAZ     "Voice Signal "
+           205369676E   
+           616C2000     
+    000074              L154:
+    000074 74626C3A50             .SDATAZ     "tbl:PAA%u "
+           4141257520   
+           00           
+    00007F              L156:
+    00007F 414D503120             .SDATAZ     "AMP1 "
+           00           
+    000085              L158:
+    000085 414D503220             .SDATAZ     "AMP2 "
+           00           
+    00008B              L160:
+    00008B 5350312000             .SDATAZ     "SP1 "
+    000090              L162:
+    000090 5350322000             .SDATAZ     "SP2 "
+    000095              L164:
+    000095 5350332000             .SDATAZ     "SP3 "
+    00009A              L166:
+    00009A 5350342000             .SDATAZ     "SP4 "
+    00009F              L168:
+    00009F 5350352000             .SDATAZ     "SP5 "
+    0000A4              L170:
+    0000A4              L180:
+    0000A4 74626C3A43             .SDATAZ     "tbl:Comm Error "
+           6F6D6D2045   
+           72726F7220   
+           00           
+    0000B4              L172:
+    0000B4 46524F4E54             .SDATAZ     "FRONT DVAU "
+           2044564155   
+           2000         
+    0000C0              L174:
+    0000C0 5245415220             .SDATAZ     "REAR DVAU "
+           4456415520   
+           00           
+    0000CB              L176:
+    0000CB 46524F4E54             .SDATAZ     "FRONT MCP "
+           204D435020   
+           00           
+    0000D6              L178:
+    0000D6 5245415220             .SDATAZ     "REAR MCP "
+           4D43502000   
+    0000E0              L183:
+    0000E0 5041412575             .SDATAZ     "PAA%u "
+           2000         
+    0000E7              L184:
+    0000E7 5225303258             .SDATAZ     "R%02X S%02X N%02X E%02X S%02X V%02X%02X "
+           2053253032   
+           58204E2530   
+           3258204525   
+           3032582053   
+           2530325820   
+           5625303258   
+           2530325820   
+           00           
+    000110              L186:
+    000110 494E495420             .SDATAZ     "INIT TEST MODE"
+           5445535420   
+           4D4F444500   
+    00011F              L187:
+    00011F 494E495420             .SDATAZ     "INIT TEST MODE(Standby)"
+           5445535420   
+           4D4F444528   
+           5374616E64   
+           62792900     
+    000137              L188:
+    000137 53454C4620             .SDATAZ     "SELF TEST MODE"
+           5445535420   
+           4D4F444500   
+    000146              L189:
+    000146 5445535420             .SDATAZ     "TEST MODE"
+           4D4F444500   
+    000150              L190:
+    000150 5354414E44             .SDATAZ     "STANDBY MODE"
+           4259204D4F   
+           444500       
+    00015D              L191:
+    00015D 49444C4520             .SDATAZ     "IDLE MODE"
+           4D4F444500   
+    000167              L192:
+    000167 4155544F20             .SDATAZ     "AUTO MODE"
+           4D4F444500   
+    000171              L193:
+    000171 545253204D             .SDATAZ     "TRS MODE"
+           4F444500     
+    00017A              L194:
+    00017A 454D474D41             .SDATAZ     "EMGMA MODE"
+           204D4F4445   
+           00           
+    000185              L195:
+    000185 5350434D41             .SDATAZ     "SPCMA MODE"
+           204D4F4445   
+           00           
+    000190              L196:
+    000190 454D47484C             .SDATAZ     "EMGHL MODE"
+           204D4F4445   
+           00           
+    00019B              L197:
+    00019B 5245504541             .SDATAZ     "REPEAT VOICE"
+           5420564F49   
+           434500       
+    0001A8              L198:
+    0001A8 454D472056             .SDATAZ     "EMG VOICE"
+           4F49434500   
+    0001B2              L199:
+    0001B2 5350432056             .SDATAZ     "SPC VOICE"
+           4F49434500   
+    0001BC              L200:
+    0001BC 53544E2056             .SDATAZ     "STN VOICE"
+           4F49434500   
+    0001C6              L201:
+    0001C6 4341422049             .SDATAZ     "CAB IN"
+           4E00         
+    0001CD              L202:
+    0001CD 4D414E2049             .SDATAZ     "MAN IN"
+           4E00         
+    0001D4              L203:
+    0001D4 4341422F4D             .SDATAZ     "CAB/MAN OUT"
+           414E204F55   
+           5400         
+    0001E0              L204:
+    0001E0 4E45585420             .SDATAZ     "NEXT STATION VOICE"
+           5354415449   
+           4F4E20564F   
+           49434500     
+    0001F3              L205:
+    0001F3 544D532053             .SDATAZ     "TMS SPC VOICE"
+           504320564F   
+           49434500     
+    000201              L206:
+    000201 5354415449             .SDATAZ     "STATION VOICE"
+           4F4E20564F   
+           49434500     
+    00020F              L207:
+    00020F 444F4F5220             .SDATAZ     "DOOR OPEN A CHIME"
+           4F50454E20   
+           4120434849   
+           4D4500       
+    000221              L208:
+    000221 444F4F5220             .SDATAZ     "DOOR CLOSE A CHIME"
+           434C4F5345   
+           2041204348   
+           494D4500     
+    000234              L209:
+    000234              L210:
+    000234 444F4F5220             .SDATAZ     "DOOR OPEN A ANNOUNCE"
+           4F50454E20   
+           4120414E4E   
+           4F554E4345   
+           00           
+    000249              L211:
+    000249 444F4F5220             .SDATAZ     "DOOR OPEN B CHIME"
+           4F50454E20   
+           4220434849   
+           4D4500       
+    00025B              L212:
+    00025B 444F4F5220             .SDATAZ     "DOOR CLOSE B CHIME"
+           434C4F5345   
+           2042204348   
+           494D4500     
+    00026E              L213:
+    00026E              L214:
+    00026E 444F4F5220             .SDATAZ     "DOOR OPEN B ANNOUNCE"
+           4F50454E20   
+           4220414E4E   
+           4F554E4345   
+           00           
+    000283              L215:
+    000283 444F574E4C             .SDATAZ     "DOWNLOAD CONFIG"
+           4F41442043   
+           4F4E464947   
+           00           
+    000293              L216:
+    000293 444F574E4C             .SDATAZ     "DOWNLOAD ROUTE"
+           4F41442052   
+           4F55544500   
+    0002A2              L217:
+    0002A2 444F574E4C             .SDATAZ     "DOWNLOAD PROGRAM"
+           4F41442050   
+           524F475241   
+           4D00         
+    0002B3              L218:
+    0002B3 5245434F4E             .SDATAZ     "RECONFIG"
+           46494700     
+    0002BC              L219:
+    0002BC 5245424F4F             .SDATAZ     "REBOOT"
+           5400         
+    0002C3              L220:
+    0002C3 564F494345             .SDATAZ     "VOICE"
+           00           
+    0002C9              L221:
+    0002C9 564F494345             .SDATAZ     "VOICE END"
+           20454E4400   
+    0002D3              L222:
+    0002D3 564F494345             .SDATAZ     "VOICE ERR"
+           2045525200   
+    0002DD              L223:
+    0002DD 564F494345             .SDATAZ     "VOICE ABORT"
+           2041424F52   
+           5400         
+    0002E9              L224:
+    0002E9 4556353030             .SDATAZ     "EV5000 COMM ERROR"
+           3020434F4D   
+           4D20455252   
+           4F5200       
+  BBACKUP                                                ; section
+    000000              _$traceData:                     ; static: traceData
+    000000 00008CAC               .RES.B      36012
+    008CAC              _$trace_top:                     ; static: trace_top
+    008CAC 00000002               .RES.W      1
+    008CAE              _$trace_end:                     ; static: trace_end
+    008CAE 00000002               .RES.W      1
+    008CB0              _$trace_get:                     ; static: trace_get
+    008CB0 00000002               .RES.W      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000A74 Byte(s)
+CONSTANT SECTION(C):                                0x000002FB Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+BSS      SECTION(BBACKUP):                          0x00008CB2 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000A74 Byte(s)
+TOTAL CONSTANT SECTION: 0x000002FB Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00008CB2 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00009A21 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        9 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        6 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        172 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvatrace.c -object=.\obj\dvatrace.obj
+CPU         : 300ha:24

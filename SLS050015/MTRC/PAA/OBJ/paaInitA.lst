@@ -1,0 +1,1149 @@
+###############################################################################
+#                                                                             #
+#     IAR Systems Z80/64180 Assembler V3.04B/386 07/Jul/2003  14:29:28        #
+#                                                                             #
+#           Internal versions FE1.25O CO1.11H BE3.04B                         #
+#                                                                             #
+#           Target option =  64180                                            #
+#           Source file   =  .\src\paainita.msa                               #
+#           List file     =  .\obj\paainita.lst                               #
+#           Object file   =  .\obj\paainita.r01                               #
+#           Command line  =  -v1 -X -S+ .\src\paaInitA.msa -o .\obj\paaInitA  #
+#                            -l .\obj\paaInitA                                #
+#                                                                             #
+#                                              (c) Copyright IAR Systems 1998 #
+###############################################################################
+
+      1    000000          ;./*[paaInitA.ASM]**********************************
+                           ********************
+      2    000000          ;*      ÅyçÅç`ínâ∫ìSÅ@é©ìÆï˙ëóêßå‰Åz                
+                                            *
+      3    000000          ;*--------------------------------------------------
+                           -----------------*
+      4    000000          ;*              ÇgÅ^Çvèâä˙âªÅEÉXÉ^Å[ÉgÉAÉbÉvÉÇÉWÉÖÅ[
+                           Éã               *
+      5    000000          ;*--------------------------------------------------
+                           -----------------*
+      6    000000          ;*    Author    TOA Corporation   K.Honda
+      7    000000          ;*                                                  
+                                            *
+      8    000000          ;*    Revison   a00. 2000/06/26
+      9    000000          ;*                                                  
+                                            *
+     10    000000          ;*              a05. 2002/04/08 h.nisiura           
+                                            *
+     11    000000          ;*              a06. 2003/07/07 h.nisiura           
+                                            *
+     12    000000          ;***************************************************
+                           *****************/
+     13    000000          ;;      titl    'çÅç`ínâ∫ìS AAU PAA S/W'
+     14    000000                  NAME    CSTARTUP
+     15    000000          
+     16    000000          $.\INC\PAAHW.INC
+     17    000000          
+     18    000000          #undef  __TID__
+     19    000000          #define __TID__ 0x10
+     20    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     21    000000          ;.      äOïîéQè∆
+     22    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     23    000000          
+     24    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     25    000000          ;.      äOïîÉÇÉWÉÖÅ[ÉãÇ©ÇÁÉAÉNÉZÉXâ¬î\Ç»ÉVÉìÉ{ÉãíËã`
+     26    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     27    000000          
+     28    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     29    000000          ;.      ÉfÅ[É^
+     30    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     31    000000          ;.      RSEG    ADATA:DATA
+     32    000000          
+     33    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     34    000000          ;.      ÉvÉçÉOÉâÉÄïî
+     35    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     36    000000                  ASEG
+     37    000000                  ORG     0
+     38    000000          
+     39    000000          ;./*************************************************
+                           **********************
+     40    000000          ;.*                                                 
+                                               *
+     41    000000          ;.*                     ÇrÅ^Çvé¿çsêÊì™              
+                                               *
+     42    000000          ;.*     Author          TOA Corporation  h.nisiura  
+                                               *
+     43    000000          ;.*     Revision        a00 1995/12/05              
+                                               *
+     44    000000          ;.*                                                 
+                                               *
+     45    000000          ;.**************************************************
+                           **********************/
+     46    000000                  public  PRGBEGIN                        ;.
+  Boot Up address
+     47    000000          ROMTOP:                         ;. ÇrÅ^ÇvÇÃé¿çsäJén
+     48    000000 00               nop
+     49    000001 00               nop
+     50    000002 00               nop
+     51    000003          PRGBEGIN:
+     52    000003 F3               di
+     53    000004 C3....           jp      BOOTSTRUP       ;. ÇbÇoÇtãNìÆèàóù
+     54    000007          
+     55    000007          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     56    000007          ;.      INT0äÑÇËçûÇ›
+     57    000007          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     58    000007                  page
+     59    000038                  org     0038h
+     60    000038 00               nop
+     61    000039 00               nop
+     62    00003A 00               nop
+     63    00003B C3....           jp      dummy
+     64    00003E                  ;
+     65    00003E                  page
+     66    00003E          ;./*************************************************
+                           **********************
+     67    00003E          ;.*                                                 
+                                               *
+     68    00003E          ;.*             HD64180 äÑçûÉxÉNÉ^ÉeÅ[ÉuÉã          
+                                               *
+     69    00003E          ;.*     Author          TOA Corporation  h.nisiura  
+                                               *
+     70    00003E          ;.*     Revision        a00 1995/12/05              
+                                               *
+     71    00003E          ;.*                                                 
+                                               *
+     72    00003E          ;.**************************************************
+                           **********************/
+     73    00003E          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     74    000000                  extern  timer_0_ir
+     75    000000                  extern  timer_1_ir
+     76    000000                  extern  asci_0_ir
+     77    000040                  org     0040h
+     78    000040 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (INT1)
+     79    000042 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (INT2)
+     80    000044 ....             defw    timer_0_ir              ;.
+                                                                    10msÉ^ÉCÉ}ä
+                                                                   Ñçû      
+                                                                    (TIMER
+                                                                    ch0)
+     81    000046 ....             defw    timer_1_ir              ;.
+                                                                    1msÉ^ÉCÉ}äÑ
+                                                                   çû       
+                                                                    (TIMER
+                                                                    ch1)
+     82    000048 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (DMA
+                                                                    ch0)
+     83    00004A ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (DMA
+                                                                    ch1)
+     84    00004C ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (CSI/O)
+     85    00004E ....             defw    asci_0_ir               ;. DVAU
+                                                                    Voice Bus
+                                                                    Comm. (ASCI
+                                                                    ch0)
+     86    000050 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (ASCI
+                                                                    ch1)
+     87    000052 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (INPUT
+                                                                    CP)
+     88    000054 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (OUTPUT
+                                                                    CON)
+     89    000056 ....             defw    dummy                   ;. dummy    
+                                                                              
+                                                                    (TIMER
+                                                                    2)
+     90    000058          
+     91    000058          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+     92    000066                  org     0066h
+     93    000066 00               nop
+     94    000067 00               nop
+     95    000068 00               nop
+     96    000069 C3....           jp      nmi_ir                  ;.
+                                                                    ÇvÇcÇsàŸèÌ 
+                                                                            
+                                                                    (NMI)
+     97    00006C          
+     98    003FFF                  org     3FFFh
+     99    003FFF CA               defb    0cah
+    100    004000          
+    101    004000          
+    102    000000                  RSEG    RCODE:CODE
+    103    000000          
+    104    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    105    000000          ;.      ROMÉfÅ[É^
+    106    000000          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    107    000000                  public  prg_name
+    108    000000          prg_name:
+    109    000000 486F6E67*        defb    'H','o','n','g','k','o','n','g','
+                                                 ','S','u','b','w','a','y','
+                                                 '
+    110    000010 5665722E*        defb    'V','e','r','.','1','.','0','6','
+                                                 '
+    111    000019 32303033*        defb    '2','0','0','3','/','0','7','/','0',
+                                                '7',' '
+    112    000000                  public  prg_version
+    113    000024          prg_version:
+    114    000024 0601             defw    0106h
+    115    000026          
+    116    000026                  page
+    117    000026          ;/**************************************************
+                           *********************
+    118    000026          ;*                                                  
+                                               *
+    119    000026          ;*      Function name   << dummy >>                 
+                                               *
+    120    000026          ;*                      É_É~Å[äÑÇËçûÇ›              
+                                               *
+    121    000026          ;*      Syntax          dummy();                    
+                                               *
+    122    000026          ;*      Argument        none                        
+                                               *
+    123    000026          ;*      Author          TOA Corporation  t.ehara    
+                                               *
+    124    000026          ;*      Revision        a00 1992/11/20              
+                                               *
+    125    000026          ;*                                                  
+                                               *
+    126    000026          ;***************************************************
+                           *********************/
+    127    000026          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    128    000026          ; É_É~Å[äÑÇËçûÇ›ÅiÉfÉoÉbÉOópÅjÅB
+    129    000026          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    130    000026          dummy:
+    131    000026 210300           ld      hl,PRGBEGIN
+    132    000029 E5               push    hl
+    133    00002A                  
+    134    00002A                  
+    135    00002A FB               ei
+    136    00002B ED4D             reti
+    137    00002D          
+    138    00002D                  page
+    139    00002D          ;/**************************************************
+                           *********************
+    140    00002D          ;*                                                  
+                                               *
+    141    00002D          ;*      Function name   << nmi_ir >>                
+                                               *
+    142    00002D          ;*                      ÇvÇcÇsàŸèÌäÑÇËçûÇ›          
+                                               *
+    143    00002D          ;*      Syntax          nmi_intr();                 
+                                               *
+    144    00002D          ;*      Argument        none                        
+                                               *
+    145    00002D          ;*      Author          TOA Corporation  T.Takehisa 
+                                               *
+    146    00002D          ;*      Revision        a00 1993/04/30              
+                                               *
+    147    00002D          ;*                                                  
+                                               *
+    148    00002D          ;***************************************************
+                           *********************/
+    149    00002D          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    150    00002D          ; nmi_intr_routine ÇåƒÇ—èoÇ∑ÅB
+    151    00002D          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    152    00002D          ;;      extern  nmi_intr_routine
+    153    00002D          nmi_ir:
+    154    00002D F5               push    af
+    155    00002E C5               push    bc
+    156    00002F D5               push    de
+    157    000030 E5               push    hl
+    158    000031 DDE5             push    ix
+    159    000033 FDE5             push    iy
+    160    000035                  
+    161    000035                  
+    162    000035          ;;      call    nmi_intr_routine
+    163    000035 79               ld      a, c
+    164    000036 FE01             cp      1
+    165    000038 C2....           jp      nz, nmi_ir_999
+    166    00003B                                                              
+                               ;. ÇrÅ^ÇvÉäÉZÉbÉg
+    167    00003B 210000           ld      hl, 0
+    168    00003E E5               push    hl
+    169    00003F ED45             retn
+    170    000041          
+    171    000041          nmi_ir_999:                                         
+                               ;. í èÌïúãA
+    172    000041 FDE1             pop     iy
+    173    000043 DDE1             pop     ix
+    174    000045 E1               pop     hl
+    175    000046 D1               pop     de
+    176    000047 C1               pop     bc
+    177    000048 F1               pop     af
+    178    000049 ED45             retn
+    179    00004B          
+    180    00004B          
+    181    00004B                  page
+    182    00004B          ;/**************************************************
+                           *********************
+    183    00004B          ;*                                                  
+                                               *
+    184    00004B          ;*      Function name   << int1_ir >>               
+                                               *
+    185    00004B          ;*                      INT1 äÑÇËçûÇ›               
+                                               *
+    186    00004B          ;*      Syntax          int1_ir();                  
+                                               *
+    187    00004B          ;*      Argument        none                        
+                                               *
+    188    00004B          ;*      Author          TOA Corporation  T.Takehisa 
+                                               *
+    189    00004B          ;*      Revision        a00 1993/04/30              
+                                               *
+    190    00004B          ;*                                                  
+                                               *
+    191    00004B          ;***************************************************
+                           *********************/
+    192    00004B          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    193    00004B          ; int1_intr_routine ÇåƒÇ—èoÇ∑ÅB
+    194    00004B          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    195    00004B          int1_ir:
+    196    00004B F3               di
+    197    00004C F5               push    af
+    198    00004D C5               push    bc
+    199    00004E D5               push    de
+    200    00004F E5               push    hl
+    201    000050 DDE5             push    ix
+    202    000052 FDE5             push    iy
+    203    000054                  
+    204    000054          ;.      call    int1_intr_routine
+    205    000054                  
+    206    000054 FDE1             pop     iy
+    207    000056 DDE1             pop     ix
+    208    000058 E1               pop     hl
+    209    000059 D1               pop     de
+    210    00005A C1               pop     bc
+    211    00005B F1               pop     af
+    212    00005C FB               ei
+    213    00005D ED4D             reti
+    214    00005F          
+    215    00005F          
+    216    00005F                  page
+    217    00005F          ;/**************************************************
+                           *********************
+    218    00005F          ;*                                                  
+                                               *
+    219    00005F          ;*      Function name   << int2_ir >>               
+                                               *
+    220    00005F          ;*                      INT2 äÑÇËçûÇ›               
+                                               *
+    221    00005F          ;*      Syntax          int2_ir();                  
+                                               *
+    222    00005F          ;*      Argument        none                        
+                                               *
+    223    00005F          ;*      Author          TOA Corporation  T.Takehisa 
+                                               *
+    224    00005F          ;*      Revision        a00 1993/04/30              
+                                               *
+    225    00005F          ;*                                                  
+                                               *
+    226    00005F          ;***************************************************
+                           *********************/
+    227    00005F          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    228    00005F          ; int2_intr_routine ÇåƒÇ—èoÇ∑ÅB
+    229    00005F          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    230    00005F          int2_ir:
+    231    00005F F3               di
+    232    000060 F5               push    af
+    233    000061 C5               push    bc
+    234    000062 D5               push    de
+    235    000063 E5               push    hl
+    236    000064 DDE5             push    ix
+    237    000066 FDE5             push    iy
+    238    000068                  
+    239    000068          ;.      call    int2_intr_routine
+    240    000068                  
+    241    000068 FDE1             pop     iy
+    242    00006A DDE1             pop     ix
+    243    00006C E1               pop     hl
+    244    00006D D1               pop     de
+    245    00006E C1               pop     bc
+    246    00006F F1               pop     af
+    247    000070 FB               ei
+    248    000071 ED4D             reti
+    249    000073          
+    250    000073          
+    251    000073          ;/**************************************************
+                           *********************
+    252    000073          ;*                                                  
+                                               *
+    253    000073          ;*      Function name   << BOOTSTRUP >>             
+                                               *
+    254    000073          ;*                      ÇbÇoÇtãNìÆèàóù              
+                                               *
+    255    000073          ;*      Syntax          BUUOSTRUP();                
+                                               *
+    256    000073          ;*      Argument        none                        
+                                               *
+    257    000073          ;*      Author          TOA Corporation  t.takehisa 
+                                               *
+    258    000073          ;*      Revision        a00 1993/09/07              
+                                               *
+    259    000073          ;*                                                  
+                                               *
+    260    000073          ;***************************************************
+                           *********************/
+    261    000073          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    262    000073          ; ÇbÇoÇtãNìÆèàóùÅB
+    263    000073          ;   É_É~Å[ÇqÇdÇsÇhñΩóﬂî≠å¯ÅB
+    264    000073          ;Å@ ÇbÇoÇtãyÇ—é¸ï”ÇÃèâä˙âªÅB
+    265    000073          ;   É\ÉtÉgÉEÉFÉAÅiïœêîÅAÉoÉìÉNÇqÇ`ÇlìôÅjÉCÉjÉVÉÉÉâÉC
+                           ÉYÅB
+    266    000073          ;   ÇbÇÃÉvÉçÉOÉâÉÄÇ÷ÉWÉÉÉìÉvÅB
+    267    000073          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    268    000000                  extern  main                           
+  ;.(Function) ÇrÅ^ÇvÉÅÉCÉìêßå‰
+    269    000073          
+    270    000073          BOOTSTRUP:
+    271    000073 311DFE           ld      sp,RAMBOT+30
+    272    000076 00               nop
+    273    000077 00               nop
+    274    000078 00               nop
+    275    000079 00               nop
+    276    00007A 00               nop
+    277    00007B 00               nop
+    278    00007C 00               nop
+    279    00007D 00               nop
+    280    00007E 00               nop
+    281    00007F 00               nop
+    282    000080                  ;.**********************************
+    283    000080                  ;.      ÇbÇoÇtÇ≤Ç‹Ç©Çµèàóù
+    284    000080                  ;.**********************************
+    285    000080 21....           ld      hl, BOOTSTRUP10
+    286    000083 E5               push    hl
+    287    000084 ED4D             reti
+    288    000086          BOOTSTRUP10:
+    289    000086 21....           ld      hl, BOOTSTRUP11
+    290    000089 E5               push    hl
+    291    00008A ED4D             reti
+    292    00008C          BOOTSTRUP11:
+    293    00008C 21....           ld      hl, BOOTSTRUP12
+    294    00008F E5               push    hl
+    295    000090 ED4D             reti
+    296    000092          BOOTSTRUP12:
+    297    000092 21....           ld      hl, BOOTSTRUP13
+    298    000095 E5               push    hl
+    299    000096 ED4D             reti
+    300    000098          BOOTSTRUP13:
+    301    000098 21....           ld      hl, BOOTSTRUP14
+    302    00009B E5               push    hl
+    303    00009C ED4D             reti
+    304    00009E          BOOTSTRUP14:
+    305    00009E 21....           ld      hl, BOOTSTRUP15
+    306    0000A1 E5               push    hl
+    307    0000A2 ED4D             reti
+    308    0000A4          BOOTSTRUP15:
+    309    0000A4 21....           ld      hl, BOOTSTRUP16
+    310    0000A7 E5               push    hl
+    311    0000A8 ED4D             reti
+    312    0000AA          BOOTSTRUP16:
+    313    0000AA          
+    314    0000AA 00               nop
+    315    0000AB 00               nop
+    316    0000AC 00               nop
+    317    0000AD          
+    318    0000AD 311DFE           ld      sp,RAMBOT +30
+    319    0000B0          
+    320    0000B0          ;/**************************************************
+                           *********************
+    321    0000B0          ;*                                                  
+                                               *
+    322    0000B0          ;*      Function name   << x180_init >>             
+                                               *
+    323    0000B0          ;*                      ÇhÇbèâä˙âªèàóù              
+                                               *
+    324    0000B0          ;*      Syntax          x180_init();                
+                                               *
+    325    0000B0          ;*      Argument        none                        
+                                               *
+    326    0000B0          ;*      Author          TOA Corporation  h.nisiura  
+                                               *
+    327    0000B0          ;*      Revision        a00 1995/12/05              
+                                               *
+    328    0000B0          ;*                                                  
+                                               *
+    329    0000B0          ;***************************************************
+                           *********************/
+    330    0000B0          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    331    0000B0          ; ÇgÅ^ÇvÅiÇbÇoÇtÅjÇèâä˙âªÇ∑ÇÈÅB
+    332    0000B0          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    333    0000B0          x180_init:
+    334    0000B0 F3               di
+    335    0000B1                  ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    336    0000B1                  ;.Å@Çh⁄ºﬁΩ¿Ç00hÇ…Ç∑ÇÈ
+    337    0000B1                  ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    338    0000B1                                                  ;. -----
+                            èâä˙âªäJén -----
+    339    0000B1 3E00             ld      a,00h
+    340    0000B3 ED47             ld      i,a                     ;.
+                                                                    äÑçûÉxÉNÉ^É
+                                                                   åÉWÉXÉ^
+    341    0000B5          
+    342    0000B5                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    343    0000B5                  ; I/O , REF, INT  ÇÃèâä˙âª
+    344    0000B5                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    345    0000B5                  ;Å@I/O∫›ƒ€∞Ÿ•⁄ºﬁΩ¿Å@     =  0h
+    346    0000B5                  ;Å@ÿÃ⁄Øº≠•∫›ƒ€∞Ÿ•⁄ºﬁΩ¿   =  0h
+    347    0000B5                  ;  ≤›¿◊Ãﬂƒ•Õﬁ∏¿•€∞•⁄ºﬁΩ¿ = 40h
+    348    0000B5                  ;  INT/TRAP∫›ƒ€∞Ÿ•⁄ºﬁΩ¿  = 02h
+    349    0000B5                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    350    0000B5 3E00             ld      a,0
+    351    0000B7 ED393F           out0    (ICR),a                 ;. I/O
+                                                                    ÉRÉìÉgÉçÅ[É
+                                                                   ãÉåÉWÉXÉ^
+    352    0000BA ED3936           out0    (RCR),a                 ;.
+                                                                    ÉäÉtÉåÉbÉVÉ
+                                                                   ÖÉRÉìÉgÉçÅ[É
+                                                                   ãÉåÉWÉXÉ^
+    353    0000BD 3E40             ld      a,40h                   ;.
+                                                                    äÑçûÉxÉNÉ^
+                                                                    ÉçÅ[ÉåÉWÉXÉ
+                                                                   ^
+    354    0000BF ED3933           out0    (IL),a
+    355    0000C2 3E02             ld      a,02h                   ;. INT/TRAP
+                                                                    control
+                                                                    register
+    356    0000C4 ED3934           out0    (ITC),a                 ;. INT0=off,
+                                                                    INT1=on,
+                                                                    INT2=off
+    357    0000C7          
+    358    0000C7                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    359    0000C7                  ; ÇlÇlÇtê›íË
+    360    0000C7                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    361    0000C7                  ;      ò_óù“”ÿãÛä‘É}ÉbÉsÉìÉOê}   ÅE
+                            ÇlÇlÇt⁄ºﬁΩ¿ê›íË
+    362    0000C7                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    363    0000C7                  ; FFFFhÅEÅEÅEÅEÅEÅEÅEÅE          ÅEÅECBR
+                            ÅEÅEÅEÅE 
+    364    0000C7                  ;      ÅEProgram   ÅE 16 K bytes ÅEÅE14h(200
+                           00)ÅE     CBR  = 14h
+    365    0000C7                  ;      ÅE    RAM   ÅE            ÅEÅEÅEÅEÅEÅ
+                           EÅEÅE 
+    366    0000C7                  ; C000hÅEÅEÅEÅEÅEÅEÅEÅE          ÅEÅEBBR
+                            ÅEÅEÅEÅE 
+    367    0000C7                  ; ÅP*2                            
+                            ÅE00h(08000)ÅE     BBR  = 00h
+    368    0000C7                  ;      ÅE          ÅE            ÅEÅEÅEÅEÅEÅ
+                           EÅEÅE 
+    369    0000C7                  ;      ÅE          ÅE            ÅEÅECBARÅEÅ
+                           EÅEÅE 
+    370    0000C7                  ;      ÅE          ÅE              ÅE*2 
+                            ÅE*1  ÅE 
+    371    0000C7                  ;      ÅE          ÅE            ÅEÅE  ChÅE 
+                            8hÅE     CBAR = C8h
+    372    0000C7                  ;      ÅEÅEÅEÅEÅEÅEÅEÅE          ÅEÅEÅEÅEÅEÅ
+                           EÅEÅE 
+    373    0000C7                  ;      ÅE          ÅE            ÅE
+    374    0000C7                  ;      ÅEBank  RAM ÅE 16 K bytes ÅE
+    375    0000C7                  ; 8000hÅEÅEÅEÅEÅEÅEÅEÅE          ÅE
+    376    0000C7                  ; ÅP*1 ÅE          ÅE            ÅE
+    377    0000C7                  ;      ÅE          ÅE            ÅE
+    378    0000C7                  ;      ÅE          ÅE            ÅE
+    379    0000C7                  ;      ÅE          ÅE            ÅE
+    380    0000C7                  ;      ÅE          ÅE 32 K bytes ÅE
+    381    0000C7                  ;      ÅEProgram   ÅE            ÅE
+    382    0000C7                  ;      ÅE    ROM   ÅE            ÅE
+    383    0000C7                  ; 0000hÅEÅEÅEÅEÅEÅEÅEÅE          ÅE
+    384    0000C7                  ;ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    385    0000C7 3EC8             ld      a, 0C8h                 ;.
+                                                                    0000hÅ`7FFF
+                                                                   h ÉRÉÇÉìÉGÉä
+                                                                   ÉAÇO 
+                                                                    00000h-07FF
+                                                                   Fh
+    386    0000C9                                                          ;.
+                            8000hÅ`BFFFh ÉoÉìÉNÉGÉäÉA    08000h-0BFFFh
+    387    0000C9                                                          ;.
+                            C000hÅ`FFFFh ÉRÉÇÉìÉGÉäÉAÇP  20000h-23FFFh
+    388    0000C9 ED393A           out0    (CBAR), a               ;.
+                                                                    ÇlÇlÇtÉRÉÇÉ
+                                                                   ìÅ^ÉoÉìÉNÅEÉ
+                                                                   GÉäÉAÉåÉWÉXÉ
+                                                                   ^
+    389    0000CC 3E14             ld      a, 014h                 ;.
+                                                                    ÉRÉÇÉìÉGÉäÉ
+                                                                   AÇPï®óùÉAÉhÉ
+                                                                   åÉX
+                                                                    20000h
+    390    0000CE ED3938           out0    (CBR), a                ;.
+                                                                    ÇlÇlÇtÉRÉÇÉ
+                                                                   ìÅEÉxÅ[ÉXÅEÉ
+                                                                   åÉWÉXÉ^
+    391    0000D1 3E00             ld      a, 000h                 ;.
+                                                                    ÉoÉìÉNÉGÉäÉ
+                                                                   AÅ@ï®óùÉAÉhÉ
+                                                                   åÉX
+                                                                    08000h
+    392    0000D3 ED3939           out0    (BBR), a                ;.
+                                                                    ÇlÇlÇtÉoÉìÉ
+                                                                   NÅEÉxÅ[ÉXÅEÉ
+                                                                   åÉWÉXÉ^
+    393    0000D6          
+    394    0000D6 CD....           call    init_ic                 ;.
+                                                                    ÇhÇbèâä˙âªè
+                                                                   àóù
+    395    0000D9          
+    396    0000D9 ED56             im      1                       ;.
+                                                                    äÑçûÉÇÅ[Éh 
+                                                                    1
+    397    0000DB                                                  ;. -----
+                            èâä˙âªèIóπ -----
+    398    0000DB          
+    399    0000DB C3....           jp      main                    ;. Jump to
+                                                                    Main
+                                                                    Module( C
+                                                                    language
+                                                                    )
+    400    0000DE          
+    401    0000DE          
+    402    0000DE          ;/**************************************************
+                           *********************
+    403    0000DE          ;*                                                  
+                                               *
+    404    0000DE          ;*      Function name   << init_ic >>               
+                                               *
+    405    0000DE          ;*                      ÇhÇbÇÃèâä˙âª                
+                                               *
+    406    0000DE          ;*      Syntax          init_ic();                  
+                                               *
+    407    0000DE          ;*      Argument        None                        
+                                               *
+    408    0000DE          ;*      Author          TOA Corporation  T.Takehisa 
+                                               *
+    409    0000DE          ;*      Revision        a00 1993/09/07              
+                                               *
+    410    0000DE          ;*                                                  
+                                               *
+    411    0000DE          ;***************************************************
+                           *********************/
+    412    000000                  extern  timer_0_initialize
+    413    000000                  extern  timer_1_initialize
+    414    000000                  extern  asci_0_initialize
+    415    000000                  extern  csio_initialize
+    416    000000                  public  init_ic                        
+  ;.(Function)
+    417    0000DE          init_ic:
+    418    0000DE          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    419    0000DE          ; ÇbÇoÇtì‡ë†ÉyÉäÉtÉFÉâÉãÅAäOïîICèâä˙âª
+    420    0000DE          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    421    0000DE F5               push    af
+    422    0000DF C5               push    bc
+    423    0000E0 D5               push    de
+    424    0000E1 E5               push    hl
+    425    0000E2 DDE5             push    ix
+    426    0000E4 FDE5             push    iy
+    427    0000E6                  
+    428    0000E6 CD....           call    timer_0_initialize      ;. TIMER 0
+                                                                    èâä˙âª
+    429    0000E9 CD....           call    timer_1_initialize      ;. TIMER 1
+                                                                    èâä˙âª
+    430    0000EC CD....           call    asci_0_initialize       ;. ASCI  0
+                                                                    èâä˙âª
+    431    0000EF CD....           call    csio_initialize         ;. CSI/O
+                                                                    èâä˙âª
+    432    0000F2          
+    433    0000F2 FDE1             pop     iy
+    434    0000F4 DDE1             pop     ix
+    435    0000F6 E1               pop     hl
+    436    0000F7 D1               pop     de
+    437    0000F8 C1               pop     bc
+    438    0000F9 F1               pop     af
+    439    0000FA C9               ret
+    440    0000FB          
+    441    0000FB          
+    442    0000FB          ;/**************************************************
+                           *********************
+    443    0000FB          ;*                                                  
+                                               *
+    444    0000FB          ;*      Function name   << read_dipsw >>            
+                                               *
+    445    0000FB          ;*                      jumper Switch Read
+    446    0000FB          ;*      Syntax          reg.C = read_dipsw();       
+                                       *
+    447    0000FB          ;*      Argument        Reg. BC         o: Switch
+                            Data          *
+    448    0000FB          ;*      Author          TOA Corporation  K.Honda
+    449    0000FB          ;*      Revision        a00 2000/06/26              
+                                               *
+    450    0000FB          ;*                                                  
+                                               *
+    451    0000FB          ;***************************************************
+                           *********************/
+    452    0000FB          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    453    000000                  public  read_dipsw              ;.(Function)
+    454    0000FB          read_dipsw:
+    455    0000FB F5               push    af
+    456    0000FC          
+    457    0000FC ED3866           in0     a, (IDRG)               ;. Read
+                                                                    Dipsw
+    458    0000FF E60F             and     0Fh
+    459    000101 6F               ld      l,a
+    460    000102 2600             ld      h, 0
+    461    000104          
+    462    000104 F1               pop     af
+    463    000105 C9               ret
+    464    000106          
+    465    000106          ;/**************************************************
+                           *********************
+    466    000106          ;*                                                  
+                                               *
+    467    000106          ;*      Function name   << watch_dog_reset >>       
+                                       *
+    468    000106          ;*                      ÉEÉHÉbÉ`ÉhÉbÉOÉäÉZÉbÉg
+    469    000106          ;*      Syntax          watch_dog_reset( void
+                            );
+    470    000106          ;*      Argument        none                        
+                                               *
+    471    000106          ;*    Author    TOA Corporation   K.Honda
+    472    000106          ;*    Revison   a00. 2000/06/26
+    473    000106          ;*                                                  
+                                               *
+    474    000106          ;***************************************************
+                           *********************/
+    475    000106          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    476    000106          ;
+    477    000000                  public  watch_dog_reset ;.(Function)
+    478    000106          watch_dog_reset:
+    479    000106 F5               push    af
+    480    000107          
+    481    000107 ED3887           in0             a,(EXT_PORT7)
+    482    00010A          
+    483    00010A F1               pop     af
+    484    00010B C9               ret
+    485    00010C          
+    486    00010C          ;/**************************************************
+                           *********************
+    487    00010C          ;*                                                  
+                                               *
+    488    00010C          ;*      Function name   << _Bankchange >>           
+                                               *
+    489    00010C          ;*                      ÉoÉìÉNêÿÇËä∑Ç¶              
+                                               *
+    490    00010C          ;*      Syntax          _Bankchange(bank_no);       
+                                               *
+    491    00010C          ;*      Argument        short   bank_no i      
+                            :ÉoÉìÉNÇmÇèÅD           *
+    492    00010C          ;*                                               no 
+                                 address       *
+    493    00010C          ;*                                                0
+                            :  0000h -  3fffh   *
+    494    00010C          ;*                                                1
+                            :  4000h -  7fffh   *
+    495    00010C          ;*                                                2
+                            :  8000h -  bfffh   *
+    496    00010C          ;*                                                3
+                            :  c000h -  ffffh   *
+    497    00010C          ;*                                                4
+                            : 10000h - 13fffh   *
+    498    00010C          ;*                                                5
+                            : 14000h - 17fffh   *
+    499    00010C          ;*                                                6
+                            : 18000h - 1bfffh   *
+    500    00010C          ;*                                                7
+                            : 1c000h - 1ffffh   *
+    501    00010C          ;*                                                8
+                            : 20000h - 23fffh   *
+    502    00010C          ;*                                                9
+                            : 24000h - 27fffh   *
+    503    00010C          ;*                                               10
+                            : 28000h - 2bfffh   *
+    504    00010C          ;*                                               11
+                            : 2c000h - 2ffffh   *
+    505    00010C          ;*                                               12
+                            : 30000h - 33fffh   *
+    506    00010C          ;*                                               13
+                            : 34000h - 37fffh   *
+    507    00010C          ;*                                               14
+                            : 38000h - 3bfffh   *
+    508    00010C          ;*                                               15
+                            : 3c000h - 3ffffh   *
+    509    00010C          ;*      Author          TOA Corporation  K.Honda
+    510    00010C          ;*      Revision        a00 2000/06/27              
+                                               *
+    511    00010C          ;*                                                  
+                                               *
+    512    00010C          ;***************************************************
+                           *********************/
+    513    00010C          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    514    00010C          
+    515    000000                  public  _Bankchange     ;.(Function)
+    516    00010C          _Bankchange:
+    517    00010C F5               push    af
+    518    00010D C5               push    bc
+    519    00010E E5               push    hl
+    520    00010F          
+    521    00010F 0600             ld              b,0
+    522    000111 4D               ld              c,l                     ;.
+                                                       ﬁ›∏No.
+    523    000112 21....           ld              hl,BBR_tbl              ;.
+                                                        ﬁ›∏√-ÃﬁŸADR.
+    524    000115 09               add             hl,bc
+    525    000116 7E               ld              a,(hl)
+    526    000117 ED3939           out0    (BBR),a                 ;.
+                                                                    BBRæØƒ
+    527    00011A          
+    528    00011A E1               pop     hl
+    529    00011B C1               pop     bc
+    530    00011C E1               pop     hl
+    531    00011D C9               ret
+    532    00011E          
+    533    00011E          BBR_tbl:                                ;.
+                             ﬁ›∏√-ÃﬁŸ
+    534    00011E F8               defb    0F8h            ;. 0F8h+08h =
+                                                            00h
+    535    00011F FC               defb    0FCh            ;. 0FCh+08h =
+                                                            04h
+    536    000120 00               defb    000h            ;. 000h+08h =
+                                                            08h
+    537    000121 04               defb    004h            ;. 004h+08h =
+                                                            0Ch
+    538    000122 08               defb    008h            ;. 008h+08h =
+                                                            10h
+    539    000123 0C               defb    00Ch            ;. 00Ch+08h =
+                                                            14h
+    540    000124 10               defb    010h            ;. 010h+08h =
+                                                            18h
+    541    000125 14               defb    014h            ;. 014h+08h =
+                                                            1Ch
+    542    000126 18               defb    018h            ;. 018h+08h =
+                                                            20h
+    543    000127 1C               defb    01Ch            ;. 01Ch+08h =
+                                                            24h
+    544    000128 20               defb    020h            ;. 020h+08h =
+                                                            28h
+    545    000129 24               defb    024h            ;. 024h+08h =
+                                                            2Ch
+    546    00012A 28               defb    028h            ;. 028h+08h =
+                                                            30h
+    547    00012B 2C               defb    02Ch            ;. 02Ch+08h =
+                                                            34h
+    548    00012C 30               defb    030h            ;. 030h+08h =
+                                                            38h
+    549    00012D 34               defb    034h            ;. 034h+08h =
+                                                            3Ch
+    550    00012E          
+    551    00012E          ;/**************************************************
+                           *********************
+    552    00012E          ;*                                                  
+                                               *
+    553    00012E          ;*      Function name   << __enable >>              
+                                               *
+    554    00012E          ;*                      äÑÇËçûÇ›ÇÃãñâ¬              
+                                               *
+    555    00012E          ;*      Syntax          __enable()                  
+                                               *
+    556    00012E          ;*      Argument        None                        
+                                               *
+    557    00012E          ;*      Author          TOA Corporation  T.takehisa 
+                                               *
+    558    00012E          ;*      Revision        a00 1993/06/21              
+                                               *
+    559    00012E          ;*                                                  
+                                               *
+    560    00012E          ;***************************************************
+                           *********************/
+    561    00012E          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    562    00012E          ;Å@äÑÇËçûÇ›ãñâ¬
+    563    00012E          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    564    000000                  public  __enable        ;.(Function)
+    565    00012E          __enable:
+    566    00012E FB               ei
+    567    00012F C9               ret
+    568    000130          
+    569    000130          ;/**************************************************
+                           *********************
+    570    000130          ;*                                                  
+                                               *
+    571    000130          ;*      Function name   << __disable >>             
+                                               *
+    572    000130          ;*                      äÑÇËçûÇ›ÇÃã÷é~              
+                                               *
+    573    000130          ;*      Syntax          __disable()                 
+                                               *
+    574    000130          ;*      Argument        None                        
+                                               *
+    575    000130          ;*      Author          TOA Corporation  T.takehisa 
+                                               *
+    576    000130          ;*      Revision        a00 1993/06/21              
+                                               *
+    577    000130          ;*                                                  
+                                               *
+    578    000130          ;***************************************************
+                           *********************/
+    579    000130          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    580    000130          ;Å@äÑÇËçûÇ›ã÷é~
+    581    000130          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    582    000000                  public  __disable       ;.(Function)
+    583    000130          __disable:
+    584    000130 F3               di
+    585    000131 C9               ret
+    586    000132          
+    587    000132          
+    588    000132          
+    589    000132          ;/**************************************************
+                           *********************
+    590    000132          ;*                                                  
+                                               *
+    591    000132          ;*      Function name   << ram_check >>             
+                                       *
+    592    000132          ;*                      ALL RAM Area read after
+                            write check
+    593    000132          ;*      Syntax          ram_check();                
+                               *
+    594    000132          ;*      Argument        return is OK, HALT is
+                            NG
+    595    000132          ;*      Author          TOA Corporation  K.Honda
+    596    000132          ;*      Revision        a00 2000/06/26              
+                                               *
+    597    000132          ;*                                                  
+                                               *
+    598    000132          ;***************************************************
+                           *********************/
+    599    000132          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    600    000000                  public  ram_check               ;.(Function)
+    601    000132          ram_check:
+    602    000132 F5               push    af
+    603    000133          
+    604    000133 2E08             ld              l,8
+    605    000135          ram_check100:
+    606    000135 E5               push    hl
+    607    000136 CD....           call    _Bankchange
+    608    000139          
+    609    000139 DD210080         ld              ix,08000h
+    610    00013D 010040           ld              bc,04000h
+    611    000140          ram_check200:
+    612    000140 DD6E00           ld              l,(ix+0)
+    613    000143 DD360055         ld              (ix+0),055h
+    614    000147 00               nop
+    615    000148 00               nop
+    616    000149 00               nop
+    617    00014A DD7E00           ld              a,(ix+0)
+    618    00014D FE55             cp              055h
+    619    00014F C2....           jp              nz,ram_check900
+    620    000152          
+    621    000152 DD7500           ld              (ix+0),l
+    622    000155 DD23             inc             ix
+    623    000157 0B               dec             bc
+    624    000158 78               ld              a,b
+    625    000159 B1               or              c
+    626    00015A C2....           jp              nz,ram_check200
+    627    00015D          
+    628    00015D DD210080         ld              ix,08000h
+    629    000161 010040           ld              bc,04000h
+    630    000164          ram_check300:
+    631    000164 DD6E00           ld              l,(ix+0)
+    632    000167 DD3600AA         ld              (ix+0),0AAh
+    633    00016B 00               nop
+    634    00016C 00               nop
+    635    00016D 00               nop
+    636    00016E DD7E00           ld              a,(ix+0)
+    637    000171 FEAA             cp              0AAh
+    638    000173 C2....           jp              nz,ram_check900
+    639    000176          
+    640    000176 DD7500           ld              (ix+0),l
+    641    000179 DD23             inc             ix
+    642    00017B 0B               dec             bc
+    643    00017C 78               ld              a,b
+    644    00017D B1               or              c
+    645    00017E C2....           jp              nz,ram_check300
+    646    000181          
+    647    000181 DD210080         ld              ix,08000h
+    648    000185 010040           ld              bc,04000h
+    649    000188          ram_check400:
+    650    000188 DD6E00           ld              l,(ix+0)
+    651    00018B DD3600FF         ld              (ix+0),0FFh
+    652    00018F 00               nop
+    653    000190 00               nop
+    654    000191 00               nop
+    655    000192 DD7E00           ld              a,(ix+0)
+    656    000195 FEFF             cp              0FFh
+    657    000197 C2....           jp              nz,ram_check900
+    658    00019A          
+    659    00019A DD7500           ld              (ix+0),l
+    660    00019D DD23             inc             ix
+    661    00019F 0B               dec             bc
+    662    0001A0 78               ld              a,b
+    663    0001A1 B1               or              c
+    664    0001A2 C2....           jp              nz,ram_check400
+    665    0001A5          
+    666    0001A5 DD210080         ld              ix,08000h
+    667    0001A9 010040           ld              bc,04000h
+    668    0001AC          ram_check500:
+    669    0001AC DD6E00           ld              l,(ix+0)
+    670    0001AF DD360000         ld              (ix+0),000h
+    671    0001B3 00               nop
+    672    0001B4 00               nop
+    673    0001B5 00               nop
+    674    0001B6 DD7E00           ld              a,(ix+0)
+    675    0001B9 FE00             cp              000h
+    676    0001BB C2....           jp              nz,ram_check900
+    677    0001BE          
+    678    0001BE DD7500           ld              (ix+0),l
+    679    0001C1 DD23             inc             ix
+    680    0001C3 0B               dec             bc
+    681    0001C4 78               ld              a,b
+    682    0001C5 B1               or              c
+    683    0001C6 C2....           jp              nz,ram_check500
+    684    0001C9          
+    685    0001C9 E1               pop             hl
+    686    0001CA          ;;      inc             l
+    687    0001CA          ;;      ld              a,l
+    688    0001CA          ;;      cp              16
+    689    0001CA          ;;      jp              nz,ram_check100
+    690    0001CA          
+    691    0001CA 210000           ld              hl,0
+    692    0001CD          
+    693    0001CD F1               pop             af
+    694    0001CE C9               ret
+    695    0001CF          
+    696    0001CF          ram_check900:
+    697    0001CF          
+    698    0001CF 210100           ld              hl,1
+    699    0001D2          
+    700    0001D2 F1               pop             af
+    701    0001D3 C9               ret
+    702    0001D4          
+    703    0001D4          ;/**************************************************
+                           *********************
+    704    0001D4          ;*                                                  
+                                               *
+    705    0001D4          ;*      Function name   << rom_check >>             
+                                       *
+    706    0001D4          ;*                      ALL ROM Area Calc SUM
+    707    0001D4          ;*      Syntax          rom_check();                
+                               *
+    708    0001D4          ;*      Argument        Return is OK, NG is
+                            HALT
+    709    0001D4          ;*      Author          TOA Corporation  K.Honda
+    710    0001D4          ;*      Revision        a00 2000/06/26              
+                                               *
+    711    0001D4          ;*                                                  
+                                               *
+    712    0001D4          ;***************************************************
+                           *********************/
+    713    0001D4          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    714    000000                  public  rom_check               ;.(Function)
+    715    0001D4          rom_check:
+    716    0001D4 F5               push    af
+    717    0001D5          
+    718    0001D5 2600             ld              h,0
+    719    0001D7 2E00             ld              l,0
+    720    0001D9          rom_check100:
+    721    0001D9 E5               push    hl
+    722    0001DA CD....           call    _Bankchange
+    723    0001DD          
+    724    0001DD DD210080         ld              ix,08000h
+    725    0001E1 010040           ld              bc,04000h
+    726    0001E4          rom_check200:
+    727    0001E4 7C               ld              a,h
+    728    0001E5 DD8600           add             a,(ix+0)
+    729    0001E8 67               ld              h,a
+    730    0001E9          
+    731    0001E9 DD23             inc             ix
+    732    0001EB 0B               dec             bc
+    733    0001EC 78               ld              a,b
+    734    0001ED B1               or              c
+    735    0001EE C2....           jp              nz,rom_check200
+    736    0001F1          
+    737    0001F1 E1               pop             hl
+    738    0001F2 2C               inc             l
+    739    0001F3 7D               ld              a,l
+    740    0001F4 FE10             cp              16
+    741    0001F6 C2....           jp              nz,rom_check100
+    742    0001F9          
+    743    0001F9 7C               ld              a,h
+    744    0001FA FE00             cp              000h
+    745    0001FC C2....           jp              nz,rom_check900
+    746    0001FF          
+    747    0001FF 210000           ld              hl,0
+    748    000202          
+    749    000202 F1               pop             af
+    750    000203 C9               ret
+    751    000204          
+    752    000204          rom_check900:
+    753    000204 210100           ld              hl,1
+    754    000207          
+    755    000207 F1               pop             af
+    756    000208 C9               ret
+    757    000209          
+    758    000209          ;/**************************************************
+                           *********************
+    759    000209          ;*                                                  
+                                               *
+    760    000209          ;*      Function name   << HALTCPU >>               
+                                       *
+    761    000209          ;*                      HALT CPU 
+    762    000209          ;*      Syntax          HALTCPU();                  
+                               *
+    763    000209          ;*      Argument        Return is OK, NG is
+                            HALT
+    764    000209          ;*      Author          TOA Corporation  K.Honda
+    765    000209          ;*      Revision        a00 2000/06/26              
+                                               *
+    766    000209          ;*                                                  
+                                               *
+    767    000209          ;***************************************************
+                           *********************/
+    768    000209          ;.ÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅEÅE
+                           ÅEÅEÅEÅEÅEÅEÅEÅEÅE
+    769    000000                  public  HALTCPU         ;.(Function)
+    770    000209          HALTCPU:
+    771    000209 F3               DI
+    772    00020A 76               HALT
+    773    00020B          
+    774    00020B                  END
+##############################
+#          CRC:CC47          #
+#        Errors:   0         #
+#        Warnings: 0         #
+#         Bytes: 567         #
+##############################
+
+
+
+

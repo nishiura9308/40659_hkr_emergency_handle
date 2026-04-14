@@ -1,0 +1,17 @@
+
+         .SECTION   P,CODE,ALIGN=2
+
+
+         .EXPORT    _jump_app
+_jump_app:
+         JSR        @jump_RAMTOP
+         RTS
+
+	.section RAMTOP,data
+jump_RAMTOP:
+
+	.section ROMSUM,DATA,ALIGN=1
+	.DATA.B		H'98
+
+         .END
+

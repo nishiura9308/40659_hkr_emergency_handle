@@ -1,0 +1,2491 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:49  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvamente.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       【香港地下鉄向け自動列車放送制御装置】                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       通信制御モジュール                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include <stdio.h>
+                    13:    #include <string.h>
+                    14:    
+                    15:    #include "iodefine.h"
+                    16:    #include "table.h"
+                    17:    
+                    18:    #include "dosaccs.h"
+                    19:    #include "fcntl.h"
+                    20:    
+                    21:    /*@@@S*/
+                    22:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    23:            グローバル変数
+                    24:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    25:    
+                    26:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    27:            定数定義
+                    28:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    29:    #define CRLF            0x0D
+                    30:    #define ESC                     0x1B
+                    31:    
+                    32:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    33:            構造体定義
+                    34:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    35:    
+                    36:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    37:            テーブル
+                    38:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    39:    
+                    40:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    41:                    外部参照
+                    42:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    43:    extern  void asci_1_Initialize( int baud, char data, char parity, char stop );
+                    44:    extern  void asci_1_tx_enable( void );
+                    45:    extern  void asci_1_tx_disable( char tend );
+                    46:    extern  void asci_1_transmit( unsigned char data );
+                    47:    
+                    48:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    49:                    ローカル変数
+                    50:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    51:    static  char    recvbuff[512];          /*受信バッファー*/
+                    52:    static  short   recvlen;                        /*受信バイト数*/
+                    53:    static  char    sendbuff[512];          /*送信バッファー*/
+                    54:    static  short   sendlen;                        /*送信バイト数*/
+                    55:    static  short   sendcnt;                        /*送信カウンター*/
+                    56:    static  char    recvon;
+                    57:    
+                    58:    /*@@@E*/
+                    59:    /************************************************************************
+                    60:    *                                                                                                                                               *
+                    61:    *       Function name   << asci_1_send_ir >>                                                            *
+                    62:    *                                       送信割り込み処理                                                                        *
+                    63:    *       Syntax                  asci_1_send_ir( void );                                                         *
+                    64:    *       Argument                none                                                                                            *
+                    65:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    66:    *       Revision                a00 2000/06/27                                                                          *
+                    67:    *                                                                                                                                               *
+                    68:    *************************************************************************/
+                    69:    void asci_1_send_ir( char tend )
+    000000              _asci_1_send_ir:                 ; function: asci_1_send_ir
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    70:    {
+                    71:                    if( sendcnt==sendlen ){ /*すべて送信したとき*/
+    000004 7A06                   MOV.L       #_$sendcnt:32,ER6
+           <00000000>   
+    00000A 6961                   MOV.W       @ER6,R1
+    00000C 6B2200                 MOV.W       @_$sendlen:24,R2
+           <000000>     
+    000012 1D21                   CMP.W       R2,R1
+    000014 4606                   BNE         L422:8
+                    72:                            asci_1_tx_disable( tend );              /*受信へ切り替え*/
+    000016 5E                     JSR         @_asci_1_tx_disable:24
+           <000000>     
+                    73:                            return;
+    00001A 4016                   BRA         L423:8
+    00001C              L422:                             
+                    74:                    }
+                    75:    
+                    76:                    asci_1_transmit( sendbuff[sendcnt++] ); /*１バイトの送信*/
+    00001C 6960                   MOV.W       @ER6,R0
+    00001E 0B50                   INC.W       #1,R0
+    000020 69E0                   MOV.W       R0,@ER6
+    000022 1B50                   DEC.W       #1,R0
+    000024 17F0                   EXTS.L      ER0
+    000026 78006A2800             MOV.B       @(_$sendbuff:24,ER0),R0L
+           <000000>     
+    00002E 5E                     JSR         @_asci_1_transmit:24
+           <000000>     
+                    77:    }
+    000032              L423:                             
+    000032 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                    78:    
+                    79:    /************************************************************************
+                    80:    *                                                                                                                                               *
+                    81:    *       Function name   << dvauMenteSend >>                                                                     *
+                    82:    *                                       送信準備処理                                                                            *
+                    83:    *       Syntax                  dvauMenteSend( void );                                                                  *
+                    84:    *       Argument                none                                                                                            *
+                    85:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    86:    *       Revision                a00 2000/06/27                                                                          *
+                    87:    *                                                                                                                                               *
+                    88:    *************************************************************************/
+                    89:    void dvauMenteSend( void )
+    000036              _dvauMenteSend:                  ; function: dvauMenteSend
+    000036 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    90:    {
+                    91:                    char    data;
+                    92:    
+                    93:                    strcat( sendbuff, "\r\n" );
+    00003A 7A06                   MOV.L       #_$sendbuff:32,ER6
+           <00000000>   
+    000040 7A01                   MOV.L       #L127:32,ER1
+           <00000000>   
+    000046 0FE0                   MOV.L       ER6,ER0
+    000048 5E                     JSR         @_strcat:24
+           <000000>     
+                    94:                    sendlen = strlen(sendbuff);
+    00004C 0FE0                   MOV.L       ER6,ER0
+    00004E 5E                     JSR         @_strlen:24
+           <000000>     
+    000052 6BA000                 MOV.W       R0,@_$sendlen:24
+           <000000>     
+                    95:    
+                    96:                    sendcnt = 0;
+    000058 7A05                   MOV.L       #_$sendcnt:32,ER5
+           <00000000>   
+    00005E 1900                   SUB.W       R0,R0
+    000060 69D0                   MOV.W       R0,@ER5
+                    97:    
+                    98:                    asci_1_tx_enable();             /*送信開始  RTS=ON*/
+    000062 5E                     JSR         @_asci_1_tx_enable:24
+           <000000>     
+                    99:    
+                   100:                    data = sendbuff[sendcnt++];
+    000066 6950                   MOV.W       @ER5,R0
+    000068 0B50                   INC.W       #1,R0
+    00006A 69D0                   MOV.W       R0,@ER5
+    00006C 1B50                   DEC.W       #1,R0
+    00006E 17F0                   EXTS.L      ER0
+    000070 0A86                   ADD.L       ER0,ER6
+    000072 686E                   MOV.B       @ER6,R6L
+                   101:                    asci_1_transmit( data );        /*１バイトの送信*/
+    000074 0CE8                   MOV.B       R6L,R0L
+    000076 5E                     JSR         @_asci_1_transmit:24
+           <000000>     
+                   102:    }
+    00007A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   103:    
+                   104:    /****** W <ADDRESS> <DATA> ******/
+                   105:    int W_command(char *p)
+    00007E              _W_command:                      ; function: W_command
+    00007E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000082 1B97                   SUBS.L      #4,SP
+    000084 1B87                   SUBS.L      #2,SP
+                   106:    {
+    000086 0F86                   MOV.L       ER0,ER6
+                   107:            unsigned long   address;
+                   108:            int     write_data;
+                   109:            char    byte_data,*byte_address;
+                   110:    
+                   111:            if ( strlen(p)>=31 ){
+    000088 5E                     JSR         @_strlen:24
+           <000000>     
+    00008C 7A20000000             CMP.L       #31:32,ER0
+           1F           
+    000092 4516                   BCS         L424:8
+                   112:                    printf( "\r\nWRITE ADDRESS & DATA ERROR \r\n" ) ;
+    000094 7A00                   MOV.L       #L136:32,ER0
+           <00000000>   
+    00009A 01006DF0               PUSH.L      ER0
+    00009E 5E                     JSR         @_printf:24
+           <000000>     
+    0000A2 0B97                   ADDS.L      #4,SP
+                   113:                    return( -1 );           /*文字列が多すぎる*/
+    0000A4 7900FFFF               MOV.W       #-1:16,R0
+    0000A8 405E                   BRA         L425:8
+    0000AA              L424:                             
+                   114:            }
+                   115:    
+                   116:            sscanf( p, " %lX %X", &address, &write_data );
+    0000AA 0FF0                   MOV.L       SP,ER0
+    0000AC 0B90                   ADDS.L      #4,ER0
+    0000AE 01006DF0               PUSH.L      ER0
+    0000B2 0FF0                   MOV.L       SP,ER0
+    0000B4 0B90                   ADDS.L      #4,ER0
+    0000B6 01006DF0               PUSH.L      ER0
+    0000BA 7A00                   MOV.L       #L137:32,ER0
+           <00000000>   
+    0000C0 01006DF0               PUSH.L      ER0
+    0000C4 0FE0                   MOV.L       ER6,ER0
+    0000C6 5E                     JSR         @_sscanf:24
+           <000000>     
+    0000CA 7A17000000             ADD.L       #12:32,SP
+           0C           
+                   117:    /*
+                   118:                    if ( address > 0xFFFFFF ){
+                   119:                            printf( "\nWRITE ADDRESS & DATA ERROR \n" ) ;
+                   120:                            return( -1 );
+                   121:                    }
+                   122:    */
+                   123:            byte_address = (char *)address;
+    0000D0 01006976               MOV.L       @SP,ER6
+                   124:            byte_data = (char)write_data ;
+    0000D4 6E7D0005               MOV.B       @(5:16,SP),R5L
+                   125:            *byte_address = byte_data;
+    0000D8 68ED                   MOV.B       R5L,@ER6
+                   126:            write_data = (int)*byte_address;
+    0000DA 6868                   MOV.B       @ER6,R0L
+    0000DC 17D0                   EXTS.W      R0
+    0000DE 6FF00004               MOV.W       R0,@(4:16,SP)
+                   127:            printf( "\r\nWRITE BYTE ADDRESS %08lX WRITE DATA %02X READ DATA %02X\r\n"
+                   128:                                    ,byte_address, byte_data & 0x00FF, write_data & 0x00FF  ) ;
+    0000E2 6E780005               MOV.B       @(5:16,SP),R0L
+    0000E6 1750                   EXTU.W      R0
+    0000E8 6DF0                   PUSH.W      R0
+    0000EA 1755                   EXTU.W      R5
+    0000EC 6DF5                   PUSH.W      R5
+    0000EE 01006DF6               PUSH.L      ER6
+    0000F2 7A00                   MOV.L       #L138:32,ER0
+           <00000000>   
+    0000F8 01006DF0               PUSH.L      ER0
+    0000FC 5E                     JSR         @_printf:24
+           <000000>     
+    000100 7A17000000             ADD.L       #12:32,SP
+           0C           
+                   129:            return( 0 );
+    000106 1900                   SUB.W       R0,R0
+                   130:    }
+    000108              L425:                             
+    000108 0B87                   ADDS.L      #2,SP
+    00010A 0B97                   ADDS.L      #4,SP
+    00010C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   131:    
+                   132:    /****** R <ADDRESS> <DATA> ******/
+                   133:    int R_command(char *p)
+    000110              _R_command:                      ; function: R_command
+    000110 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000114 1B97                   SUBS.L      #4,SP
+                   134:    {
+                   135:            unsigned long   address;
+                   136:            char    byte_data,*byte_address;
+                   137:    
+                   138:            sscanf( p, " %lX", &address );
+    000116 0FF1                   MOV.L       SP,ER1
+    000118 01006DF1               PUSH.L      ER1
+    00011C 7A01                   MOV.L       #L145:32,ER1
+           <00000000>   
+    000122 01006DF1               PUSH.L      ER1
+    000126 5E                     JSR         @_sscanf:24
+           <000000>     
+    00012A 0B97                   ADDS.L      #4,SP
+    00012C 0B97                   ADDS.L      #4,SP
+                   139:    /*
+                   140:                    if ( address > 0xFFFFFF ){
+                   141:                            printf( "\r\nWRITE ADDRESS & DATA ERROR \r\n" ) ;
+                   142:                            return( -1 );
+                   143:                    }
+                   144:    */
+                   145:            byte_address = (char *)address;
+    00012E 01006976               MOV.L       @SP,ER6
+                   146:            byte_data = (int)*byte_address;
+    000132 686D                   MOV.B       @ER6,R5L
+                   147:            printf( "\r\nREAD BYTE ADDRESS %08lX READ DATA %02X\r\n" ,byte_address, byte_data & 0xFF ) ;
+    000134 1755                   EXTU.W      R5
+    000136 6DF5                   PUSH.W      R5
+    000138 01006DF6               PUSH.L      ER6
+    00013C 7A00                   MOV.L       #L146:32,ER0
+           <00000000>   
+    000142 01006DF0               PUSH.L      ER0
+    000146 5E                     JSR         @_printf:24
+           <000000>     
+    00014A 7A17000000             ADD.L       #10:32,SP
+           0A           
+                   148:            return( 0 );
+    000150 1900                   SUB.W       R0,R0
+                   149:    }
+    000152 0B97                   ADDS.L      #4,SP
+    000154 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   150:    
+                   151:    /****** D <ADDRESS> ******/
+                   152:    int D_command(char *p)
+    000158              _D_command:                      ; function: D_command
+    000158 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00015C 7A37000000             SUB.L       #16:32,SP
+           10           
+                   153:    {
+    000162 0FF5                   MOV.L       SP,ER5
+    000164 0F86                   MOV.L       ER0,ER6
+                   154:    static  unsigned long   address;
+                   155:            unsigned char   byte_data,*byte_address;
+                   156:            unsigned char   dump_data[16];
+                   157:            int     i,j;
+                   158:    
+                   159:            sscanf( p, " %lX", &address );
+    000166 7A01                   MOV.L       #L150:32,ER1
+           <00000000>   
+    00016C 01006DF1               PUSH.L      ER1
+    000170 7A01                   MOV.L       #L156:32,ER1
+           <00000000>   
+    000176 01006DF1               PUSH.L      ER1
+    00017A 5E                     JSR         @_sscanf:24
+           <000000>     
+    00017E 0B97                   ADDS.L      #4,SP
+    000180 0B97                   ADDS.L      #4,SP
+                   160:    /*
+                   161:                    if ( address+16*16-1 > 0xFFFFFF ){
+                   162:                            printf( "\r\nWRITE ADDRESS & DATA ERROR \r\n" ) ;
+                   163:                            return( -1 );
+                   164:                    }
+                   165:    */
+                   166:            address &= 0xFFFFFFF0L;
+    000182 7A00                   MOV.L       #L150:32,ER0
+           <00000000>   
+    000188 01006901               MOV.L       @ER0,ER1
+    00018C 7A61FFFFFF             AND.L       #-16:32,ER1
+           F0           
+    000192 01006981               MOV.L       ER1,@ER0
+                   167:            printf( "\r\n                            B I N A R Y                        ASCII      " ) ;
+    000196 7A00                   MOV.L       #L157:32,ER0
+           <00000000>   
+    00019C 01006DF0               PUSH.L      ER0
+    0001A0 5E                     JSR         @_printf:24
+           <000000>     
+    0001A4 0B97                   ADDS.L      #4,SP
+                   168:            printf( "\r\n ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 0123456789ABCDEF\r\n\r\n" ) ;
+    0001A6 7A00                   MOV.L       #L158:32,ER0
+           <00000000>   
+    0001AC 01006DF0               PUSH.L      ER0
+    0001B0 5E                     JSR         @_printf:24
+           <000000>     
+    0001B4 0B97                   ADDS.L      #4,SP
+                   169:            for ( i=0; i<16; i++,address+=16L ){
+    0001B6 19EE                   SUB.W       E6,E6
+    0001B8              L427:                             
+                   170:                    memset( dump_data, '\0', sizeof ( dump_data )) ;
+    0001B8 1A80                   SUB.L       ER0,ER0
+    0001BA F810                   MOV.B       #16:8,R0L
+    0001BC 01006DF0               PUSH.L      ER0
+    0001C0 1911                   SUB.W       R1,R1
+    0001C2 0FD0                   MOV.L       ER5,ER0
+    0001C4 5E                     JSR         @_memset:24
+           <000000>     
+    0001C8 0B97                   ADDS.L      #4,SP
+                   171:                    for ( j=0; j<16; j++ ) {
+    0001CA 1966                   SUB.W       R6,R6
+    0001CC              L428:                             
+                   172:                            byte_address = (unsigned char *)(address+(unsigned long)j);
+    0001CC 0D60                   MOV.W       R6,R0
+    0001CE 17F0                   EXTS.L      ER0
+    0001D0 01006B2100             MOV.L       @L150:24,ER1
+           <000000>     
+    0001D8 0A81                   ADD.L       ER0,ER1
+                   173:                            byte_data = *byte_address;
+    0001DA 6819                   MOV.B       @ER1,R1L
+                   174:                            dump_data[j] = byte_data;
+    0001DC 0AD0                   ADD.L       ER5,ER0
+    0001DE 6889                   MOV.B       R1L,@ER0
+    0001E0 0B56                   INC.W       #1,R6
+    0001E2 79260010               CMP.W       #16:16,R6
+    0001E6 4DE4                   BLT         L428:8
+                   175:                    }
+                   176:                    printf( "%08lX  " , address ) ;
+    0001E8 01006B2000             MOV.L       @L150:24,ER0
+           <000000>     
+    0001F0 01006DF0               PUSH.L      ER0
+    0001F4 7A00                   MOV.L       #L161:32,ER0
+           <00000000>   
+    0001FA 01006DF0               PUSH.L      ER0
+    0001FE 5E                     JSR         @_printf:24
+           <000000>     
+    000202 0B97                   ADDS.L      #4,SP
+    000204 0B97                   ADDS.L      #4,SP
+                   177:                    for ( j=0; j<16; j++ ) {
+    000206 1966                   SUB.W       R6,R6
+    000208              L429:                             
+                   178:                            printf( "%02X " , dump_data[j] ) ;
+    000208 0D60                   MOV.W       R6,R0
+    00020A 17F0                   EXTS.L      ER0
+    00020C 0AD0                   ADD.L       ER5,ER0
+    00020E 6808                   MOV.B       @ER0,R0L
+    000210 1750                   EXTU.W      R0
+    000212 6DF0                   PUSH.W      R0
+    000214 7A00                   MOV.L       #L163:32,ER0
+           <00000000>   
+    00021A 01006DF0               PUSH.L      ER0
+    00021E 5E                     JSR         @_printf:24
+           <000000>     
+    000222 0B97                   ADDS.L      #4,SP
+    000224 0B87                   ADDS.L      #2,SP
+    000226 0B56                   INC.W       #1,R6
+    000228 79260010               CMP.W       #16:16,R6
+    00022C 4DDA                   BLT         L429:8
+                   179:                    }
+                   180:                    for ( j=0; j<16; j++ ) {
+    00022E 1966                   SUB.W       R6,R6
+    000230              L430:                             
+                   181:                            if ( dump_data[j] < ' ' || dump_data[j] > 'z' ) dump_data[j] = ' ' ;
+    000230 0D60                   MOV.W       R6,R0
+    000232 17F0                   EXTS.L      ER0
+    000234 0AD0                   ADD.L       ER5,ER0
+    000236 6809                   MOV.B       @ER0,R1L
+    000238 A920                   CMP.B       #32:8,R1L
+    00023A 4504                   BCS         L432:8
+    00023C A97A                   CMP.B       #122:8,R1L
+    00023E 430A                   BLS         L431:8
+    000240              L432:                             
+    000240 0D60                   MOV.W       R6,R0
+    000242 17F0                   EXTS.L      ER0
+    000244 0AD0                   ADD.L       ER5,ER0
+    000246 F920                   MOV.B       #32:8,R1L
+    000248 6889                   MOV.B       R1L,@ER0
+    00024A              L431:                             
+                   182:                            printf( "%c" , dump_data[j] );
+    00024A 0D60                   MOV.W       R6,R0
+    00024C 17F0                   EXTS.L      ER0
+    00024E 0AD0                   ADD.L       ER5,ER0
+    000250 6808                   MOV.B       @ER0,R0L
+    000252 1750                   EXTU.W      R0
+    000254 6DF0                   PUSH.W      R0
+    000256 7A00                   MOV.L       #L165:32,ER0
+           <00000000>   
+    00025C 01006DF0               PUSH.L      ER0
+    000260 5E                     JSR         @_printf:24
+           <000000>     
+    000264 0B97                   ADDS.L      #4,SP
+    000266 0B87                   ADDS.L      #2,SP
+    000268 0B56                   INC.W       #1,R6
+    00026A 79260010               CMP.W       #16:16,R6
+    00026E 4DC0                   BLT         L430:8
+                   183:                    }
+                   184:                    printf( "\r\n" );
+    000270 7A00                   MOV.L       #L166:32,ER0
+           <00000000>   
+    000276 01006DF0               PUSH.L      ER0
+    00027A 5E                     JSR         @_printf:24
+           <000000>     
+    00027E 0B97                   ADDS.L      #4,SP
+    000280 0B5E                   INC.W       #1,E6
+    000282 7A00                   MOV.L       #L150:32,ER0
+           <00000000>   
+    000288 01006901               MOV.L       @ER0,ER1
+    00028C 7A11000000             ADD.L       #16:32,ER1
+           10           
+    000292 01006981               MOV.L       ER1,@ER0
+    000296 792E0010               CMP.W       #16:16,E6
+    00029A 58D0FF1A               BLT         L427:16
+                   185:            }
+                   186:            return( 0 );
+    00029E 1900                   SUB.W       R0,R0
+                   187:    }
+    0002A0 7A17000000             ADD.L       #16:32,SP
+           10           
+    0002A6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   188:    
+                   189:    
+                   190:    
+                   191:    extern  void    (*IRQ4Jump)(void);
+                   192:    
+                   193:    static  unsigned char   boot_request;
+                   194:    static  unsigned char   boot_ack;
+                   195:    static  void boot_int( void )
+    0002AA              _$boot_int:                      ; function: boot_int
+                   196:    {
+                   197:                    boot_request = DUALBOOT.request;
+    0002AA 6A28001807             MOV.B       @1574911:24,R0L
+           FF           
+    0002B0 6AA800                 MOV.B       R0L,@_$boot_request:24
+           <000000>     
+                   198:                    boot_ack = DUALBOOT.ack;
+    0002B6 6A28001807             MOV.B       @1574910:24,R0L
+           FE           
+    0002BC 6AA800                 MOV.B       R0L,@_$boot_ack:24
+           <000000>     
+                   199:    }
+    0002C2 5470                   RTS
+                   200:    
+                   201:    /****** SD <ADDRESS> ******/
+                   202:    int SD_command(char *p)
+    0002C4              _SD_command:                     ; function: SD_command
+    0002C4 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0002C8 7A37000000             SUB.L       #16:32,SP
+           10           
+                   203:    {
+    0002CE 19BB                   SUB.W       E3,E3
+    0002D0 7A04001800             MOV.L       #1572864:32,ER4
+           00           
+    0002D6 0FF5                   MOV.L       SP,ER5
+    0002D8 0F86                   MOV.L       ER0,ER6
+                   204:    static  unsigned long   address;
+                   205:            unsigned char   dump_data[16];
+                   206:            int     i,j;
+                   207:                    long    lwait;
+                   208:    
+                   209:                    sscanf( p, " %lX", &address );
+    0002DA 7A01                   MOV.L       #L175:32,ER1
+           <00000000>   
+    0002E0 01006DF1               PUSH.L      ER1
+    0002E4 7A01                   MOV.L       #L180:32,ER1
+           <00000000>   
+    0002EA 01006DF1               PUSH.L      ER1
+    0002EE 5E                     JSR         @_sscanf:24
+           <000000>     
+    0002F2 0B97                   ADDS.L      #4,SP
+    0002F4 0B97                   ADDS.L      #4,SP
+                   210:    
+                   211:                    boot_ack = 0;
+    0002F6 1888                   SUB.B       R0L,R0L
+    0002F8 6AA800                 MOV.B       R0L,@_$boot_ack:24
+           <000000>     
+                   212:                    IRQ4Jump = boot_int;
+    0002FE 7A00                   MOV.L       #_$boot_int:32,ER0
+           <00000000>   
+    000304 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   213:                    INTC.IER.BIT.IRQ4E = 1;         /* IRQ4 Use */
+    00030C 7FF57040               BSET.B      #4,@16777205:8
+                   214:    
+                   215:                    DUALBOOT.address = address;
+    000310 01006B2000             MOV.L       @L175:24,ER0
+           <000000>     
+    000318 6EC00002               MOV.B       R0H,@(2:16,ER4)
+    00031C 6EC80003               MOV.B       R0L,@(3:16,ER4)
+    000320 0D80                   MOV.W       E0,R0
+    000322 68C0                   MOV.B       R0H,@ER4
+    000324 6EC80001               MOV.B       R0L,@(1:16,ER4)
+                   216:                    DUALBOOT.len = 256;
+    000328 1A80                   SUB.L       ER0,ER0
+    00032A F001                   MOV.B       #1:8,R0H
+    00032C 6EC00006               MOV.B       R0H,@(6:16,ER4)
+    000330 6EC80007               MOV.B       R0L,@(7:16,ER4)
+    000334 0D80                   MOV.W       E0,R0
+    000336 6EC00004               MOV.B       R0H,@(4:16,ER4)
+    00033A 6EC80005               MOV.B       R0L,@(5:16,ER4)
+                   217:                    DUALBOOT.request = 0x20;
+    00033E F820                   MOV.B       #32:8,R0L
+    000340 6EC807FF               MOV.B       R0L,@(2047:16,ER4)
+                   218:                    for( lwait=0; lwait<100000; lwait++ ){
+    000344 1AE6                   SUB.L       ER6,ER6
+    000346 4020                   BRA         L435:8
+    000348              L434:                             
+                   219:                            if( boot_ack == 0x20 ){
+    000348 6A2800                 MOV.B       @_$boot_ack:24,R0L
+           <000000>     
+    00034E A820                   CMP.B       #32:8,R0L
+    000350 471E                   BEQ         L437:8
+                   220:                                    break;
+                   221:                            }
+                   222:                            if( (lwait%100)==0 ){
+    000352 0FE0                   MOV.L       ER6,ER0
+    000354 1A91                   SUB.L       ER1,ER1
+    000356 F964                   MOV.B       #100:8,R1L
+    000358 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    00035C 0F91                   MOV.L       ER1,ER1
+    00035E 4606                   BNE         L438:8
+                   223:                                    DUALBOOT.request = 0x20;
+    000360 F820                   MOV.B       #32:8,R0L
+    000362 6EC807FF               MOV.B       R0L,@(2047:16,ER4)
+    000366              L438:                             
+    000366 0B76                   INC.L       #1,ER6
+    000368              L435:                             
+    000368 7A26000186             CMP.L       #100000:32,ER6
+           A0           
+    00036E 4DD8                   BLT         L434:8
+    000370              L437:                             
+                   224:                            }
+                   225:                    }
+                   226:                    if( DUALBOOT.ack!=0x20 ){
+    000370 6E4807FE               MOV.B       @(2046:16,ER4),R0L
+    000374 A820                   CMP.B       #32:8,R0L
+    000376 4726                   BEQ         L439:8
+                   227:                            IRQ4Jump = NULL;
+    000378 1A80                   SUB.L       ER0,ER0
+    00037A 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   228:                            INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    000382 7FF57240               BCLR.B      #4,@16777205:8
+                   229:    
+                   230:                            printf("SUB CPU no responce\r\n");
+    000386 7A00                   MOV.L       #L185:32,ER0
+           <00000000>   
+    00038C 01006DF0               PUSH.L      ER0
+    000390 5E                     JSR         @_printf:24
+           <000000>     
+    000394 0B97                   ADDS.L      #4,SP
+                   231:                            return( 1 );
+    000396 79000001               MOV.W       #1:16,R0
+    00039A 5A                     JMP         @L440:24
+           <000000>     
+    00039E              L439:                             
+                   232:                    }
+                   233:    
+                   234:                    IRQ4Jump = NULL;
+    00039E 1A80                   SUB.L       ER0,ER0
+    0003A0 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   235:                    INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    0003A8 7FF57240               BCLR.B      #4,@16777205:8
+                   236:    
+                   237:            printf( "\r\n                            B I N A R Y                        ASCII      " ) ;
+    0003AC 7A00                   MOV.L       #L186:32,ER0
+           <00000000>   
+    0003B2 01006DF0               PUSH.L      ER0
+    0003B6 5E                     JSR         @_printf:24
+           <000000>     
+    0003BA 0B97                   ADDS.L      #4,SP
+                   238:            printf( "\r\n ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 0123456789ABCDEF\r\n\r\n" ) ;
+    0003BC 7A00                   MOV.L       #L187:32,ER0
+           <00000000>   
+    0003C2 01006DF0               PUSH.L      ER0
+    0003C6 5E                     JSR         @_printf:24
+           <000000>     
+    0003CA 0B97                   ADDS.L      #4,SP
+                   239:            for ( i=0; i<16; i++,address+=16L ){
+    0003CC 19EE                   SUB.W       E6,E6
+    0003CE              L441:                             
+                   240:                    memset( dump_data, '\0', sizeof ( dump_data )) ;
+    0003CE 1A80                   SUB.L       ER0,ER0
+    0003D0 F810                   MOV.B       #16:8,R0L
+    0003D2 01006DF0               PUSH.L      ER0
+    0003D6 0DB1                   MOV.W       E3,R1
+    0003D8 0FD0                   MOV.L       ER5,ER0
+    0003DA 5E                     JSR         @_memset:24
+           <000000>     
+    0003DE 0B97                   ADDS.L      #4,SP
+                   241:                    for ( j=0; j<16; j++ ) {
+    0003E0 0DB6                   MOV.W       E3,R6
+    0003E2 0DE0                   MOV.W       E6,R0
+    0003E4 79080010               MOV.W       #16:16,E0
+    0003E8 5280                   MULXU.W     E0,ER0
+    0003EA 0D03                   MOV.W       R0,R3
+    0003EC              L442:                             
+                   242:                            dump_data[j] = DUALBOOT.data[i*16+j];
+    0003EC 0D30                   MOV.W       R3,R0
+    0003EE 0960                   ADD.W       R6,R0
+    0003F0 17F0                   EXTS.L      ER0
+    0003F2 1A91                   SUB.L       ER1,ER1
+    0003F4 F908                   MOV.B       #8:8,R1L
+    0003F6 0AC1                   ADD.L       ER4,ER1
+    0003F8 0A81                   ADD.L       ER0,ER1
+    0003FA 0D60                   MOV.W       R6,R0
+    0003FC 17F0                   EXTS.L      ER0
+    0003FE 0AD0                   ADD.L       ER5,ER0
+    000400 6819                   MOV.B       @ER1,R1L
+    000402 6889                   MOV.B       R1L,@ER0
+    000404 0B56                   INC.W       #1,R6
+    000406 79260010               CMP.W       #16:16,R6
+    00040A 4DE0                   BLT         L442:8
+                   243:                    }
+                   244:                    printf( "%08lX  " , address ) ;
+    00040C 01006B2000             MOV.L       @L175:24,ER0
+           <000000>     
+    000414 01006DF0               PUSH.L      ER0
+    000418 7A00                   MOV.L       #L190:32,ER0
+           <00000000>   
+    00041E 01006DF0               PUSH.L      ER0
+    000422 5E                     JSR         @_printf:24
+           <000000>     
+    000426 0B97                   ADDS.L      #4,SP
+    000428 0B97                   ADDS.L      #4,SP
+                   245:                    for ( j=0; j<16; j++ ) {
+    00042A 1966                   SUB.W       R6,R6
+    00042C              L443:                             
+                   246:                            printf( "%02X " , dump_data[j] ) ;
+    00042C 0D60                   MOV.W       R6,R0
+    00042E 17F0                   EXTS.L      ER0
+    000430 0AD0                   ADD.L       ER5,ER0
+    000432 6808                   MOV.B       @ER0,R0L
+    000434 1750                   EXTU.W      R0
+    000436 6DF0                   PUSH.W      R0
+    000438 7A00                   MOV.L       #L192:32,ER0
+           <00000000>   
+    00043E 01006DF0               PUSH.L      ER0
+    000442 5E                     JSR         @_printf:24
+           <000000>     
+    000446 0B97                   ADDS.L      #4,SP
+    000448 0B87                   ADDS.L      #2,SP
+    00044A 0B56                   INC.W       #1,R6
+    00044C 79260010               CMP.W       #16:16,R6
+    000450 4DDA                   BLT         L443:8
+                   247:                    }
+                   248:                    for ( j=0; j<16; j++ ) {
+    000452 1966                   SUB.W       R6,R6
+    000454              L444:                             
+                   249:                            if ( dump_data[j] < ' ' || dump_data[j] > 'z' ) dump_data[j] = ' ' ;
+    000454 0D60                   MOV.W       R6,R0
+    000456 17F0                   EXTS.L      ER0
+    000458 0AD0                   ADD.L       ER5,ER0
+    00045A 680B                   MOV.B       @ER0,R3L
+    00045C AB20                   CMP.B       #32:8,R3L
+    00045E 4504                   BCS         L446:8
+    000460 AB7A                   CMP.B       #122:8,R3L
+    000462 430A                   BLS         L445:8
+    000464              L446:                             
+    000464 0D60                   MOV.W       R6,R0
+    000466 17F0                   EXTS.L      ER0
+    000468 0AD0                   ADD.L       ER5,ER0
+    00046A F920                   MOV.B       #32:8,R1L
+    00046C 6889                   MOV.B       R1L,@ER0
+    00046E              L445:                             
+                   250:                            printf( "%c" , dump_data[j] );
+    00046E 0D60                   MOV.W       R6,R0
+    000470 17F0                   EXTS.L      ER0
+    000472 0AD0                   ADD.L       ER5,ER0
+    000474 6808                   MOV.B       @ER0,R0L
+    000476 1750                   EXTU.W      R0
+    000478 6DF0                   PUSH.W      R0
+    00047A 7A00                   MOV.L       #L194:32,ER0
+           <00000000>   
+    000480 01006DF0               PUSH.L      ER0
+    000484 5E                     JSR         @_printf:24
+           <000000>     
+    000488 0B97                   ADDS.L      #4,SP
+    00048A 0B87                   ADDS.L      #2,SP
+    00048C 0B56                   INC.W       #1,R6
+    00048E 79260010               CMP.W       #16:16,R6
+    000492 4DC0                   BLT         L444:8
+                   251:                    }
+                   252:                    printf( "\r\n" );
+    000494 7A00                   MOV.L       #L195:32,ER0
+           <00000000>   
+    00049A 01006DF0               PUSH.L      ER0
+    00049E 5E                     JSR         @_printf:24
+           <000000>     
+    0004A2 0B97                   ADDS.L      #4,SP
+    0004A4 0B5E                   INC.W       #1,E6
+    0004A6 7A00                   MOV.L       #L175:32,ER0
+           <00000000>   
+    0004AC 01006901               MOV.L       @ER0,ER1
+    0004B0 7A11000000             ADD.L       #16:32,ER1
+           10           
+    0004B6 01006981               MOV.L       ER1,@ER0
+    0004BA 792E0010               CMP.W       #16:16,E6
+    0004BE 58D0FF0C               BLT         L441:16
+                   253:            }
+                   254:    
+                   255:            return( 0 );
+    0004C2 1900                   SUB.W       R0,R0
+                   256:    }
+    0004C4              L440:                             
+    0004C4 7A17000000             ADD.L       #16:32,SP
+           10           
+    0004CA 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   257:    
+                   258:    /****** SW <ADDRESS> <DATA> ******/
+                   259:    int SW_command(char *p)
+    0004CE              _SW_command:                     ; function: SW_command
+    0004CE 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0004D2 7A37000000             SUB.L       #10:32,SP
+           0A           
+                   260:    {
+    0004D8 7A03                   MOV.L       #_$boot_ack:32,ER3
+           <00000000>   
+    0004DE 7A04                   MOV.L       #_IRQ4Jump:32,ER4
+           <00000000>   
+    0004E4 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+    0004EA 0F85                   MOV.L       ER0,ER5
+                   261:            unsigned long   address;
+                   262:            int     write_data;
+                   263:            char    byte_data,*byte_address;
+                   264:                    long    lwait;
+                   265:    
+                   266:            if ( strlen(p)>=31 ){
+    0004EC 5E                     JSR         @_strlen:24
+           <000000>     
+    0004F0 7A20000000             CMP.L       #31:32,ER0
+           1F           
+    0004F6 4518                   BCS         L447:8
+                   267:                    printf( "\r\nWRITE ADDRESS & DATA ERROR \r\n" ) ;
+    0004F8 7A00                   MOV.L       #L205:32,ER0
+           <00000000>   
+    0004FE 01006DF0               PUSH.L      ER0
+    000502 5E                     JSR         @_printf:24
+           <000000>     
+    000506 0B97                   ADDS.L      #4,SP
+                   268:                    return( -1 );           /*文字列が多すぎる*/
+    000508 7900FFFF               MOV.W       #-1:16,R0
+    00050C 5A                     JMP         @L448:24
+           <000000>     
+    000510              L447:                             
+                   269:            }
+                   270:    
+                   271:            sscanf( p, " %lX %X", &address, &write_data );
+    000510 7A00000000             MOV.L       #8:32,ER0
+           08           
+    000516 0AF0                   ADD.L       SP,ER0
+    000518 01006DF0               PUSH.L      ER0
+    00051C 7A00000000             MOV.L       #8:32,ER0
+           08           
+    000522 0AF0                   ADD.L       SP,ER0
+    000524 01006DF0               PUSH.L      ER0
+    000528 7A00                   MOV.L       #L206:32,ER0
+           <00000000>   
+    00052E 01006DF0               PUSH.L      ER0
+    000532 0FD0                   MOV.L       ER5,ER0
+    000534 5E                     JSR         @_sscanf:24
+           <000000>     
+    000538 7A17000000             ADD.L       #12:32,SP
+           0C           
+                   272:    
+                   273:                    boot_ack = 0;
+    00053E 1888                   SUB.B       R0L,R0L
+    000540 68B8                   MOV.B       R0L,@ER3
+                   274:                    IRQ4Jump = boot_int;
+    000542 7A00                   MOV.L       #_$boot_int:32,ER0
+           <00000000>   
+    000548 010069C0               MOV.L       ER0,@ER4
+                   275:                    INTC.IER.BIT.IRQ4E = 1;         /* IRQ4 Use */
+    00054C 7FF57040               BSET.B      #4,@16777205:8
+                   276:    
+                   277:                    DUALBOOT.address = address;
+    000550 01006F7000             MOV.L       @(4:16,SP),ER0
+           04           
+    000556 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    00055A 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    00055E 0D80                   MOV.W       E0,R0
+    000560 68E0                   MOV.B       R0H,@ER6
+    000562 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   278:                    DUALBOOT.len = 1;
+    000566 1A80                   SUB.L       ER0,ER0
+    000568 F801                   MOV.B       #1:8,R0L
+    00056A 6EE00006               MOV.B       R0H,@(6:16,ER6)
+    00056E 6EE80007               MOV.B       R0L,@(7:16,ER6)
+    000572 0D80                   MOV.W       E0,R0
+    000574 6EE00004               MOV.B       R0H,@(4:16,ER6)
+    000578 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   279:                    DUALBOOT.data[0] = write_data;
+    00057C 6E780009               MOV.B       @(9:16,SP),R0L
+    000580 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                   280:                    DUALBOOT.request = 0x10;
+    000584 F810                   MOV.B       #16:8,R0L
+    000586 6EE807FF               MOV.B       R0L,@(2047:16,ER6)
+                   281:                    for( lwait=0; lwait<100000; lwait++ ){
+    00058A 1AD5                   SUB.L       ER5,ER5
+    00058C 401C                   BRA         L450:8
+    00058E              L449:                             
+                   282:                            if( boot_ack == 0x10 ){
+    00058E 6838                   MOV.B       @ER3,R0L
+    000590 A810                   CMP.B       #16:8,R0L
+    000592 471E                   BEQ         L452:8
+                   283:                                    break;
+                   284:                            }
+                   285:                            if( (lwait%100)==0 ){
+    000594 0FD0                   MOV.L       ER5,ER0
+    000596 1A91                   SUB.L       ER1,ER1
+    000598 F964                   MOV.B       #100:8,R1L
+    00059A 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    00059E 0F91                   MOV.L       ER1,ER1
+    0005A0 4606                   BNE         L453:8
+                   286:                                    DUALBOOT.request = 0x10;
+    0005A2 F810                   MOV.B       #16:8,R0L
+    0005A4 6EE807FF               MOV.B       R0L,@(2047:16,ER6)
+    0005A8              L453:                             
+    0005A8 0B75                   INC.L       #1,ER5
+    0005AA              L450:                             
+    0005AA 7A25000186             CMP.L       #100000:32,ER5
+           A0           
+    0005B0 4DDC                   BLT         L449:8
+    0005B2              L452:                             
+                   287:                            }
+                   288:                    }
+                   289:                    if( DUALBOOT.ack!=0x10 ){
+    0005B2 6E6807FE               MOV.B       @(2046:16,ER6),R0L
+    0005B6 A810                   CMP.B       #16:8,R0L
+    0005B8 4720                   BEQ         L454:8
+                   290:                            IRQ4Jump = NULL;
+    0005BA 1A80                   SUB.L       ER0,ER0
+    0005BC 010069C0               MOV.L       ER0,@ER4
+                   291:                            INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    0005C0 7FF57240               BCLR.B      #4,@16777205:8
+                   292:    
+                   293:                            printf("SUB CPU no responce\r\n");
+    0005C4 7A00                   MOV.L       #L211:32,ER0
+           <00000000>   
+    0005CA 01006DF0               PUSH.L      ER0
+    0005CE 5E                     JSR         @_printf:24
+           <000000>     
+    0005D2 0B97                   ADDS.L      #4,SP
+                   294:                            return( 1 );
+    0005D4 79000001               MOV.W       #1:16,R0
+    0005D8 4032                   BRA         L448:8
+    0005DA              L454:                             
+                   295:                    }
+                   296:    
+                   297:                    IRQ4Jump = NULL;
+    0005DA 1A80                   SUB.L       ER0,ER0
+    0005DC 010069C0               MOV.L       ER0,@ER4
+                   298:                    INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    0005E0 7FF57240               BCLR.B      #4,@16777205:8
+                   299:    
+                   300:            printf( "\r\nWRITE BYTE ADDRESS %08lX WRITE DATA %02X\r\n"
+                   301:                                    ,byte_address, write_data & 0x00FF      ) ;
+    0005E4 6E780009               MOV.B       @(9:16,SP),R0L
+    0005E8 1750                   EXTU.W      R0
+    0005EA 6DF0                   PUSH.W      R0
+    0005EC 01006F7000             MOV.L       @(2:16,SP),ER0
+           02           
+    0005F2 01006DF0               PUSH.L      ER0
+    0005F6 7A00                   MOV.L       #L212:32,ER0
+           <00000000>   
+    0005FC 01006DF0               PUSH.L      ER0
+    000600 5E                     JSR         @_printf:24
+           <000000>     
+    000604 7A17000000             ADD.L       #10:32,SP
+           0A           
+                   302:    
+                   303:                    return( 0 );
+    00060A 1900                   SUB.W       R0,R0
+                   304:    }
+    00060C              L448:                             
+    00060C 7A17000000             ADD.L       #10:32,SP
+           0A           
+    000612 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   305:    
+                   306:    /****** SR <ADDRESS> <DATA> ******/
+                   307:    int SR_command(char *p)
+    000616              _SR_command:                     ; function: SR_command
+    000616 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00061A 1B97                   SUBS.L      #4,SP
+    00061C 1B97                   SUBS.L      #4,SP
+                   308:    {
+    00061E 7A03                   MOV.L       #_$boot_ack:32,ER3
+           <00000000>   
+    000624 7A04                   MOV.L       #_IRQ4Jump:32,ER4
+           <00000000>   
+    00062A 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+    000630 0F85                   MOV.L       ER0,ER5
+                   309:            unsigned long   address;
+                   310:            char    byte_data,*byte_address;
+                   311:                    long    lwait;
+                   312:    
+                   313:            sscanf( p, " %lX", &address );
+    000632 0FF1                   MOV.L       SP,ER1
+    000634 0B91                   ADDS.L      #4,ER1
+    000636 01006DF1               PUSH.L      ER1
+    00063A 7A01                   MOV.L       #L220:32,ER1
+           <00000000>   
+    000640 01006DF1               PUSH.L      ER1
+    000644 5E                     JSR         @_sscanf:24
+           <000000>     
+    000648 0B97                   ADDS.L      #4,SP
+    00064A 0B97                   ADDS.L      #4,SP
+                   314:    /*
+                   315:                    if ( address > 0xFFFFFF ){
+                   316:                            printf( "\r\nWRITE ADDRESS & DATA ERROR \r\n" ) ;
+                   317:                            return( -1 );
+                   318:                    }
+                   319:    */
+                   320:                    boot_ack = 0;
+    00064C 1888                   SUB.B       R0L,R0L
+    00064E 68B8                   MOV.B       R0L,@ER3
+                   321:                    IRQ4Jump = boot_int;
+    000650 7A00                   MOV.L       #_$boot_int:32,ER0
+           <00000000>   
+    000656 010069C0               MOV.L       ER0,@ER4
+                   322:                    INTC.IER.BIT.IRQ4E = 1;         /* IRQ4 Use */
+    00065A 7FF57040               BSET.B      #4,@16777205:8
+                   323:    
+                   324:                    DUALBOOT.address = address;
+    00065E 01006F7000             MOV.L       @(4:16,SP),ER0
+           04           
+    000664 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    000668 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    00066C 0D80                   MOV.W       E0,R0
+    00066E 68E0                   MOV.B       R0H,@ER6
+    000670 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   325:                    DUALBOOT.len = 1;
+    000674 1A80                   SUB.L       ER0,ER0
+    000676 F801                   MOV.B       #1:8,R0L
+    000678 6EE00006               MOV.B       R0H,@(6:16,ER6)
+    00067C 6EE80007               MOV.B       R0L,@(7:16,ER6)
+    000680 0D80                   MOV.W       E0,R0
+    000682 6EE00004               MOV.B       R0H,@(4:16,ER6)
+    000686 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   326:                    DUALBOOT.request = 0x20;
+    00068A F820                   MOV.B       #32:8,R0L
+    00068C 6EE807FF               MOV.B       R0L,@(2047:16,ER6)
+                   327:                    for( lwait=0; lwait<100000; lwait++ ){
+    000690 1AD5                   SUB.L       ER5,ER5
+    000692 401C                   BRA         L456:8
+    000694              L455:                             
+                   328:                            if( boot_ack == 0x20 ){
+    000694 6838                   MOV.B       @ER3,R0L
+    000696 A820                   CMP.B       #32:8,R0L
+    000698 471E                   BEQ         L458:8
+                   329:                                    break;
+                   330:                            }
+                   331:                            if( (lwait%100)==0 ){
+    00069A 0FD0                   MOV.L       ER5,ER0
+    00069C 1A91                   SUB.L       ER1,ER1
+    00069E F964                   MOV.B       #100:8,R1L
+    0006A0 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    0006A4 0F91                   MOV.L       ER1,ER1
+    0006A6 4606                   BNE         L459:8
+                   332:                                    DUALBOOT.request = 0x20;
+    0006A8 F820                   MOV.B       #32:8,R0L
+    0006AA 6EE807FF               MOV.B       R0L,@(2047:16,ER6)
+    0006AE              L459:                             
+    0006AE 0B75                   INC.L       #1,ER5
+    0006B0              L456:                             
+    0006B0 7A25000186             CMP.L       #100000:32,ER5
+           A0           
+    0006B6 4DDC                   BLT         L455:8
+    0006B8              L458:                             
+                   333:                            }
+                   334:                    }
+                   335:                    if( DUALBOOT.ack!=0x20 ){
+    0006B8 6E6807FE               MOV.B       @(2046:16,ER6),R0L
+    0006BC A820                   CMP.B       #32:8,R0L
+    0006BE 4720                   BEQ         L460:8
+                   336:                            IRQ4Jump = NULL;
+    0006C0 1A80                   SUB.L       ER0,ER0
+    0006C2 010069C0               MOV.L       ER0,@ER4
+                   337:                            INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    0006C6 7FF57240               BCLR.B      #4,@16777205:8
+                   338:    
+                   339:                            printf("SUB CPU no responce\r\n");
+    0006CA 7A00                   MOV.L       #L225:32,ER0
+           <00000000>   
+    0006D0 01006DF0               PUSH.L      ER0
+    0006D4 5E                     JSR         @_printf:24
+           <000000>     
+    0006D8 0B97                   ADDS.L      #4,SP
+                   340:                            return( 1 );
+    0006DA 79000001               MOV.W       #1:16,R0
+    0006DE 4034                   BRA         L461:8
+    0006E0              L460:                             
+                   341:                    }
+                   342:    
+                   343:                    IRQ4Jump = NULL;
+    0006E0 1A80                   SUB.L       ER0,ER0
+    0006E2 010069C0               MOV.L       ER0,@ER4
+                   344:                    INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 NoUse */
+    0006E6 7FF57240               BCLR.B      #4,@16777205:8
+                   345:    
+                   346:                    byte_data = DUALBOOT.data[0];
+    0006EA 6E6D0008               MOV.B       @(8:16,ER6),R5L
+                   347:    
+                   348:            printf( "\r\nREAD BYTE ADDRESS %08lX READ DATA %02X\r\n" ,byte_address, byte_data & 0xFF ) ;
+    0006EE 0CD8                   MOV.B       R5L,R0L
+    0006F0 1750                   EXTU.W      R0
+    0006F2 6DF0                   PUSH.W      R0
+    0006F4 01006F7000             MOV.L       @(2:16,SP),ER0
+           02           
+    0006FA 01006DF0               PUSH.L      ER0
+    0006FE 7A00                   MOV.L       #L226:32,ER0
+           <00000000>   
+    000704 01006DF0               PUSH.L      ER0
+    000708 5E                     JSR         @_printf:24
+           <000000>     
+    00070C 7A17000000             ADD.L       #10:32,SP
+           0A           
+                   349:            return( 0 );
+    000712 1900                   SUB.W       R0,R0
+                   350:    }
+    000714              L461:                             
+    000714 0B97                   ADDS.L      #4,SP
+    000716 0B97                   ADDS.L      #4,SP
+    000718 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   351:    
+                   352:    /****** DIR ******/
+                   353:    int DIR_command(char *p)
+    00071C              _DIR_command:                    ; function: DIR_command
+    00071C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000720 7A37000000             SUB.L       #200:32,SP
+           C8           
+                   354:    {
+    000726 1AB3                   SUB.L       ER3,ER3
+    000728 FB08                   MOV.B       #8:8,R3L
+    00072A 0FF5                   MOV.L       SP,ER5
+    00072C 7A06000000             MOV.L       #44:32,ER6
+           2C           
+    000732 0AF6                   ADD.L       SP,ER6
+                   355:            int             fd;
+                   356:            int             i,j;
+                   357:            char    buff[128];
+                   358:            DIR_ENTRY       dir;
+                   359:            struct diskfree_t       free;
+                   360:            long    adr;
+                   361:            FCB             *fcb;
+                   362:            BPB             *bpb;
+                   363:            short   offset;
+                   364:            int             dir_entry,entry2;
+                   365:            unsigned short  cluster;
+                   366:            long    all_bytes;
+                   367:            int             flag;
+                   368:            int             len;
+                   369:            union {
+                   370:                    unsigned char   bdata[4];
+                   371:                    unsigned short  wdata[2];
+                   372:                    unsigned long   ldata;
+                   373:            } data;
+                   374:            unsigned char   wkdata;
+                   375:    
+                   376:                            fd = new_fcb( 0 );
+    000734 1900                   SUB.W       R0,R0
+    000736 5E                     JSR         @_new_fcb:24
+           <000000>     
+    00073A 6FF000C6               MOV.W       R0,@(198:16,SP)
+                   377:                            fcb = get_fcb(fd);
+    00073E 5E                     JSR         @_get_fcb:24
+           <000000>     
+                   378:                            bpb = fcb->bpb;
+    000742 6E010023               MOV.B       @(35:16,ER0),R1H
+    000746 6E090024               MOV.B       @(36:16,ER0),R1L
+    00074A 0D19                   MOV.W       R1,E1
+    00074C 6E010025               MOV.B       @(37:16,ER0),R1H
+    000750 6E090026               MOV.B       @(38:16,ER0),R1L
+    000754 01006FF100             MOV.L       ER1,@(194:16,SP)
+           C2           
+                   379:                            if( bpb->part==NULL ){
+    00075A 6810                   MOV.B       @ER1,R0H
+    00075C 6E180001               MOV.B       @(1:16,ER1),R0L
+    000760 0D08                   MOV.W       R0,E0
+    000762 6E100002               MOV.B       @(2:16,ER1),R0H
+    000766 6E180003               MOV.B       @(3:16,ER1),R0L
+    00076A 0F80                   MOV.L       ER0,ER0
+    00076C 4618                   BNE         L462:8
+                   380:                                    printf("Card Not Found\r\n");
+    00076E 7A00                   MOV.L       #L249:32,ER0
+           <00000000>   
+    000774 01006DF0               PUSH.L      ER0
+    000778 5E                     JSR         @_printf:24
+           <000000>     
+    00077C 0B97                   ADDS.L      #4,SP
+                   381:                                    return( 1 );
+    00077E 79000001               MOV.W       #1:16,R0
+    000782 5A                     JMP         @L463:24
+           <000000>     
+    000786              L462:                             
+                   382:                            }
+                   383:    
+                   384:                            for( dir_entry=0; dir_entry<bpb->root_entry; dir_entry++ ){
+    000786 1900                   SUB.W       R0,R0
+    000788 5A                     JMP         @L520:24
+           <000000>     
+    00078C              L464:                             
+                   385:                                    if( _dos_read_rootdir( fd, &dir, dir_entry ) )
+    00078C 7A01000000             MOV.L       #12:32,ER1
+           0C           
+    000792 0AF1                   ADD.L       SP,ER1
+    000794 6F7800BC               MOV.W       @(188:16,SP),E0
+    000798 6F7000C6               MOV.W       @(198:16,SP),R0
+    00079C 5E                     JSR         @__dos_read_rootdir:24
+           <000000>     
+    0007A0 0D00                   MOV.W       R0,R0
+    0007A2 586002FC               BNE         L467:16
+                   386:                                            break;          /*ルートディレクトリー読込みエラー*/
+                   387:                                    if( dir.filename[0]==0 )
+    0007A6 6E78000C               MOV.B       @(12:16,SP),R0L
+    0007AA 587002F4               BEQ         L467:16
+                   388:                                            break;                  /*検索終了*/
+                   389:                                    memcpy( buff, dir.filename, 8 );
+    0007AE 01006DF3               PUSH.L      ER3
+    0007B2 7A01000000             MOV.L       #16:32,ER1
+           10           
+    0007B8 0AF1                   ADD.L       SP,ER1
+    0007BA 0FE0                   MOV.L       ER6,ER0
+    0007BC 5E                     JSR         @_memcpy:24
+           <000000>     
+    0007C0 0B97                   ADDS.L      #4,SP
+                   390:                                    buff[8]='\0';
+    0007C2 0FE0                   MOV.L       ER6,ER0
+    0007C4 0AB0                   ADD.L       ER3,ER0
+    0007C6 1899                   SUB.B       R1L,R1L
+    0007C8 6889                   MOV.B       R1L,@ER0
+                   391:                                    printf( "%s.", buff );
+    0007CA 01006DF6               PUSH.L      ER6
+    0007CE 7A00                   MOV.L       #L251:32,ER0
+           <00000000>   
+    0007D4 01006DF0               PUSH.L      ER0
+    0007D8 5E                     JSR         @_printf:24
+           <000000>     
+    0007DC 0B97                   ADDS.L      #4,SP
+    0007DE 0B97                   ADDS.L      #4,SP
+                   392:                                    memcpy( buff, &dir.filename[8], 3 );
+    0007E0 1A80                   SUB.L       ER0,ER0
+    0007E2 F803                   MOV.B       #3:8,R0L
+    0007E4 01006DF0               PUSH.L      ER0
+    0007E8 7A01000000             MOV.L       #16:32,ER1
+           10           
+    0007EE 0AF1                   ADD.L       SP,ER1
+    0007F0 0AB1                   ADD.L       ER3,ER1
+    0007F2 0FE0                   MOV.L       ER6,ER0
+    0007F4 5E                     JSR         @_memcpy:24
+           <000000>     
+    0007F8 0B97                   ADDS.L      #4,SP
+                   393:                                    buff[3]='\0';
+    0007FA 1888                   SUB.B       R0L,R0L
+    0007FC 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   394:                                    printf( "%s  ", buff );
+    000800 01006DF6               PUSH.L      ER6
+    000804 7A00                   MOV.L       #L252:32,ER0
+           <00000000>   
+    00080A 01006DF0               PUSH.L      ER0
+    00080E 5E                     JSR         @_printf:24
+           <000000>     
+    000812 0B97                   ADDS.L      #4,SP
+    000814 0B97                   ADDS.L      #4,SP
+                   395:                                    if( dir.attribute & _A_SUBDIR ){
+    000816 6E780017               MOV.B       @(23:16,SP),R0L
+    00081A 7348                   BTST.B      #4,R0L
+    00081C 4708                   BEQ         L469:8
+                   396:                                            printf( "<DIR>" );
+    00081E 7A00                   MOV.L       #L254:32,ER0
+           <00000000>   
+    000824 4006                   BRA         L521:8
+    000826              L469:                             
+                   397:                                    }
+                   398:                                    else {
+                   399:                                            printf( "<FILE>" );
+    000826 7A00                   MOV.L       #L256:32,ER0
+           <00000000>   
+    00082C              L521:                             
+    00082C 01006DF0               PUSH.L      ER0
+    000830 5E                     JSR         @_printf:24
+           <000000>     
+    000834 0B97                   ADDS.L      #4,SP
+                   400:                                    }
+                   401:                                    data.ldata = dir.all_bytes;
+    000836 6E700028               MOV.B       @(40:16,SP),R0H
+    00083A 6E780029               MOV.B       @(41:16,SP),R0L
+    00083E 0D08                   MOV.W       R0,E0
+    000840 6E70002A               MOV.B       @(42:16,SP),R0H
+    000844 6E78002B               MOV.B       @(43:16,SP),R0L
+    000848 6EF00002               MOV.B       R0H,@(2:16,SP)
+    00084C 6EF80003               MOV.B       R0L,@(3:16,SP)
+    000850 0D80                   MOV.W       E0,R0
+    000852 68F0                   MOV.B       R0H,@SP
+    000854 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   402:                                    wkdata=data.bdata[0];
+    000858 0FD4                   MOV.L       ER5,ER4
+    00085A 6848                   MOV.B       @ER4,R0L
+                   403:                                    data.bdata[0] = data.bdata[3];
+    00085C 6E490003               MOV.B       @(3:16,ER4),R1L
+    000860 68C9                   MOV.B       R1L,@ER4
+                   404:                                    data.bdata[3] = wkdata;
+    000862 6ED80003               MOV.B       R0L,@(3:16,ER5)
+                   405:                                    wkdata=data.bdata[1];
+    000866 0FD2                   MOV.L       ER5,ER2
+    000868 0B74                   INC.L       #1,ER4
+    00086A 6848                   MOV.B       @ER4,R0L
+                   406:                                    data.bdata[1] = data.bdata[2];
+    00086C 0FA1                   MOV.L       ER2,ER1
+    00086E 0BF1                   INC.L       #2,ER1
+    000870 6819                   MOV.B       @ER1,R1L
+    000872 68C9                   MOV.B       R1L,@ER4
+                   407:                                    data.bdata[2] = wkdata;
+    000874 6ED80002               MOV.B       R0L,@(2:16,ER5)
+                   408:                                    printf( " %8lu Bytes\r\n", data.ldata );
+    000878 6870                   MOV.B       @SP,R0H
+    00087A 6E780001               MOV.B       @(1:16,SP),R0L
+    00087E 0D08                   MOV.W       R0,E0
+    000880 6E700002               MOV.B       @(2:16,SP),R0H
+    000884 6E780003               MOV.B       @(3:16,SP),R0L
+    000888 01006DF0               PUSH.L      ER0
+    00088C 7A00                   MOV.L       #L257:32,ER0
+           <00000000>   
+    000892 01006DF0               PUSH.L      ER0
+    000896 5E                     JSR         @_printf:24
+           <000000>     
+    00089A 0B97                   ADDS.L      #4,SP
+    00089C 0B97                   ADDS.L      #4,SP
+                   409:    
+                   410:                                    if( dir.attribute & _A_SUBDIR )
+    00089E 6E780017               MOV.B       @(23:16,SP),R0L
+    0008A2 7348                   BTST.B      #4,R0L
+    0008A4 587001D8               BEQ         L473:16
+                   411:                                            ;
+                   412:                                    else
+                   413:                                            continue;
+                   414:    
+                   415:                                    data.wdata[0] = dir.start_cluster;
+    0008A8 6E700026               MOV.B       @(38:16,SP),R0H
+    0008AC 6E780027               MOV.B       @(39:16,SP),R0L
+    0008B0 68F0                   MOV.B       R0H,@SP
+    0008B2 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   416:                                    wkdata=data.bdata[0];
+    0008B6 0FD4                   MOV.L       ER5,ER4
+    0008B8 6848                   MOV.B       @ER4,R0L
+                   417:                                    data.bdata[0] = data.bdata[1];
+    0008BA 6E490001               MOV.B       @(1:16,ER4),R1L
+    0008BE 68C9                   MOV.B       R1L,@ER4
+                   418:                                    data.bdata[1] = wkdata;
+    0008C0 6ED80001               MOV.B       R0L,@(1:16,ER5)
+                   419:                                    cluster = data.wdata[0];
+    0008C4 6870                   MOV.B       @SP,R0H
+    0008C6 6E780001               MOV.B       @(1:16,SP),R0L
+    0008CA 0D0C                   MOV.W       R0,E4
+                   420:    
+                   421:                                    do {
+    0008CC              L474:                             
+                   422:                                            if( _dos_read_cluster( fd, cluster ) )
+    0008CC 0DC8                   MOV.W       E4,E0
+    0008CE 6F7000C6               MOV.W       @(198:16,SP),R0
+    0008D2 5E                     JSR         @__dos_read_cluster:24
+           <000000>     
+    0008D6 0D00                   MOV.W       R0,R0
+    0008D8 586001A4               BNE         L476:16
+                   423:                                                    break;          /*サブディレクトリー読込みエラー*/
+                   424:                                            for( entry2=0,offset=0; offset<(short)bpb->bytes_cluster; entry2++,offset+=32 ){
+    0008DC 1944                   SUB.W       R4,R4
+    0008DE 5A                     JMP         @L478:24
+           <000000>     
+    0008E2              L477:                             
+                   425:                                                    memcpy( &dir, &cluster_buffer.buffer[offset], sizeof(dir) );
+    0008E2 1A80                   SUB.L       ER0,ER0
+    0008E4 F820                   MOV.B       #32:8,R0L
+    0008E6 01006DF0               PUSH.L      ER0
+    0008EA 0D41                   MOV.W       R4,R1
+    0008EC 17F1                   EXTS.L      ER1
+    0008EE 7A00000000             MOV.L       #16:32,ER0
+           10           
+    0008F4 0AF0                   ADD.L       SP,ER0
+    0008F6 7A11                   ADD.L       #_cluster_buffer+14:32,ER1
+           <00000000>   
+    0008FC 5E                     JSR         @_memcpy:24
+           <000000>     
+    000900 0B97                   ADDS.L      #4,SP
+                   426:                                                    if( dir.filename[0]==0 )
+    000902 6E78000C               MOV.B       @(12:16,SP),R0L
+    000906 5870014A               BEQ         L480:16
+                   427:                                                            break;                  /*検索終了*/
+                   428:    
+                   429:                                                    if( dir.filename[0]=='.' )
+    00090A 6E78000C               MOV.B       @(12:16,SP),R0L
+    00090E A82E                   CMP.B       #46:8,R0L
+    000910 58700128               BEQ         L482:16
+                   430:                                                            continue;
+                   431:                                                    printf( "-- " );
+    000914 7A00                   MOV.L       #L260:32,ER0
+           <00000000>   
+    00091A 01006DF0               PUSH.L      ER0
+    00091E 5E                     JSR         @_printf:24
+           <000000>     
+    000922 0B97                   ADDS.L      #4,SP
+                   432:                                                    memcpy( buff, dir.filename, 8 );
+    000924 01006DF3               PUSH.L      ER3
+    000928 7A01000000             MOV.L       #16:32,ER1
+           10           
+    00092E 0AF1                   ADD.L       SP,ER1
+    000930 0FE0                   MOV.L       ER6,ER0
+    000932 5E                     JSR         @_memcpy:24
+           <000000>     
+    000936 0B97                   ADDS.L      #4,SP
+                   433:                                                    buff[8]='\0';
+    000938 0FE0                   MOV.L       ER6,ER0
+    00093A 0AB0                   ADD.L       ER3,ER0
+    00093C 1899                   SUB.B       R1L,R1L
+    00093E 6889                   MOV.B       R1L,@ER0
+                   434:                                                    printf( "%s.", buff );
+    000940 01006DF6               PUSH.L      ER6
+    000944 7A00                   MOV.L       #L261:32,ER0
+           <00000000>   
+    00094A 01006DF0               PUSH.L      ER0
+    00094E 5E                     JSR         @_printf:24
+           <000000>     
+    000952 0B97                   ADDS.L      #4,SP
+    000954 0B97                   ADDS.L      #4,SP
+                   435:                                                    memcpy( buff, &dir.filename[8], 3 );
+    000956 1A80                   SUB.L       ER0,ER0
+    000958 F803                   MOV.B       #3:8,R0L
+    00095A 01006DF0               PUSH.L      ER0
+    00095E 7A01000000             MOV.L       #16:32,ER1
+           10           
+    000964 0AF1                   ADD.L       SP,ER1
+    000966 0AB1                   ADD.L       ER3,ER1
+    000968 0FE0                   MOV.L       ER6,ER0
+    00096A 5E                     JSR         @_memcpy:24
+           <000000>     
+    00096E 0B97                   ADDS.L      #4,SP
+                   436:                                                    buff[3]='\0';
+    000970 1888                   SUB.B       R0L,R0L
+    000972 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   437:                                                    printf( "%s  ", buff );
+    000976 01006DF6               PUSH.L      ER6
+    00097A 7A00                   MOV.L       #L262:32,ER0
+           <00000000>   
+    000980 01006DF0               PUSH.L      ER0
+    000984 5E                     JSR         @_printf:24
+           <000000>     
+    000988 0B97                   ADDS.L      #4,SP
+    00098A 0B97                   ADDS.L      #4,SP
+                   438:                                                    if( dir.attribute & _A_SUBDIR ){
+    00098C 6E780017               MOV.B       @(23:16,SP),R0L
+    000990 7348                   BTST.B      #4,R0L
+    000992 4708                   BEQ         L483:8
+                   439:                                                            printf( "<DIR>" );
+    000994 7A00                   MOV.L       #L264:32,ER0
+           <00000000>   
+    00099A 4006                   BRA         L522:8
+    00099C              L483:                             
+                   440:                                                    }
+                   441:                                                    else {
+                   442:                                                            printf( "<FILE>" );
+    00099C 7A00                   MOV.L       #L266:32,ER0
+           <00000000>   
+    0009A2              L522:                             
+    0009A2 01006DF0               PUSH.L      ER0
+    0009A6 5E                     JSR         @_printf:24
+           <000000>     
+    0009AA 0B97                   ADDS.L      #4,SP
+                   443:                                                    }
+                   444:                                                    data.ldata = dir.all_bytes;
+    0009AC 6E700028               MOV.B       @(40:16,SP),R0H
+    0009B0 6E780029               MOV.B       @(41:16,SP),R0L
+    0009B4 0D08                   MOV.W       R0,E0
+    0009B6 6E70002A               MOV.B       @(42:16,SP),R0H
+    0009BA 6E78002B               MOV.B       @(43:16,SP),R0L
+    0009BE 6EF00002               MOV.B       R0H,@(2:16,SP)
+    0009C2 6EF80003               MOV.B       R0L,@(3:16,SP)
+    0009C6 0D80                   MOV.W       E0,R0
+    0009C8 68F0                   MOV.B       R0H,@SP
+    0009CA 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   445:                                                    wkdata=data.bdata[0];
+    0009CE 01006FF500             MOV.L       ER5,@(190:16,SP)
+           BE           
+    0009D4 6858                   MOV.B       @ER5,R0L
+                   446:                                                    data.bdata[0] = data.bdata[3];
+    0009D6 01006F7100             MOV.L       @(190:16,SP),ER1
+           BE           
+    0009DC 0B81                   ADDS.L      #2,ER1
+    0009DE 0B71                   INC.L       #1,ER1
+    0009E0 01006F7200             MOV.L       @(190:16,SP),ER2
+           BE           
+    0009E6 6819                   MOV.B       @ER1,R1L
+    0009E8 68A9                   MOV.B       R1L,@ER2
+                   447:                                                    data.bdata[3] = wkdata;
+    0009EA 6ED80003               MOV.B       R0L,@(3:16,ER5)
+                   448:                                                    wkdata=data.bdata[1];
+    0009EE 01006FF500             MOV.L       ER5,@(190:16,SP)
+           BE           
+    0009F4 0FD0                   MOV.L       ER5,ER0
+    0009F6 0B70                   INC.L       #1,ER0
+    0009F8 01006FF000             MOV.L       ER0,@(182:16,SP)
+           B6           
+    0009FE 6808                   MOV.B       @ER0,R0L
+                   449:                                                    data.bdata[1] = data.bdata[2];
+    000A00 01006F7100             MOV.L       @(190:16,SP),ER1
+           BE           
+    000A06 0BF1                   INC.L       #2,ER1
+    000A08 01006F7200             MOV.L       @(182:16,SP),ER2
+           B6           
+    000A0E 6819                   MOV.B       @ER1,R1L
+    000A10 68A9                   MOV.B       R1L,@ER2
+                   450:                                                    data.bdata[2] = wkdata;
+    000A12 6ED80002               MOV.B       R0L,@(2:16,ER5)
+                   451:                                                    printf( " %8lu Bytes\r\n", data.ldata );
+    000A16 6870                   MOV.B       @SP,R0H
+    000A18 6E780001               MOV.B       @(1:16,SP),R0L
+    000A1C 0D08                   MOV.W       R0,E0
+    000A1E 6E700002               MOV.B       @(2:16,SP),R0H
+    000A22 6E780003               MOV.B       @(3:16,SP),R0L
+    000A26 01006DF0               PUSH.L      ER0
+    000A2A 7A00                   MOV.L       #L267:32,ER0
+           <00000000>   
+    000A30 01006DF0               PUSH.L      ER0
+    000A34 5E                     JSR         @_printf:24
+           <000000>     
+    000A38 0B97                   ADDS.L      #4,SP
+    000A3A 0B97                   ADDS.L      #4,SP
+    000A3C              L482:                             
+    000A3C 79140020               ADD.W       #32:16,R4
+    000A40              L478:                             
+    000A40 01006F7000             MOV.L       @(194:16,SP),ER0
+           C2           
+    000A46 6E010020               MOV.B       @(32:16,ER0),R1H
+    000A4A 6E090021               MOV.B       @(33:16,ER0),R1L
+    000A4E 1D14                   CMP.W       R1,R4
+    000A50 58D0FE8E               BLT         L477:16
+    000A54              L480:                             
+                   452:                                            }
+                   453:                                            if( offset<(short)bpb->bytes_cluster )
+    000A54 01006F7000             MOV.L       @(194:16,SP),ER0
+           C2           
+    000A5A 6E010020               MOV.B       @(32:16,ER0),R1H
+    000A5E 6E090021               MOV.B       @(33:16,ER0),R1L
+    000A62 1D14                   CMP.W       R1,R4
+    000A64 4D1A                   BLT         L476:8
+                   454:                                                    break;                  /*検索終了*/
+                   455:    
+                   456:                                            cluster = (unsigned short)_dos_next_cluster( fd, cluster );
+    000A66 0DC8                   MOV.W       E4,E0
+    000A68 6F7000C6               MOV.W       @(198:16,SP),R0
+    000A6C 5E                     JSR         @__dos_next_cluster:24
+           <000000>     
+    000A70 0D0C                   MOV.W       R0,E4
+                   457:                                    } while( cluster >= 2 && cluster!=0xFFFF );
+    000A72 792C0002               CMP.W       #2:16,E4
+    000A76 4508                   BCS         L486:8
+    000A78 792CFFFF               CMP.W       #-1:16,E4
+    000A7C 5860FE4C               BNE         L474:16
+    000A80              L486:                             
+    000A80              L476:                             
+    000A80              L473:                             
+    000A80 6F7000BC               MOV.W       @(188:16,SP),R0
+    000A84 0B50                   INC.W       #1,R0
+    000A86              L520:                             
+    000A86 6FF000BC               MOV.W       R0,@(188:16,SP)
+    000A8A 01006F7000             MOV.L       @(194:16,SP),ER0
+           C2           
+    000A90 6E01000C               MOV.B       @(12:16,ER0),R1H
+    000A94 6E09000D               MOV.B       @(13:16,ER0),R1L
+    000A98 6F7000BC               MOV.W       @(188:16,SP),R0
+    000A9C 1D10                   CMP.W       R1,R0
+    000A9E 5850FCEA               BCS         L464:16
+    000AA2              L467:                             
+                   458:                            }
+                   459:    
+                   460:                            free_fcb( fd );
+    000AA2 6F7000C6               MOV.W       @(198:16,SP),R0
+    000AA6 5E                     JSR         @_free_fcb:24
+           <000000>     
+                   461:    
+                   462:                            _dos_getdiskfree( 0, &free );
+    000AAA 0FF1                   MOV.L       SP,ER1
+    000AAC 0B91                   ADDS.L      #4,ER1
+    000AAE 1900                   SUB.W       R0,R0
+    000AB0 5E                     JSR         @__dos_getdiskfree:24
+           <000000>     
+                   463:                            printf( "\r\n  Disk Free = %lu Bytes\r\n",
+                   464:                                    (long)(free.total_clusters-free.avail_clusters)
+                   465:                                    *(long)free.sectors_per_cluster * (long)free.bytes_per_sector );
+    000AB4 6E710004               MOV.B       @(4:16,SP),R1H
+    000AB8 6E790005               MOV.B       @(5:16,SP),R1L
+    000ABC 6E720006               MOV.B       @(6:16,SP),R2H
+    000AC0 6E7A0007               MOV.B       @(7:16,SP),R2L
+    000AC4 1921                   SUB.W       R2,R1
+    000AC6 1771                   EXTU.L      ER1
+    000AC8 6E700008               MOV.B       @(8:16,SP),R0H
+    000ACC 6E780009               MOV.B       @(9:16,SP),R0L
+    000AD0 1770                   EXTU.L      ER0
+    000AD2 5E                     JSR         @$MULL$3:24
+           <000000>     
+    000AD6 6E72000A               MOV.B       @(10:16,SP),R2H
+    000ADA 6E7A000B               MOV.B       @(11:16,SP),R2L
+    000ADE 1772                   EXTU.L      ER2
+    000AE0 0FA1                   MOV.L       ER2,ER1
+    000AE2 5E                     JSR         @$MULL$3:24
+           <000000>     
+    000AE6 01006DF0               PUSH.L      ER0
+    000AEA 7A00                   MOV.L       #L268:32,ER0
+           <00000000>   
+    000AF0 01006DF0               PUSH.L      ER0
+    000AF4 5E                     JSR         @_printf:24
+           <000000>     
+    000AF8 0B97                   ADDS.L      #4,SP
+    000AFA 0B97                   ADDS.L      #4,SP
+                   466:    
+                   467:                    return( 0 );
+    000AFC 1900                   SUB.W       R0,R0
+                   468:    }
+    000AFE              L463:                             
+    000AFE 7A17000000             ADD.L       #200:32,SP
+           C8           
+    000B04 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   469:    
+                   470:    /****** DUMP <FILENAME> ******/
+                   471:    int DUMP_command(char *p)
+    000B08              _DUMP_command:                   ; function: DUMP_command
+    000B08 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000B0C 7A37000002             SUB.L       #532:32,SP
+           14           
+                   472:    {
+    000B12 0FF5                   MOV.L       SP,ER5
+    000B14 0F84                   MOV.L       ER0,ER4
+                   473:                    char    filename[BUFSIZ];
+                   474:                    FILE    *fd;
+                   475:                    unsigned long   address;
+                   476:                    unsigned char   dump_data[16];
+                   477:                    int     j;
+                   478:                    int             len;
+                   479:    
+                   480:                    sprintf( filename, "A:\\%s", p );
+    000B16 7A06000000             MOV.L       #16:32,ER6
+           10           
+    000B1C 0AF6                   ADD.L       SP,ER6
+    000B1E 01006DF4               PUSH.L      ER4
+    000B22 7A01                   MOV.L       #L278:32,ER1
+           <00000000>   
+    000B28 01006DF1               PUSH.L      ER1
+    000B2C 0FE0                   MOV.L       ER6,ER0
+    000B2E 5E                     JSR         @_sprintf:24
+           <000000>     
+    000B32 0B97                   ADDS.L      #4,SP
+    000B34 0B97                   ADDS.L      #4,SP
+                   481:                    fd = fopen( filename, "r" );
+    000B36 7A01                   MOV.L       #L279:32,ER1
+           <00000000>   
+    000B3C 0FE0                   MOV.L       ER6,ER0
+    000B3E 5E                     JSR         @_fopen:24
+           <000000>     
+    000B42 0F83                   MOV.L       ER0,ER3
+                   482:                    if( fd==NULL ){
+    000B44 461E                   BNE         L487:8
+                   483:                            printf("File Not Found %s\r\n", filename );
+    000B46 01006DF6               PUSH.L      ER6
+    000B4A 7A00                   MOV.L       #L281:32,ER0
+           <00000000>   
+    000B50 01006DF0               PUSH.L      ER0
+    000B54 5E                     JSR         @_printf:24
+           <000000>     
+    000B58 0B97                   ADDS.L      #4,SP
+    000B5A 0B97                   ADDS.L      #4,SP
+                   484:                            return( 1 );
+    000B5C 79000001               MOV.W       #1:16,R0
+    000B60 5A                     JMP         @L488:24
+           <000000>     
+    000B64              L487:                             
+                   485:                    }
+                   486:                    printf( "\r\n                            B I N A R Y                        ASCII      " ) ;
+    000B64 7A00                   MOV.L       #L282:32,ER0
+           <00000000>   
+    000B6A 01006DF0               PUSH.L      ER0
+    000B6E 5E                     JSR         @_printf:24
+           <000000>     
+    000B72 0B97                   ADDS.L      #4,SP
+                   487:                    printf( "\r\n ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 0123456789ABCDEF\r\n\r\n" ) ;
+    000B74 7A00                   MOV.L       #L283:32,ER0
+           <00000000>   
+    000B7A 01006DF0               PUSH.L      ER0
+    000B7E 5E                     JSR         @_printf:24
+           <000000>     
+    000B82 0B97                   ADDS.L      #4,SP
+                   488:                    address=0;
+    000B84 1A80                   SUB.L       ER0,ER0
+                   489:                    while( (len=fread( dump_data, 1, sizeof(dump_data), fd ))>0 ){
+    000B86 5A                     JMP         @L523:24
+           <000000>     
+    000B8A              L489:                             
+                   490:                            printf( "%08lX  " , address ) ;
+    000B8A 01006F7002             MOV.L       @(528:16,SP),ER0
+           10           
+    000B90 01006DF0               PUSH.L      ER0
+    000B94 7A00                   MOV.L       #L285:32,ER0
+           <00000000>   
+    000B9A 01006DF0               PUSH.L      ER0
+    000B9E 5E                     JSR         @_printf:24
+           <000000>     
+    000BA2 0B97                   ADDS.L      #4,SP
+    000BA4 0B97                   ADDS.L      #4,SP
+                   491:                            for ( j=0; j<len; j++ ) {
+    000BA6 1966                   SUB.W       R6,R6
+    000BA8 4020                   BRA         L492:8
+    000BAA              L491:                             
+                   492:                                    printf( "%02X " , dump_data[j] ) ;
+    000BAA 0D60                   MOV.W       R6,R0
+    000BAC 17F0                   EXTS.L      ER0
+    000BAE 0AD0                   ADD.L       ER5,ER0
+    000BB0 6808                   MOV.B       @ER0,R0L
+    000BB2 1750                   EXTU.W      R0
+    000BB4 6DF0                   PUSH.W      R0
+    000BB6 7A00                   MOV.L       #L287:32,ER0
+           <00000000>   
+    000BBC 01006DF0               PUSH.L      ER0
+    000BC0 5E                     JSR         @_printf:24
+           <000000>     
+    000BC4 0B97                   ADDS.L      #4,SP
+    000BC6 0B87                   ADDS.L      #2,SP
+    000BC8 0B56                   INC.W       #1,R6
+    000BCA              L492:                             
+    000BCA 1DE6                   CMP.W       E6,R6
+    000BCC 4DDC                   BLT         L491:8
+                   493:                            }
+                   494:                            for( ; j<16; j++ ){
+    000BCE 4012                   BRA         L494:8
+    000BD0              L493:                             
+                   495:                                    printf("   ");
+    000BD0 7A00                   MOV.L       #L289:32,ER0
+           <00000000>   
+    000BD6 01006DF0               PUSH.L      ER0
+    000BDA 5E                     JSR         @_printf:24
+           <000000>     
+    000BDE 0B97                   ADDS.L      #4,SP
+    000BE0 0B56                   INC.W       #1,R6
+    000BE2              L494:                             
+    000BE2 79260010               CMP.W       #16:16,R6
+    000BE6 4DE8                   BLT         L493:8
+                   496:                            }
+                   497:                            for ( j=0; j<len; j++ ) {
+    000BE8 1966                   SUB.W       R6,R6
+    000BEA 403A                   BRA         L496:8
+    000BEC              L495:                             
+                   498:                                    if ( dump_data[j] < ' ' || dump_data[j] > 'z' ) dump_data[j] = ' ' ;
+    000BEC 0D60                   MOV.W       R6,R0
+    000BEE 17F0                   EXTS.L      ER0
+    000BF0 0AD0                   ADD.L       ER5,ER0
+    000BF2 680C                   MOV.B       @ER0,R4L
+    000BF4 AC20                   CMP.B       #32:8,R4L
+    000BF6 4504                   BCS         L498:8
+    000BF8 AC7A                   CMP.B       #122:8,R4L
+    000BFA 430A                   BLS         L497:8
+    000BFC              L498:                             
+    000BFC 0D60                   MOV.W       R6,R0
+    000BFE 17F0                   EXTS.L      ER0
+    000C00 0AD0                   ADD.L       ER5,ER0
+    000C02 F920                   MOV.B       #32:8,R1L
+    000C04 6889                   MOV.B       R1L,@ER0
+    000C06              L497:                             
+                   499:                                    printf( "%c" , dump_data[j] );
+    000C06 0D60                   MOV.W       R6,R0
+    000C08 17F0                   EXTS.L      ER0
+    000C0A 0AD0                   ADD.L       ER5,ER0
+    000C0C 6808                   MOV.B       @ER0,R0L
+    000C0E 1750                   EXTU.W      R0
+    000C10 6DF0                   PUSH.W      R0
+    000C12 7A00                   MOV.L       #L291:32,ER0
+           <00000000>   
+    000C18 01006DF0               PUSH.L      ER0
+    000C1C 5E                     JSR         @_printf:24
+           <000000>     
+    000C20 0B97                   ADDS.L      #4,SP
+    000C22 0B87                   ADDS.L      #2,SP
+    000C24 0B56                   INC.W       #1,R6
+    000C26              L496:                             
+    000C26 1DE6                   CMP.W       E6,R6
+    000C28 4DC2                   BLT         L495:8
+                   500:                            }
+                   501:                            for( ; j<16; j++ ){
+    000C2A 4012                   BRA         L500:8
+    000C2C              L499:                             
+                   502:                                    printf(" ");
+    000C2C 7A00                   MOV.L       #L293:32,ER0
+           <00000000>   
+    000C32 01006DF0               PUSH.L      ER0
+    000C36 5E                     JSR         @_printf:24
+           <000000>     
+    000C3A 0B97                   ADDS.L      #4,SP
+    000C3C 0B56                   INC.W       #1,R6
+    000C3E              L500:                             
+    000C3E 79260010               CMP.W       #16:16,R6
+    000C42 4DE8                   BLT         L499:8
+                   503:                            }
+                   504:                            printf( "\r\n" );
+    000C44 7A00                   MOV.L       #L294:32,ER0
+           <00000000>   
+    000C4A 01006DF0               PUSH.L      ER0
+    000C4E 5E                     JSR         @_printf:24
+           <000000>     
+    000C52 0B97                   ADDS.L      #4,SP
+                   505:                            address += 16;
+    000C54 01006F7002             MOV.L       @(528:16,SP),ER0
+           10           
+    000C5A 7A10000000             ADD.L       #16:32,ER0
+           10           
+    000C60              L523:                             
+    000C60 01006FF002             MOV.L       ER0,@(528:16,SP)
+           10           
+    000C66 01006DF3               PUSH.L      ER3
+    000C6A 1AA2                   SUB.L       ER2,ER2
+    000C6C FA10                   MOV.B       #16:8,R2L
+    000C6E 01006DF2               PUSH.L      ER2
+    000C72 1A91                   SUB.L       ER1,ER1
+    000C74 F901                   MOV.B       #1:8,R1L
+    000C76 0FD0                   MOV.L       ER5,ER0
+    000C78 5E                     JSR         @_fread:24
+           <000000>     
+    000C7C 0B97                   ADDS.L      #4,SP
+    000C7E 0B97                   ADDS.L      #4,SP
+    000C80 0D0E                   MOV.W       R0,E6
+    000C82 1DA0                   CMP.W       E2,R0
+    000C84 58E0FF02               BGT         L489:16
+                   506:                    }
+                   507:                    fclose( fd );
+    000C88 0FB0                   MOV.L       ER3,ER0
+    000C8A 5E                     JSR         @_fclose:24
+           <000000>     
+                   508:    
+                   509:                    return( 0 );
+    000C8E 0DA0                   MOV.W       E2,R0
+                   510:    }
+    000C90              L488:                             
+    000C90 7A17000002             ADD.L       #532:32,SP
+           14           
+    000C96 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   511:    
+                   512:    /****** TYPE <FILENAME> ******/
+                   513:    int TYPE_command(char *p)
+    000C9A              _TYPE_command:                   ; function: TYPE_command
+    000C9A 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000C9E 7A37000004             SUB.L       #1024:32,SP
+           00           
+                   514:    {
+    000CA4 0FF5                   MOV.L       SP,ER5
+    000CA6 0F86                   MOV.L       ER0,ER6
+                   515:                    char    filename[BUFSIZ];
+                   516:                    FILE    *fd;
+                   517:                    char    dump_data[512];
+                   518:                    int     j;
+                   519:    
+                   520:                    sprintf( filename, "A:\\%s", p );
+    000CA8 7A04000002             MOV.L       #512:32,ER4
+           00           
+    000CAE 0AF4                   ADD.L       SP,ER4
+    000CB0 01006DF6               PUSH.L      ER6
+    000CB4 7A01                   MOV.L       #L302:32,ER1
+           <00000000>   
+    000CBA 01006DF1               PUSH.L      ER1
+    000CBE 0FC0                   MOV.L       ER4,ER0
+    000CC0 5E                     JSR         @_sprintf:24
+           <000000>     
+    000CC4 0B97                   ADDS.L      #4,SP
+    000CC6 0B97                   ADDS.L      #4,SP
+                   521:                    fd = fopen( filename, "r" );
+    000CC8 7A01                   MOV.L       #L303:32,ER1
+           <00000000>   
+    000CCE 0FC0                   MOV.L       ER4,ER0
+    000CD0 5E                     JSR         @_fopen:24
+           <000000>     
+    000CD4 0F86                   MOV.L       ER0,ER6
+                   522:                    if( fd==NULL ){
+    000CD6 4632                   BNE         L504:8
+                   523:                            printf("File Not Found %s\r\n", filename );
+    000CD8 01006DF4               PUSH.L      ER4
+    000CDC 7A00                   MOV.L       #L305:32,ER0
+           <00000000>   
+    000CE2 01006DF0               PUSH.L      ER0
+    000CE6 5E                     JSR         @_printf:24
+           <000000>     
+    000CEA 0B97                   ADDS.L      #4,SP
+    000CEC 0B97                   ADDS.L      #4,SP
+                   524:                            return( 1 );
+    000CEE 79000001               MOV.W       #1:16,R0
+    000CF2 4032                   BRA         L502:8
+                   525:                    }
+                   526:                    while( fgets( dump_data, sizeof(dump_data), fd )!=NULL ){
+    000CF4              L503:                             
+                   527:                            printf("%s\r\n", dump_data );
+    000CF4 01006DF5               PUSH.L      ER5
+    000CF8 7A00                   MOV.L       #L307:32,ER0
+           <00000000>   
+    000CFE 01006DF0               PUSH.L      ER0
+    000D02 5E                     JSR         @_printf:24
+           <000000>     
+    000D06 0B97                   ADDS.L      #4,SP
+    000D08 0B97                   ADDS.L      #4,SP
+    000D0A              L504:                             
+    000D0A 01006DF6               PUSH.L      ER6
+    000D0E 79010200               MOV.W       #512:16,R1
+    000D12 0FD0                   MOV.L       ER5,ER0
+    000D14 5E                     JSR         @_fgets:24
+           <000000>     
+    000D18 0B97                   ADDS.L      #4,SP
+    000D1A 0F80                   MOV.L       ER0,ER0
+    000D1C 46D6                   BNE         L503:8
+                   528:                    }
+                   529:                    fclose( fd );
+    000D1E 0FE0                   MOV.L       ER6,ER0
+    000D20 5E                     JSR         @_fclose:24
+           <000000>     
+                   530:    
+                   531:                    return( 0 );
+    000D24 1900                   SUB.W       R0,R0
+                   532:    }
+    000D26              L502:                             
+    000D26 7A17000004             ADD.L       #1024:32,SP
+           00           
+    000D2C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   533:    
+                   534:    /************************************************************************
+                   535:    *                                                                                                                                               *
+                   536:    *       Function name   << dvauMenteReceive >>                                                                  *
+                   537:    *                                       受信処理                                                                                        *
+                   538:    *       Syntax                  dvauMenteReceive( unsigned char *data );                *
+                   539:    *       Argument                none                                                                                            *
+                   540:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   541:    *       Revision                a00 2000/06/27                                                                          *
+                   542:    *                                                                                                                                               *
+                   543:    *************************************************************************/
+                   544:    void dvaMenteReceive( char *datan )
+    000D30              _dvaMenteReceive:                ; function: dvaMenteReceive
+    000D30 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000D34 7A37000000             SUB.L       #32:32,SP
+           20           
+                   545:    {
+    000D3A 0F86                   MOV.L       ER0,ER6
+                   546:                    char    *p;
+                   547:                    int             text1,text2,text3,text4,text5,text6,text7,text8;
+                   548:                    int             i;
+                   549:                    char    fname[32];
+                   550:    
+                   551:                    if( memcmp( datan, "DIR", 3 )==0 ){
+    000D3C 1AA2                   SUB.L       ER2,ER2
+    000D3E FA03                   MOV.B       #3:8,R2L
+    000D40 01006DF2               PUSH.L      ER2
+    000D44 7A01                   MOV.L       #L322:32,ER1
+           <00000000>   
+    000D4A 5E                     JSR         @_memcmp:24
+           <000000>     
+    000D4E 0B97                   ADDS.L      #4,SP
+    000D50 0D00                   MOV.W       R0,R0
+    000D52 460C                   BNE         L505:8
+                   552:                            datan+=3;
+    000D54 0AA6                   ADD.L       ER2,ER6
+                   553:                            DIR_command( datan );
+    000D56 0FE0                   MOV.L       ER6,ER0
+    000D58 5E                     JSR         @_DIR_command:24
+           <000000>     
+                   554:                            return;
+    000D5C 5A                     JMP         @L506:24
+           <000000>     
+    000D60              L505:                             
+                   555:                    }
+                   556:                    if( memcmp( datan, "DUMP", 4 )==0 ){
+    000D60 1AA2                   SUB.L       ER2,ER2
+    000D62 FA04                   MOV.B       #4:8,R2L
+    000D64 01006DF2               PUSH.L      ER2
+    000D68 7A01                   MOV.L       #L324:32,ER1
+           <00000000>   
+    000D6E 0FE0                   MOV.L       ER6,ER0
+    000D70 5E                     JSR         @_memcmp:24
+           <000000>     
+    000D74 0B97                   ADDS.L      #4,SP
+    000D76 0D00                   MOV.W       R0,R0
+    000D78 460E                   BNE         L507:8
+                   557:                            datan+=5;
+    000D7A 0B02                   ADDS.L      #1,ER2
+    000D7C 0AA6                   ADD.L       ER2,ER6
+                   558:                            DUMP_command( datan );
+    000D7E 0FE0                   MOV.L       ER6,ER0
+    000D80 5E                     JSR         @_DUMP_command:24
+           <000000>     
+                   559:                            return;
+    000D84 5A                     JMP         @L506:24
+           <000000>     
+    000D88              L507:                             
+                   560:                    }
+                   561:                    if( memcmp( datan, "TYPE", 4 )==0 ){
+    000D88 1AA2                   SUB.L       ER2,ER2
+    000D8A FA04                   MOV.B       #4:8,R2L
+    000D8C 01006DF2               PUSH.L      ER2
+    000D90 7A01                   MOV.L       #L326:32,ER1
+           <00000000>   
+    000D96 0FE0                   MOV.L       ER6,ER0
+    000D98 5E                     JSR         @_memcmp:24
+           <000000>     
+    000D9C 0B97                   ADDS.L      #4,SP
+    000D9E 0D00                   MOV.W       R0,R0
+    000DA0 460E                   BNE         L508:8
+                   562:                            datan+=5;
+    000DA2 0B02                   ADDS.L      #1,ER2
+    000DA4 0AA6                   ADD.L       ER2,ER6
+                   563:                            TYPE_command( datan );
+    000DA6 0FE0                   MOV.L       ER6,ER0
+    000DA8 5E                     JSR         @_TYPE_command:24
+           <000000>     
+                   564:                            return;
+    000DAC 5A                     JMP         @L506:24
+           <000000>     
+    000DB0              L508:                             
+                   565:                    }
+                   566:    
+                   567:                    if( *datan=='D' ){
+    000DB0 6868                   MOV.B       @ER6,R0L
+    000DB2 A844                   CMP.B       #68:8,R0L
+    000DB4 460C                   BNE         L509:8
+                   568:                            datan++;
+    000DB6 0B76                   INC.L       #1,ER6
+                   569:                            D_command( datan );
+    000DB8 0FE0                   MOV.L       ER6,ER0
+    000DBA 5E                     JSR         @_D_command:24
+           <000000>     
+                   570:                            return;
+    000DBE 5A                     JMP         @L506:24
+           <000000>     
+    000DC2              L509:                             
+                   571:                    }
+                   572:                    if( *datan=='W' ){
+    000DC2 6868                   MOV.B       @ER6,R0L
+    000DC4 A857                   CMP.B       #87:8,R0L
+    000DC6 460A                   BNE         L510:8
+                   573:                            datan++;
+    000DC8 0B76                   INC.L       #1,ER6
+                   574:                            W_command( datan );
+    000DCA 0FE0                   MOV.L       ER6,ER0
+    000DCC 5E                     JSR         @_W_command:24
+           <000000>     
+                   575:                            return;
+    000DD0 4072                   BRA         L506:8
+    000DD2              L510:                             
+                   576:                    }
+                   577:                    if( *datan=='R' ){
+    000DD2 6868                   MOV.B       @ER6,R0L
+    000DD4 A852                   CMP.B       #82:8,R0L
+    000DD6 460A                   BNE         L511:8
+                   578:                            datan++;
+    000DD8 0B76                   INC.L       #1,ER6
+                   579:                            R_command( datan );
+    000DDA 0FE0                   MOV.L       ER6,ER0
+    000DDC 5E                     JSR         @_R_command:24
+           <000000>     
+                   580:                            return;
+    000DE0 4062                   BRA         L506:8
+    000DE2              L511:                             
+                   581:                    }
+                   582:    
+                   583:                    if( memcmp( datan, "SD", 2 )==0 ){
+    000DE2 1AD5                   SUB.L       ER5,ER5
+    000DE4 FD02                   MOV.B       #2:8,R5L
+    000DE6 01006DF5               PUSH.L      ER5
+    000DEA 7A01                   MOV.L       #L331:32,ER1
+           <00000000>   
+    000DF0 0FE0                   MOV.L       ER6,ER0
+    000DF2 5E                     JSR         @_memcmp:24
+           <000000>     
+    000DF6 0B97                   ADDS.L      #4,SP
+    000DF8 0D00                   MOV.W       R0,R0
+    000DFA 460A                   BNE         L512:8
+                   584:                            datan+=2;
+    000DFC 0AD6                   ADD.L       ER5,ER6
+                   585:                            SD_command( datan );
+    000DFE 0FE0                   MOV.L       ER6,ER0
+    000E00 5E                     JSR         @_SD_command:24
+           <000000>     
+                   586:                            return;
+    000E04 403E                   BRA         L506:8
+    000E06              L512:                             
+                   587:                    }
+                   588:                    if( memcmp( datan, "SW", 2 )==0 ){
+    000E06 01006DF5               PUSH.L      ER5
+    000E0A 7A01                   MOV.L       #L333:32,ER1
+           <00000000>   
+    000E10 0FE0                   MOV.L       ER6,ER0
+    000E12 5E                     JSR         @_memcmp:24
+           <000000>     
+    000E16 0B97                   ADDS.L      #4,SP
+    000E18 0D00                   MOV.W       R0,R0
+    000E1A 460A                   BNE         L513:8
+                   589:                            datan+=2;
+    000E1C 0AD6                   ADD.L       ER5,ER6
+                   590:                            SW_command( datan );
+    000E1E 0FE0                   MOV.L       ER6,ER0
+    000E20 5E                     JSR         @_SW_command:24
+           <000000>     
+                   591:                            return;
+    000E24 401E                   BRA         L506:8
+    000E26              L513:                             
+                   592:                    }
+                   593:                    if( memcmp( datan, "SR", 2 )==0 ){
+    000E26 01006DF5               PUSH.L      ER5
+    000E2A 7A01                   MOV.L       #L335:32,ER1
+           <00000000>   
+    000E30 0FE0                   MOV.L       ER6,ER0
+    000E32 5E                     JSR         @_memcmp:24
+           <000000>     
+    000E36 0B97                   ADDS.L      #4,SP
+    000E38 0D00                   MOV.W       R0,R0
+    000E3A 4608                   BNE         L514:8
+                   594:                            datan+=2;
+    000E3C 0AD6                   ADD.L       ER5,ER6
+                   595:                            SR_command( datan );
+    000E3E 0FE0                   MOV.L       ER6,ER0
+    000E40 5E                     JSR         @_SR_command:24
+           <000000>     
+                   596:                            return;
+    000E44              L514:                             
+                   597:                    }
+                   598:    }
+    000E44              L506:                             
+    000E44 7A17000000             ADD.L       #32:32,SP
+           20           
+    000E4A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   599:    
+                   600:    
+                   601:    /************************************************************************
+                   602:    *                                                                                                                                               *
+                   603:    *       Function name   << asci_1_recv_ir >>                                                            *
+                   604:    *                                       受信割り込み処理                                                                        *
+                   605:    *       Syntax                  asci_1_recv_ir( char data, char status );                       *
+                   606:    *       Argument                none                                                                                            *
+                   607:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   608:    *       Revision                a00 2000/06/27                                                                          *
+                   609:    *                                                                                                                                               *
+                   610:    *************************************************************************/
+                   611:    void asci_1_recv_ir( char data, char status )
+    000E4E              _asci_1_recv_ir:                 ; function: asci_1_recv_ir
+    000E4E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   612:    {
+    000E52 0C89                   MOV.B       R0L,R1L
+                   613:    /*.     ---------------------　処理詳細説明  ----------------------------       */
+                   614:    /*  フェーズ毎に受信データを取り込む                                                                    */
+                   615:    /*. ------------------------------------------------------------------  */
+                   616:    status=0;
+                   617:    
+                   618:                    if( data==CRLF ){
+    000E54 7A05                   MOV.L       #_$recvbuff:32,ER5
+           <00000000>   
+    000E5A 7A06                   MOV.L       #_$recvlen:32,ER6
+           <00000000>   
+    000E60 6960                   MOV.W       @ER6,R0
+    000E62 17F0                   EXTS.L      ER0
+    000E64 A90D                   CMP.B       #13:8,R1L
+    000E66 4614                   BNE         L515:8
+                   619:                            recvbuff[recvlen]='\0';
+    000E68 0A85                   ADD.L       ER0,ER5
+    000E6A 1899                   SUB.B       R1L,R1L
+    000E6C 68D9                   MOV.B       R1L,@ER5
+                   620:                            recvlen = 0;
+    000E6E 1911                   SUB.W       R1,R1
+    000E70 69E1                   MOV.W       R1,@ER6
+                   621:                            recvon = 1;
+    000E72 F901                   MOV.B       #1:8,R1L
+    000E74 6AA900                 MOV.B       R1L,@_$recvon:24
+           <000000>     
+                   622:                            return;
+    000E7A 4036                   BRA         L516:8
+    000E7C              L515:                             
+                   623:                    }
+                   624:                    if( data==ESC ){
+    000E7C A91B                   CMP.B       #27:8,R1L
+    000E7E 4612                   BNE         L517:8
+                   625:                            recvlen = 0;
+    000E80 1900                   SUB.W       R0,R0
+    000E82 69E0                   MOV.W       R0,@ER6
+                   626:                            recvbuff[recvlen]='\0';
+    000E84 68D8                   MOV.B       R0L,@ER5
+                   627:    
+                   628:                            sendbuff[0]='\0';
+    000E86 6AA800                 MOV.B       R0L,@_$sendbuff:24
+           <000000>     
+                   629:                            dvauMenteSend();
+    000E8C 5E                     JSR         @_dvauMenteSend:24
+           <000000>     
+                   630:                            return;
+    000E90 4020                   BRA         L516:8
+    000E92              L517:                             
+                   631:                    }
+                   632:    
+                   633:                    if( recvlen<sizeof(recvbuff) ){
+    000E92 7A20000002             CMP.L       #512:32,ER0
+           00           
+    000E98 4418                   BCC         L518:8
+                   634:                            recvbuff[recvlen++] = data;
+    000E9A 6960                   MOV.W       @ER6,R0
+    000E9C 0B50                   INC.W       #1,R0
+    000E9E 69E0                   MOV.W       R0,@ER6
+    000EA0 1B50                   DEC.W       #1,R0
+    000EA2 17F0                   EXTS.L      ER0
+    000EA4 0AD0                   ADD.L       ER5,ER0
+    000EA6 6889                   MOV.B       R1L,@ER0
+                   635:                            recvbuff[recvlen]='\0';
+    000EA8 6966                   MOV.W       @ER6,R6
+    000EAA 17F6                   EXTS.L      ER6
+    000EAC 0AE5                   ADD.L       ER6,ER5
+    000EAE 1888                   SUB.B       R0L,R0L
+    000EB0 68D8                   MOV.B       R0L,@ER5
+    000EB2              L518:                             
+                   636:                    }
+                   637:    }
+    000EB2              L516:                             
+    000EB2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   638:    
+                   639:    /************************************************************************
+                   640:    *                                                                                                                                               *
+                   641:    *       Function name   << dvauMENTEInitialize >>                                               *
+                   642:    *                                       メンテナンス通信初期設定                                                                        *
+                   643:    *       Syntax                  dvauMENTEInitialize( void );                                                    *
+                   644:    *       Argument                none                                                                                            *
+                   645:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   646:    *       Revision                a00 2000/06/27                                                                          *
+                   647:    *                                                                                                                                               *
+                   648:    *************************************************************************/
+                   649:    void dvauMENTEInitialize( void )
+    000EB6              _dvauMENTEInitialize:            ; function: dvauMENTEInitialize
+                   650:    {
+                   651:                    asci_1_Initialize( 9600, 8, 'N', 0 );
+    000EB6 1888                   SUB.B       R0L,R0L
+    000EB8 6DF0                   PUSH.W      R0
+    000EBA F14E                   MOV.B       #78:8,R1H
+    000EBC F908                   MOV.B       #8:8,R1L
+    000EBE 79002580               MOV.W       #9600:16,R0
+    000EC2 5E                     JSR         @_asci_1_Initialize:24
+           <000000>     
+    000EC6 0B87                   ADDS.L      #2,SP
+                   652:    
+                   653:                    recvon=0;
+    000EC8 1888                   SUB.B       R0L,R0L
+    000ECA 6AA800                 MOV.B       R0L,@_$recvon:24
+           <000000>     
+                   654:    }
+    000ED0 5470                   RTS
+                   655:    
+                   656:    
+                   657:    void dvauMENTEMain( void )
+    000ED2              _dvauMENTEMain:                  ; function: dvauMENTEMain
+                   658:    {
+                   659:                    if( recvon ){
+    000ED2 6A2800                 MOV.B       @_$recvon:24,R0L
+           <000000>     
+    000ED8 4712                   BEQ         L519:8
+                   660:                            recvon=0;
+    000EDA 1888                   SUB.B       R0L,R0L
+    000EDC 6AA800                 MOV.B       R0L,@_$recvon:24
+           <000000>     
+                   661:                            dvaMenteReceive( recvbuff );
+    000EE2 7A00                   MOV.L       #_$recvbuff:32,ER0
+           <00000000>   
+    000EE8 5E                     JSR         @_dvaMenteReceive:24
+           <000000>     
+    000EEC              L519:                             
+                   662:                    }
+                   663:    }
+    000EEC 5470                   RTS
+                   664:    
+  C                                                      ; section
+    000000              L127:
+    000000              L166:
+    000000              L195:
+    000000              L294:
+    000000 0D0A00                 .SDATAZ     <H'0D><H'0A>
+    000003              L136:
+    000003              L205:
+    000003 0D0A575249             .SDATAZ     <H'0D><H'0A>"WRITE ADDRESS & DATA ERROR "<H'0D><H'0A>
+           5445204144   
+           4452455353   
+           2026204441   
+           5441204552   
+           524F52200D   
+           0A00         
+    000023              L137:
+    000023              L206:
+    000023 20256C5820             .SDATAZ     " %lX %X"
+           255800       
+    00002B              L138:
+    00002B 0D0A575249             .SDATA      <H'0D><H'0A>"WRITE BYTE ADDRESS %08lX WRITE DATA %02X READ DATA %02X"<H'0D>
+           5445204259   
+           5445204144   
+           4452455353   
+           202530386C   
+           5820575249   
+           5445204441   
+           5441202530   
+           3258205245   
+           4144204441   
+           5441202530   
+           32580D       
+    000065 0A00                   .SDATAZ     <H'0A>
+    000067              L145:
+    000067              L156:
+    000067              L180:
+    000067              L220:
+    000067 20256C5800             .SDATAZ     " %lX"
+    00006C              L146:
+    00006C              L226:
+    00006C 0D0A524541             .SDATAZ     <H'0D><H'0A>"READ BYTE ADDRESS %08lX READ DATA %02X"<H'0D><H'0A>
+           4420425954   
+           4520414444   
+           5245535320   
+           2530386C58   
+           2052454144   
+           2044415441   
+           2025303258   
+           0D0A00       
+    000097              L157:
+    000097              L186:
+    000097              L282:
+    000097 0D0A202020             .SDATA      <H'0D><H'0A>"                            B I N A R Y                        ASCI"
+           2020202020   
+           2020202020   
+           2020202020   
+           2020202020   
+           2020202020   
+           422049204E   
+           2041205220   
+           5920202020   
+           2020202020   
+           2020202020   
+           2020202020   
+           2020202020   
+           41534349     
+    0000DC 4920202020             .SDATAZ     "I      "
+           202000       
+    0000E4              L158:
+    0000E4              L187:
+    0000E4              L283:
+    0000E4 0D0A204144             .SDATA      <H'0D><H'0A>" ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 012345678"
+           4452455353   
+           2020303020   
+           3031203032   
+           2030332030   
+           3420303520   
+           3036203037   
+           2030382030   
+           3920304120   
+           3042203043   
+           2030442030   
+           4520304620   
+           3031323334   
+           35363738     
+    000129 3941424344             .SDATAZ     "9ABCDEF"<H'0D><H'0A><H'0D><H'0A>
+           45460D0A0D   
+           0A00         
+    000135              L161:
+    000135              L190:
+    000135              L285:
+    000135 2530386C58             .SDATAZ     "%08lX  "
+           202000       
+    00013D              L163:
+    00013D              L192:
+    00013D              L287:
+    00013D 2530325820             .SDATAZ     "%02X "
+           00           
+    000143              L165:
+    000143              L194:
+    000143              L291:
+    000143 256300                 .SDATAZ     "%c"
+    000146              L185:
+    000146              L211:
+    000146              L225:
+    000146 5355422043             .SDATAZ     "SUB CPU no responce"<H'0D><H'0A>
+           5055206E6F   
+           2072657370   
+           6F6E63650D   
+           0A00         
+    00015C              L212:
+    00015C 0D0A575249             .SDATAZ     <H'0D><H'0A>"WRITE BYTE ADDRESS %08lX WRITE DATA %02X"<H'0D><H'0A>
+           5445204259   
+           5445204144   
+           4452455353   
+           202530386C   
+           5820575249   
+           5445204441   
+           5441202530   
+           32580D0A00   
+    000189              L249:
+    000189 4361726420             .SDATAZ     "Card Not Found"<H'0D><H'0A>
+           4E6F742046   
+           6F756E640D   
+           0A00         
+    00019A              L251:
+    00019A              L261:
+    00019A 25732E00               .SDATAZ     "%s."
+    00019E              L252:
+    00019E              L262:
+    00019E 2573202000             .SDATAZ     "%s  "
+    0001A3              L254:
+    0001A3              L264:
+    0001A3 3C4449523E             .SDATAZ     "<DIR>"
+           00           
+    0001A9              L256:
+    0001A9              L266:
+    0001A9 3C46494C45             .SDATAZ     "<FILE>"
+           3E00         
+    0001B0              L257:
+    0001B0              L267:
+    0001B0 2025386C75             .SDATAZ     " %8lu Bytes"<H'0D><H'0A>
+           2042797465   
+           730D0A00     
+    0001BE              L260:
+    0001BE 2D2D2000               .SDATAZ     "-- "
+    0001C2              L268:
+    0001C2 0D0A202044             .SDATAZ     <H'0D><H'0A>"  Disk Free = %lu Bytes"<H'0D><H'0A>
+           69736B2046   
+           726565203D   
+           20256C7520   
+           4279746573   
+           0D0A00       
+    0001DE              L278:
+    0001DE              L302:
+    0001DE 413A5C2573             .SDATAZ     "A:\%s"
+           00           
+    0001E4              L279:
+    0001E4              L303:
+    0001E4 7200                   .SDATAZ     "r"
+    0001E6              L281:
+    0001E6              L305:
+    0001E6 46696C6520             .SDATAZ     "File Not Found %s"<H'0D><H'0A>
+           4E6F742046   
+           6F756E6420   
+           25730D0A00   
+    0001FA              L289:
+    0001FA 20202000               .SDATAZ     "   "
+    0001FE              L293:
+    0001FE 2000                   .SDATAZ     " "
+    000200              L307:
+    000200 25730D0A00             .SDATAZ     "%s"<H'0D><H'0A>
+    000205              L322:
+    000205 44495200               .SDATAZ     "DIR"
+    000209              L324:
+    000209 44554D5000             .SDATAZ     "DUMP"
+    00020E              L326:
+    00020E 5459504500             .SDATAZ     "TYPE"
+    000213              L331:
+    000213 534400                 .SDATAZ     "SD"
+    000216              L333:
+    000216 535700                 .SDATAZ     "SW"
+    000219              L335:
+    000219 535200                 .SDATAZ     "SR"
+  B                                                      ; section
+    000000              _$recvbuff:                      ; static: recvbuff
+    000000 00000200               .RES.B      512
+    000200              _$recvlen:                       ; static: recvlen
+    000200 00000002               .RES.W      1
+    000202              _$sendbuff:                      ; static: sendbuff
+    000202 00000200               .RES.B      512
+    000402              _$sendlen:                       ; static: sendlen
+    000402 00000002               .RES.W      1
+    000404              _$sendcnt:                       ; static: sendcnt
+    000404 00000002               .RES.W      1
+    000406              _$recvon:                        ; static: recvon
+    000406 00000001               .RES.B      1
+    000407 00000001               .RES.B      1
+    000408              L150:                            ; static: address
+    000408 00000004               .RES.L      1
+    00040C              _$boot_request:                  ; static: boot_request
+    00040C 00000001               .RES.B      1
+    00040D              _$boot_ack:                      ; static: boot_ack
+    00040D 00000001               .RES.B      1
+    00040E              L175:                            ; static: address
+    00040E 00000004               .RES.L      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:49  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000EEE Byte(s)
+CONSTANT SECTION(C):                                0x0000021C Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000412 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000EEE Byte(s)
+TOTAL CONSTANT SECTION: 0x0000021C Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000412 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000151C Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       29 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       15 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        201 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\dvamente.c -object=.\obj\dvamente.obj
+CPU         : 300ha:24

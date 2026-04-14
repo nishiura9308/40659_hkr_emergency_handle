@@ -1,0 +1,322 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:46  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatime.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            時間制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/08/07         K.Honda
+                     9:    
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include    "iodefine.h"
+                    14:    #include        "table.h"
+                    15:    #include        "timer.h"
+                    16:    
+                    17:    /*@@@S*/
+                    18:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    19:            グローバル変数
+                    20:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    21:    
+                    22:    struct  TIMER_CONTROL   timedata;
+                    23:    
+                    24:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    25:            定数定義
+                    26:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    27:    
+                    28:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    29:            構造体定義
+                    30:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    31:    
+                    32:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    33:            テーブル
+                    34:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    35:    
+                    36:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    37:                    外部参照
+                    38:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    39:    
+                    40:    extern  void    (*IMIA0Jump)(void);
+                    41:    
+                    42:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    43:                    ローカル変数
+                    44:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    45:    
+                    46:    /*@@@E*/
+                    47:    /************************************************************************
+                    48:                                                                                                                                                    *
+                    49:            Function name   << timer_0_Intr >>
+                    50:                                            タイマー割り込み
+                    51:            Syntax                  timer_0_Intr( void );
+                    52:            Argument                none
+                    53:            Author                  TOA Corporation  K.Honda
+                    54:            Revision                a00 2000/08/07
+                    55:    
+                    56:    *************************************************************************/
+                    57:    void    timer_0_Intr(void)
+    000000              _timer_0_Intr:                   ; function: timer_0_Intr
+                    58:    {
+                    59:                    // タイマー割り込み処理
+                    60:    
+                    61:                            // ＥＩＤＳウェイトタイマーカウント
+                    62:                    if( timedata.eidstimer ){
+    000000 6A2000                 MOV.B       @_timedata:24,R0H
+           <000000>     
+    000006 6A2800                 MOV.B       @_timedata+1:24,R0L
+           <000000>     
+    00000C 0D00                   MOV.W       R0,R0
+    00000E 471A                   BEQ         L56:8
+                    63:                            timedata.eidstimer--;
+    000010 6A2000                 MOV.B       @_timedata:24,R0H
+           <000000>     
+    000016 6A2800                 MOV.B       @_timedata+1:24,R0L
+           <000000>     
+    00001C 1B50                   DEC.W       #1,R0
+    00001E 6AA000                 MOV.B       R0H,@_timedata:24
+           <000000>     
+    000024 6AA800                 MOV.B       R0L,@_timedata+1:24
+           <000000>     
+    00002A              L56:                              
+                    64:                    }
+                    65:                            // ＲＴＩＦウェイトタイマーカウント
+                    66:                    if( timedata.rtiftimer ){
+    00002A 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    000030 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    000036 0D00                   MOV.W       R0,R0
+    000038 471A                   BEQ         L57:8
+                    67:                            timedata.rtiftimer--;
+    00003A 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    000040 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    000046 1B50                   DEC.W       #1,R0
+    000048 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    00004E 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+    000054              L57:                              
+                    68:                    }
+                    69:                            // 音声バス通信タイマーカウント
+                    70:                    if( timedata.CommRecvTimer ){
+    000054 6A2000                 MOV.B       @_timedata+4:24,R0H
+           <000000>     
+    00005A 6A2800                 MOV.B       @_timedata+5:24,R0L
+           <000000>     
+    000060 0D00                   MOV.W       R0,R0
+    000062 471A                   BEQ         L58:8
+                    71:                            timedata.CommRecvTimer--;
+    000064 6A2000                 MOV.B       @_timedata+4:24,R0H
+           <000000>     
+    00006A 6A2800                 MOV.B       @_timedata+5:24,R0L
+           <000000>     
+    000070 1B50                   DEC.W       #1,R0
+    000072 6AA000                 MOV.B       R0H,@_timedata+4:24
+           <000000>     
+    000078 6AA800                 MOV.B       R0L,@_timedata+5:24
+           <000000>     
+    00007E              L58:                              
+                    72:                    }
+                    73:                    if( timedata.CommCheckTimer ){
+    00007E 6A2000                 MOV.B       @_timedata+6:24,R0H
+           <000000>     
+    000084 6A2800                 MOV.B       @_timedata+7:24,R0L
+           <000000>     
+    00008A 0D00                   MOV.W       R0,R0
+    00008C 471A                   BEQ         L59:8
+                    74:                            timedata.CommCheckTimer--;
+    00008E 6A2000                 MOV.B       @_timedata+6:24,R0H
+           <000000>     
+    000094 6A2800                 MOV.B       @_timedata+7:24,R0L
+           <000000>     
+    00009A 1B50                   DEC.W       #1,R0
+    00009C 6AA000                 MOV.B       R0H,@_timedata+6:24
+           <000000>     
+    0000A2 6AA800                 MOV.B       R0L,@_timedata+7:24
+           <000000>     
+    0000A8              L59:                              
+                    75:                    }
+                    76:                    if( timedata.carNoSendTimer ){
+    0000A8 6A2000                 MOV.B       @_timedata+8:24,R0H
+           <000000>     
+    0000AE 6A2800                 MOV.B       @_timedata+9:24,R0L
+           <000000>     
+    0000B4 0D00                   MOV.W       R0,R0
+    0000B6 471A                   BEQ         L60:8
+                    77:                            timedata.carNoSendTimer--;
+    0000B8 6A2000                 MOV.B       @_timedata+8:24,R0H
+           <000000>     
+    0000BE 6A2800                 MOV.B       @_timedata+9:24,R0L
+           <000000>     
+    0000C4 1B50                   DEC.W       #1,R0
+    0000C6 6AA000                 MOV.B       R0H,@_timedata+8:24
+           <000000>     
+    0000CC 6AA800                 MOV.B       R0L,@_timedata+9:24
+           <000000>     
+    0000D2              L60:                              
+                    78:                    }
+                    79:    
+                    80:                    if( timedata.mainActiveTimer ){
+    0000D2 6A2000                 MOV.B       @_timedata+10:24,R0H
+           <000000>     
+    0000D8 6A2800                 MOV.B       @_timedata+11:24,R0L
+           <000000>     
+    0000DE 0D00                   MOV.W       R0,R0
+    0000E0 471A                   BEQ         L61:8
+                    81:                            timedata.mainActiveTimer--;
+    0000E2 6A2000                 MOV.B       @_timedata+10:24,R0H
+           <000000>     
+    0000E8 6A2800                 MOV.B       @_timedata+11:24,R0L
+           <000000>     
+    0000EE 1B50                   DEC.W       #1,R0
+    0000F0 6AA000                 MOV.B       R0H,@_timedata+10:24
+           <000000>     
+    0000F6 6AA800                 MOV.B       R0L,@_timedata+11:24
+           <000000>     
+    0000FC              L61:                              
+                    82:                    }
+                    83:    }
+    0000FC 5470                   RTS
+                    84:    
+                    85:    /************************************************************************
+                    86:                                                                                                                                                    *
+                    87:            Function name   << timer_0_Initialize >>
+                    88:                                            初期設定
+                    89:            Syntax                  timer_0_Initialize( void );
+                    90:            Argument                none
+                    91:            Author                  TOA Corporation  K.Honda
+                    92:            Revision                a00 2000/08/07
+                    93:    
+                    94:    *************************************************************************/
+                    95:    void timer_0_Initialize( void )
+    0000FE              _timer_0_Initialize:             ; function: timer_0_Initialize
+                    96:    {
+                    97:                    /******* タイマー初期設定 *******/
+                    98:    
+                    99:                    /*** タイマー０のみ使用 ***/
+                   100:    
+                   101:                    IMIA0Jump = timer_0_Intr;
+    0000FE 7A00                   MOV.L       #_timer_0_Intr:32,ER0
+           <00000000>   
+    000104 01006BA000             MOV.L       ER0,@_IMIA0Jump:24
+           <000000>     
+                   102:    
+                   103:                    ITU0.TCR.BYTE = 0;
+    00010C 1888                   SUB.B       R0L,R0L
+    00010E 3864                   MOV.B       R0L,@16777060:8
+                   104:                    ITU0.TCR.BIT.CCLR = 1;          /* ＧＲＡカウントでクリア */
+    000110 2864                   MOV.B       @16777060:8,R0L
+    000112 E89F                   AND.B       #-97:8,R0L
+    000114 C820                   OR.B        #32:8,R0L
+    000116 3864                   MOV.B       R0L,@16777060:8
+                   105:                    ITU0.TCR.BIT.CKEG = 0;          /* クロックの裁ち上がりでカウント */
+    000118 2864                   MOV.B       @16777060:8,R0L
+    00011A E8E7                   AND.B       #-25:8,R0L
+    00011C 3864                   MOV.B       R0L,@16777060:8
+                   106:                    ITU0.TCR.BIT.TPSC = 2;          /* Φ／４クロック */
+    00011E 2864                   MOV.B       @16777060:8,R0L
+    000120 E8F8                   AND.B       #-8:8,R0L
+    000122 C802                   OR.B        #2:8,R0L
+    000124 3864                   MOV.B       R0L,@16777060:8
+                   107:                    ITU0.TIOR.BYTE = 0;                     /* コンペアマッチによる出力禁止 */
+    000126 1888                   SUB.B       R0L,R0L
+    000128 3865                   MOV.B       R0L,@16777061:8
+                   108:                    ITU0.TIER.BYTE = 0;
+    00012A 3866                   MOV.B       R0L,@16777062:8
+                   109:                    ITU0.TIER.BIT.IMIEA = 1;        /* ＩＭＦＡフラグによる割り込み */
+    00012C 7F667000               BSET.B      #0,@16777062:8
+                   110:                    ITU0.TSR.BYTE = 0;                      /* タイマーステータスクリア */
+    000130 3867                   MOV.B       R0L,@16777063:8
+                   111:    
+                   112:                    ITU0.TCNT = 0;                          /* カウンタークリア */
+    000132 79000000               MOV.W       #0:16,R0
+    000136 3068                   MOV.B       R0H,@16777064:8
+    000138 3869                   MOV.B       R0L,@16777065:8
+                   113:                                                                                    /* 14.7456MHz -> Φ
+                   114:                                                                                    Φ／４ = 3.6864MHz
+                   115:                                                                                    271.27uS
+                   116:                                                                                    10mS / 271.27uS = 0x9000
+                   117:                                                                            */
+                   118:                    ITU0.GRA = 0x9000;
+    00013A 79009000               MOV.W       #-28672:16,R0
+    00013E 306A                   MOV.B       R0H,@16777066:8
+    000140 386B                   MOV.B       R0L,@16777067:8
+                   119:    
+                   120:                    /** タイマースタート **/
+                   121:                    ITU.TSTR.BYTE = 0;
+    000142 1888                   SUB.B       R0L,R0L
+    000144 3860                   MOV.B       R0L,@16777056:8
+                   122:                    ITU.TSTR.BIT.STR0 = 1;
+    000146 7F607000               BSET.B      #0,@16777056:8
+                   123:                    ITU.TSNC.BYTE = 0;                      /*タイマー同期なし */
+    00014A 3861                   MOV.B       R0L,@16777057:8
+                   124:                    ITU.TSNC.BIT.SYNC4 = 0;
+    00014C 7F617240               BCLR.B      #4,@16777057:8
+                   125:                    ITU.TSNC.BIT.SYNC3 = 0;
+    000150 7F617230               BCLR.B      #3,@16777057:8
+                   126:                    ITU.TSNC.BIT.SYNC2 = 0;
+    000154 7F617220               BCLR.B      #2,@16777057:8
+                   127:                    ITU.TSNC.BIT.SYNC1 = 0;
+    000158 7F617210               BCLR.B      #1,@16777057:8
+                   128:                    ITU.TSNC.BIT.SYNC0 = 0;
+    00015C 7F617200               BCLR.B      #0,@16777057:8
+                   129:                    ITU.TMDR.BYTE = 0;                      /*位相計数なし*/
+    000160 3862                   MOV.B       R0L,@16777058:8
+                   130:                    ITU.TFCR.BYTE = 0;
+    000162 3863                   MOV.B       R0L,@16777059:8
+                   131:                    ITU.TOER.BYTE = 0;
+    000164 3890                   MOV.B       R0L,@16777104:8
+                   132:                    ITU.TOCR.BYTE = 0;
+    000166 3891                   MOV.B       R0L,@16777105:8
+                   133:    
+                   134:    }
+    000168 5470                   RTS
+                   135:    
+                   136:    
+                   137:    /*@@@E*/
+  B                                                      ; section
+    000000              _timedata:                       ; static: timedata
+    000000 0000000C               .RES.B      12
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:46  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x0000016A Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x0000000C Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x0000016A Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x0000000C Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000176 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        1 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        3 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         10 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\,..\dva2boot\inc\ .\src\dvatime.c -object=.\obj\dvatime.obj
+CPU         : 300ha:24

@@ -1,0 +1,1373 @@
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    1
+
+
+   0000          	;**********************************************************
+   0000          	;*  ＰＡＲＴＮＥＲ-ＥＴ(80)　モニタプログラム　Ver 1.02   *
+   0000          	;*      ＭＯＮ８０．ＡＳＭ				  *
+   0000          	;*      for CPU:8085/Z80/64180ｼﾘｰｽﾞ	                  *
+   0000          	;*							  *
+   0000          	;*   Copyright 1989 (c) 京都マイクロコンピュータ（株）	  *
+   0000          	;**********************************************************
+   0000          	;------------------------------------------------------------------------------
+   0000          	;          モニタプログラム本体（ＭＯＮ８０．ＥＰＴ）の作成法
+   0000          	;==============================================================================
+   0000          	; 作成方法
+   0000          	;
+   0000          	;	A>pp80 mon80.asm >mon80.src	････ プリプロセス(MON80.ASM->MON80.SRC)
+   0000          	;	A>ia80s				････ アセンブル	 (MON80.SRC->MON86.EPT)
+   0000          	;
+   0000          	; 注意：PARTNER-Tシリーズをすでにご使用のお客様は、モニタプログラムは
+   0000          	;       PARTNER-ET 専用のものが必要です。したがって、PARTNER-T用のモニタと
+   0000          	;       混在しないようにしてください。また、このソースを使って PARTNER-ET専用
+   0000          	;       のモニタを作成してください。
+   0000          	
+   0000          	;-----------------------------------------------------------------------------
+   0000          	;　　　　　　　  ユーザのカスタマイズ箇所
+   0000          	;=============================================================================
+   0000          	;  1.ユーザがカスタマイズする必要がある部分は『;++++++･････』で示されています。
+   0000          	;    不用意にその他の箇所を変更／削除／追加してはいけません。
+   0000          	;    また、このファイルを変更する場合は、必ずコピーしてからにしてください。
+   0000          	;　2.＜変更箇所１＞，＜変更箇所２＞がユーザが変更／追加する必要がある部分です。
+   0000          	;  3.＜変更箇所１＞は、指定されたシンボルをターゲットシステムに合わせて設定し
+   0000          	;    てください。
+   0000          	;  4.＜変更箇所２＞では、＜ＵＳＲＩＮＩＴ＞，＜ＵＳＲＧＯＲＴＮ＞，
+   0000          	;    ＜ＵＳＲＢＲＫＲＴＮ＞の合計３このルーチンを必要ならば記述してください。
+   0000          	;  5.ユーザカスタマイズルーチン内でデータ領域が必要な場合は、
+   0000          	;    ＜ユーザ用データ領域＞を使用してください。
+   0000          	;-----------------------------------------------------------------------------
+   0000          	
+   0000          	
+   0000          	;+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   0000          	;   変更箇所１：以下のシンボルを設定してください。
+   0000          	;+++++++++++++++++++++++++++++++++++++++++++++++++++++++
+   0000          	
+   0000          	;-------------- モニタのコードアドレスの設定 ---------------------------------
+   0000          	; MONADR ････ モニタの使用するコード領域の先頭アドレスを設定してください
+   0000          	;-----------------------------------------------------------------------------
+   3F00          	MONADR	equ	03f00h
+   0000          	
+   0000          	
+   0000          	;-------------- ターゲットＣＰＵの種類を指定します ---------------------------
+   0000          	; CPU85 ...... 8085ｼﾘｰｽﾞの場合 1 にセット
+   0000          	; CPUZ80 ..... Z80(TMPZ84)ｼﾘｰｽﾞの場合 1 にセット
+   0000          	; CPU180 ..... HD64180ｼﾘｰｽﾞの場合 1 にセット
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    2
+
+
+   0000          	; KC80 ....... KC80(KAWATETSU)の場合 1 にセット
+   0000          	; CPU1600 .... CPU1600(ROHM)の場合 1 にセット
+   0000          	;-----------------------------------------------------------------------------
+   0002          	CPUNO	equ	2
+   0000          	
+   0000          	
+   0000          	;-------------- モニタ動作時割り込み許可／禁止の設定 -------------------------
+   0000          	; MONSTID ････ モニタ動作中は割り込み禁止状態の場合 1 にセット
+   0000          	; MONSTIE ････ モニタ動作中は割り込み許可状態の場合 1 にセット
+   0000          	; MONSTIC ････ モニタ動作中はユーザプログラムの状態を引き継ぐの場合 1 にセット
+   0000          	;-----------------------------------------------------------------------------
+   0000          	
+   0000          	;=============================================================
+   0000          	;  この部分以降 <変更箇所２＞ までは、変更しないでください。
+   0000          	;=============================================================
+   0000          	
+   0000          	{r0}	macro
+   0000          	b	=	0
+   0000          	c	=	8
+   0000          	d	=	10h
+   0000          	e	=	18h
+   0000          	h	=	20h
+   0000          	l	=	28h
+   0000          	a	=	38h
+   0000          		endm
+   0000          	
+   0000          	{r1}	macro
+   0000          	b	=	0
+   0000          	c	=	8
+   0000          	d	=	10h
+   0000          	e	=	18h
+   0000          	h	=	20h
+   0000          	l	=	28h
+   0000          	(hl)	=	30h
+   0000          	a	=	38h
+   0000          		endm
+   0000          	
+   0000          	{d0}	macro
+   0000          	bc	=	4ch
+   0000          	de	=	5ch
+   0000          	hl	=	6ch
+   0000          	sp	=	7ch
+   0000          		endm
+   0000          	
+   0000          	<out0 (*),*> macro x,y
+   0000          		db	0edh,01h+{r0=y},x
+   0000          		endm
+   0000          	
+   0000          	<in0 *,(*)> macro x,y
+   0000          		db	0edh,{r0=x},y
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    3
+
+
+   0000          		endm
+   0000          	
+   3F45          	CMDRD	equ	MONADR+45h
+   3F40          	CLRNMI	equ	MONADR+40h
+   3F41          	STAT	equ	MONADR+41h
+   3F47          	RUNOFF	equ	MONADR+47h
+   3F46          	RUNON	equ	MONADR+46h
+   3F43          	CMDWR0	equ	MONADR+43h
+   3F42          	CMDWR1	equ	MONADR+42h
+   3F44          	CMDWRE  equ	MONADR+44h
+   0000          	
+   0000          		org	0
+   0000          		.phase	MONADR
+   3F00          	
+   3F00          	shadowbrk1 equ	$
+   3F00          	cmdstart equ	$
+   3F00 01       		db	01h		; Table Mark				/ 0h
+   3F01 02       		db	CPUNO		; CPUタイプ(0,1,2=8085,Z80,64180)	/ 1h
+   3F02 07       		db	7
+   3F03 003F     		dw	MONADR		; モニタのコードスタートアドレス	/ 3h
+   3F05 0000     		dw	0
+   3F07 D719     		dw	usrnmip+67h*40h-MONADR
+   3F09          					; ユーザＮＭＩ（ＴＲＡＰ）pachiアドレス / 7h
+   3F09 0D3F     		dw	nmientry	; NMI Entry point			/ 9h
+   3F0B 243F     		dw	bpret		; SOFT BP Entry(NON SHADOW)		/ bh
+   3F0D 003F     		dw	shadowentry	; NMI Entry point(LOW)			/ dh
+   3F0F 7D3F     		dw	shadow_high	; NMI Entry point(HIGH)			/ fh
+   3F11 0000     		dw	0
+   3F13          		.dephase
+   0013          	
+   0013          		org	CLRNMI-MONADR
+   0040 FF       		db	0ffh				;SOFTBRK*8+0c7h
+   0041          	
+   0041          		org	RUNON-MONADR
+   0046 C9       		ret
+   0047          	
+   0047          	;******************************************
+   0047          	;	コモンバンク
+   0047          	;******************************************
+   0047          	
+   0047          		org	48h
+   0048          		.phase	MONADR+48h
+   3F48          	
+   3F48          	mainlp:
+   3F48 21003F   		ld	hl,cmdstart
+   3F4B 00       		nop
+   3F4C          	
+   3F4C          	;---- 1Byte RX ----
+   3F4C          	getrs:
+   3F4C 3A413F   		ld	a,(STAT)
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    4
+
+
+   3F4F E608     		and	8
+   3F51 CA4C3F   		jp	z,getrs
+   3F54          	getrs1:
+   3F54 3A453F   		ld	a,(CMDRD)
+   3F57 E9       		jp	(hl)
+   3F58          	
+   3F58          	;---- 1Byte TX ----
+   3F58          	putrs:
+   3F58 0E08     		ld	c,8
+   3F5A 47       		ld	b,a
+   3F5B          	prsl:
+   3F5B 3A413F   		ld	a,(STAT)
+   3F5E E604     		and	4
+   3F60 CA5B3F   		jp	z,prsl
+   3F63          	prsl0:
+   3F63 78       		ld	a,b
+   3F64 17       		rla
+   3F65 47       		ld	b,a
+   3F66 DA6F3F   		jp	c,prs1
+   3F69 3A433F   		ld	a,(CMDWR0)
+   3F6C C3723F   		jp	prs2
+   3F6F          	prs1:
+   3F6F 3A423F   		ld	a,(CMDWR1)
+   3F72          	prs2:
+   3F72 0D       		dec	c
+   3F73 C2633F   		jp	nz,prsl0
+   3F76          	bnext:
+   3F76 3A443F   		ld	a,(CMDWRE)
+   3F79 E9       		jp	(hl)
+   3F7A          	
+   3F7A          		org	MONADR+7dh
+   3F7D          	shadow_high:
+   3F7D C3003F   		jp	shadowentry
+   3F80          	
+   3F80          	;******************************************
+   3F80          	;	PEEKB
+   3F80          	;******************************************
+   3F80          		.dephase
+   0080          		org	0200h
+   0200          		.phase	MONADR
+   3F00          	peekb:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_0
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_0:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_1
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_1:
+   3F0D 57       			ld	d,a
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    5
+
+
+   3F0E 1A       		ld	a,(de)
+   3F0F          	;	PUTB_MAIN
+   3F0F 21483F   			ld	hl,mainlp
+   3F12 C3583F   			jp	putrs
+   3F15          	
+   3F15          	;******************************************
+   3F15          	;	INPB
+   3F15          	;******************************************
+   3F15          		.dephase
+   0215          		org	0240h
+   0240          		.phase	MONADR
+   3F00          	
+   3F00          	;---- inportB -----
+   3F00          	inpb:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_2
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_2:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_3
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_3:
+   3F0D 57       			ld	d,a
+   3F0E          	
+   3F0E 42       		ld	b,d
+   3F0F 4B       		ld	c,e
+   3F10 ED78     		in	a,(c)
+   3F12          	;	PUTB_MAIN
+   3F12 21483F   			ld	hl,mainlp
+   3F15 C3583F   			jp	putrs
+   3F18          	
+   3F18          	
+   3F18          	;******************************************
+   3F18          	;	PEEKW
+   3F18          	;******************************************
+   3F18          		.dephase
+   0258          		org	0400h
+   0400          		.phase	MONADR
+   3F00          	peekw:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_4
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_4:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_5
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_5:
+   3F0D 57       			ld	d,a
+   3F0E 1A       		ld	a,(de)
+   3F0F          	;	PUTB
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    6
+
+
+   3F0F 21153F   			ld	hl,l_6
+   3F12 C3583F   			jp	putrs
+   3F15          			l_6:
+   3F15 13       		inc	de
+   3F16 1A       		ld	a,(de)
+   3F17          	;	PUTB_MAIN
+   3F17 21483F   			ld	hl,mainlp
+   3F1A C3583F   			jp	putrs
+   3F1D          	
+   3F1D          	;******************************************
+   3F1D          	;	POKEB
+   3F1D          	;******************************************
+   3F1D          		.dephase
+   041D          		org	0600h
+   0600          		.phase	MONADR
+   3F00          	pokeb:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_7
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_7:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_8
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_8:
+   3F0D 57       			ld	d,a
+   3F0E          	;	GETB
+   3F0E 21143F   			ld	hl,l_9
+   3F11 C34C3F   			jp	getrs
+   3F14          			l_9:
+   3F14 12       		ld	(de),a
+   3F15          	;	BANK_NEXT
+   3F15 21483F   			ld	hl,mainlp
+   3F18 C3763F   			jp	bnext
+   3F1B          	
+   3F1B          	
+   3F1B          	;******************************************
+   3F1B          	;	OUTB
+   3F1B          	;******************************************
+   3F1B          		.dephase
+   061B          		org	0640h
+   0640          		.phase	MONADR
+   3F00          	outpb:
+   3F00          	;	GETW			; DE <- addres
+   3F00 21063F   			ld	hl,l_10
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_10:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_11
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_11:
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    7
+
+
+   3F0D 57       			ld	d,a
+   3F0E          	;	GETB			; a <- data
+   3F0E 21143F   			ld	hl,l_12
+   3F11 C34C3F   			jp	getrs
+   3F14          			l_12:
+   3F14 42       		ld	b,d
+   3F15 4B       		ld	c,e
+   3F16 ED79     		out	(c),a
+   3F18          	;	BANK_NEXT
+   3F18 21483F   			ld	hl,mainlp
+   3F1B C3763F   			jp	bnext
+   3F1E          	
+   3F1E          	
+   3F1E          	;******************************************
+   3F1E          	;	POKEW
+   3F1E          	;******************************************
+   3F1E          		.dephase
+   065E          		org	0800h
+   0800          		.phase	MONADR
+   3F00          	pokew:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_13
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_13:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_14
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_14:
+   3F0D 57       			ld	d,a
+   3F0E          	;	GETB
+   3F0E 21143F   			ld	hl,l_15
+   3F11 C34C3F   			jp	getrs
+   3F14          			l_15:
+   3F14 12       		ld	(de),a
+   3F15 13       		inc	de
+   3F16          	;	GETB
+   3F16 211C3F   			ld	hl,l_16
+   3F19 C34C3F   			jp	getrs
+   3F1C          			l_16:
+   3F1C 12       		ld	(de),a
+   3F1D          	;	BANK_NEXT
+   3F1D 21483F   			ld	hl,mainlp
+   3F20 C3763F   			jp	bnext
+   3F23          	
+   3F23          	
+   3F23          	;******************************************
+   3F23          	;	GETBLK
+   3F23          	;******************************************
+   3F23          		.dephase
+   0823          		org	0a00h
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    8
+
+
+   0A00          		.phase	MONADR
+   3F00          	getblk:
+   3F00          	;	GETW		; DE <- addres
+   3F00 21063F   			ld	hl,l_17
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_17:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_18
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_18:
+   3F0D 57       			ld	d,a
+   3F0E          	gblklp:
+   3F0E 1A       		ld	a,(de)
+   3F0F 13       		inc	de
+   3F10          	;	PUTB
+   3F10 21163F   			ld	hl,l_19
+   3F13 C3583F   			jp	putrs
+   3F16          			l_19:
+   3F16          	;	GETB
+   3F16 211C3F   			ld	hl,l_20
+   3F19 C34C3F   			jp	getrs
+   3F1C          			l_20:
+   3F1C B7       		or	a
+   3F1D C20E3F   		jp	nz,gblklp
+   3F20          	;	BANK_NEXT
+   3F20 21483F   			ld	hl,mainlp
+   3F23 C3763F   			jp	bnext
+   3F26          	
+   3F26          	
+   3F26          	;******************************************
+   3F26          	;	PUTBLK
+   3F26          	;******************************************
+   3F26          		.dephase
+   0A26          		org	0c00h
+   0C00          		.phase	MONADR
+   3F00          	
+   3F00          	putblk:
+   3F00          	;	GETW		; DE <- address
+   3F00 21063F   			ld	hl,l_21
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_21:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_22
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_22:
+   3F0D 57       			ld	d,a
+   3F0E          	pblklp:
+   3F0E          	;	GETB
+   3F0E 21143F   			ld	hl,l_23
+   3F11 C34C3F   			jp	getrs
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE    9
+
+
+   3F14          			l_23:
+   3F14 12       		ld	(de),a
+   3F15 13       		inc	de
+   3F16          	;	GETB
+   3F16 211C3F   			ld	hl,l_24
+   3F19 C34C3F   			jp	getrs
+   3F1C          			l_24:
+   3F1C B7       		or	a
+   3F1D C20E3F   		jp	nz,pblklp
+   3F20          	;	BANK_NEXT
+   3F20 21483F   			ld	hl,mainlp
+   3F23 C3763F   			jp	bnext
+   3F26          	
+   3F26          	
+   3F26          	;******************************************
+   3F26          	;	SPSET
+   3F26          	;******************************************
+   3F26          		.dephase
+   0C26          		org	01400h
+   1400          		.phase	MONADR
+   3F00          	
+   3F00          	;	GETW
+   3F00 21063F   			ld	hl,l_25
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_25:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_26
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_26:
+   3F0D 57       			ld	d,a
+   3F0E EB       		ex	de,hl
+   3F0F F9       		ld	sp,hl		; USER STACK
+   3F10 3A403F   		ld	a,(CLRNMI)	; NMI Request CLR
+   3F13 3A473F   		ld	a,(RUNOFF)
+   3F16          	;	BANK_NEXT
+   3F16 21483F   			ld	hl,mainlp
+   3F19 C3763F   			jp	bnext
+   3F1C          	
+   3F1C          	
+   3F1C          	;******************************************
+   3F1C          	;	FLGSET
+   3F1C          	;******************************************
+   3F1C          		.dephase
+   141C          		org	01440h
+   1440          		.phase	MONADR
+   3F00          	flgset:
+   3F00          	;	GETB
+   3F00 21063F   			ld	hl,l_27
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_27:
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   10
+
+
+   3F06 B7       		or	a
+   3F07 CA0E3F   		jp	z,flgs1
+   3F0A FB       		ei
+   3F0B C30F3F   		jp	flgs2
+   3F0E          	flgs1:
+   3F0E F3       		di
+   3F0F          	flgs2:
+   3F0F          	;	BANK_NEXT
+   3F0F 21483F   			ld	hl,mainlp
+   3F12 C3763F   			jp	bnext
+   3F15          	
+   3F15          	;******************************************
+   3F15          	;	MMUGET_KC80
+   3F15          	;******************************************
+   3F15          		.dephase
+   1455          		org	01480h
+   1480          		.phase	MONADR
+   3F00          	mmuget_kc80:
+   3F00          	
+   3F00 010000   		ld	bc,0
+   3F03          	mmg_kc0:
+   3F03 ED78     		in	a,(c)
+   3F05 D9       		exx
+   3F06          	;	PUTB
+   3F06 210C3F   			ld	hl,l_28
+   3F09 C3583F   			jp	putrs
+   3F0C          			l_28:
+   3F0C D9       		exx
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE07     		cp	7
+   3F11 20F0     		jr	nz,mmg_kc0
+   3F13 ED78     		in	a,(c)
+   3F15          	;	PUTB_MAIN
+   3F15 21483F   			ld	hl,mainlp
+   3F18 C3583F   			jp	putrs
+   3F1B          	
+   3F1B          	;******************************************
+   3F1B          	;	MMUSET_KC80
+   3F1B          	;******************************************
+   3F1B          		.dephase
+   149B          		org	014c0h
+   14C0          		.phase	MONADR
+   3F00          	mmuset_kc80:
+   3F00          	
+   3F00 010000   		ld	bc,0
+   3F03          	mms_kc0:
+   3F03 D9       		exx
+   3F04          	;	GETB
+   3F04 210A3F   			ld	hl,l_29
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   11
+
+
+   3F07 C34C3F   			jp	getrs
+   3F0A          			l_29:
+   3F0A D9       		exx
+   3F0B ED79     		out	(c),a
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE08     		cp	8
+   3F11 20F0     		jr	nz,mms_kc0
+   3F13          	;	BANK_NEXT
+   3F13 21483F   			ld	hl,mainlp
+   3F16 C3763F   			jp	bnext
+   3F19          	
+   3F19          	;******************************************
+   3F19          	;	MMUGET_64180
+   3F19          	;******************************************
+   3F19          		.dephase
+   14D9          		org	01500h
+   1500          		.phase	MONADR
+   3F00          	mmuget_64180:
+   3F00          	
+   3F00 013800   		ld	bc,38h
+   3F03          	mmg_640:
+   3F03 ED78     		in	a,(c)
+   3F05 D9       		exx
+   3F06          	;	PUTB
+   3F06 210C3F   			ld	hl,l_30
+   3F09 C3583F   			jp	putrs
+   3F0C          			l_30:
+   3F0C D9       		exx
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE3A     		cp	38h+2
+   3F11 20F0     		jr	nz,mmg_640
+   3F13 ED78     		in	a,(c)
+   3F15          	;	PUTB_MAIN
+   3F15 21483F   			ld	hl,mainlp
+   3F18 C3583F   			jp	putrs
+   3F1B          	
+   3F1B          	;******************************************
+   3F1B          	;	MMUSET_64180
+   3F1B          	;******************************************
+   3F1B          		.dephase
+   151B          		org	01540h
+   1540          		.phase	MONADR
+   3F00          	mmuset_64180:
+   3F00          	
+   3F00 013800   		ld	bc,38h
+   3F03          	mms_640:
+   3F03 D9       		exx
+   3F04          	;	GETB
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   12
+
+
+   3F04 210A3F   			ld	hl,l_31
+   3F07 C34C3F   			jp	getrs
+   3F0A          			l_31:
+   3F0A D9       		exx
+   3F0B ED79     		out	(c),a
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE3B     		cp	38h+3
+   3F11 20F0     		jr	nz,mms_640
+   3F13          	;	BANK_NEXT
+   3F13 21483F   			ld	hl,mainlp
+   3F16 C3763F   			jp	bnext
+   3F19          	
+   3F19          	;******************************************
+   3F19          	;	MMUGET_64180S
+   3F19          	;******************************************
+   3F19          		.dephase
+   1559          		org	01580h
+   1580          		.phase	MONADR
+   3F00          	mmuget_64180S:
+   3F00          	
+   3F00 010100   		ld	bc,1h
+   3F03          	mmg_640S:
+   3F03 ED78     		in	a,(c)
+   3F05 D9       		exx
+   3F06          	;	PUTB
+   3F06 210C3F   			ld	hl,l_32
+   3F09 C3583F   			jp	putrs
+   3F0C          			l_32:
+   3F0C D9       		exx
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE03     		cp	1h+2
+   3F11 20F0     		jr	nz,mmg_640S
+   3F13 ED78     		in	a,(c)
+   3F15          	;	PUTB_MAIN
+   3F15 21483F   			ld	hl,mainlp
+   3F18 C3583F   			jp	putrs
+   3F1B          	
+   3F1B          	;******************************************
+   3F1B          	;	MMUSET_64180S
+   3F1B          	;******************************************
+   3F1B          		.dephase
+   159B          		org	015c0h
+   15C0          		.phase	MONADR
+   3F00          	mmuset_64180S:
+   3F00          	
+   3F00 010100   		ld	bc,1h
+   3F03          	mms_640S:
+   3F03 D9       		exx
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   13
+
+
+   3F04          	;	GETB
+   3F04 210A3F   			ld	hl,l_33
+   3F07 C34C3F   			jp	getrs
+   3F0A          			l_33:
+   3F0A D9       		exx
+   3F0B ED79     		out	(c),a
+   3F0D 0C       		inc	c
+   3F0E 79       		ld	a,c
+   3F0F FE04     		cp	1h+3
+   3F11 20F0     		jr	nz,mms_640S
+   3F13          	;	BANK_NEXT
+   3F13 21483F   			ld	hl,mainlp
+   3F16 C3763F   			jp	bnext
+   3F19          	
+   3F19          	;******************************************
+   3F19          	;	GCMD
+   3F19          	;******************************************
+   3F19          		.dephase
+   15D9          		org	01800h
+   1800          		.phase	MONADR
+   3F00          	
+   3F00          	gcmd:
+   3F00          	;================＜ＵＳＲＧＯＲＴＮ＞===================
+   3F00          	; Ｇコマンド等でユーザプログラムが実行される直前に
+   3F00          	; このルーチンが呼ばれます。ユーザプログラム実行前に
+   3F00          	; インタバルタイマ等のハードをスタートしたい時に
+   3F00          	; この部分に記述してください。通常は何も記述しなくて
+   3F00          	; 結構です。
+   3F00          	; ＳＰ以外のレジスタの保存は必要ありません。
+   3F00          	; この部分で割り込みを禁止しておけば、ユーザプログラム
+   3F00          	; に制御が移るまで割り込み禁止で走ります。
+   3F00          	;========================================================
+   3F00          	usrgortn:
+   3F00          	;
+   3F00          	; この部分に処理ルーチンを記述します。
+   3F00          	;
+   3F00          	
+   3F00          	;-----------------------------------------------
+   3F00          	
+   3F00          	;	BANK_NEXT
+   3F00 21483F   			ld	hl,mainlp
+   3F03 C3763F   			jp	bnext
+   3F06          	
+   3F06          		.dephase
+   1806          		org	01840h
+   1840          		.phase	MONADR
+   3F00          	gcmd1:
+   3F00 F3       		di
+   3F01          	;	GETW
+   3F01 21073F   			ld	hl,l_34
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   14
+
+
+   3F04 C34C3F   			jp	getrs
+   3F07          			l_34:
+   3F07 5F       			ld	e,a
+   3F08 210E3F   			ld	hl,l_35
+   3F0B C34C3F   			jp	getrs
+   3F0E          			l_35:
+   3F0E 57       			ld	d,a
+   3F0F EB       		ex	de,hl
+   3F10 F9       		ld	sp,hl		; USER STACK
+   3F11          	;	GETW
+   3F11 21173F   			ld	hl,l_36
+   3F14 C34C3F   			jp	getrs
+   3F17          			l_36:
+   3F17 5F       			ld	e,a
+   3F18 211E3F   			ld	hl,l_37
+   3F1B C34C3F   			jp	getrs
+   3F1E          			l_37:
+   3F1E 57       			ld	d,a
+   3F1F D5       		push	de		; PC
+   3F20          	;	GETW
+   3F20 21263F   			ld	hl,l_38
+   3F23 C34C3F   			jp	getrs
+   3F26          			l_38:
+   3F26 5F       			ld	e,a
+   3F27 212D3F   			ld	hl,l_39
+   3F2A C34C3F   			jp	getrs
+   3F2D          			l_39:
+   3F2D 57       			ld	d,a
+   3F2E D5       		push	de		; AF
+   3F2F          	;	BANK_NEXT
+   3F2F 21483F   			ld	hl,mainlp
+   3F32 C3763F   			jp	bnext
+   3F35          	
+   3F35          	
+   3F35          		.dephase
+   1875          		org	01880h
+   1880          		.phase	MONADR
+   3F00          	;	GETW			; AF'
+   3F00 21063F   			ld	hl,l_40
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_40:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_41
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_41:
+   3F0D 57       			ld	d,a
+   3F0E D5       		push	de
+   3F0F F1       		pop	af
+   3F10 08       		ex	af,af'
+   3F11          	;	GETW			; BC'
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   15
+
+
+   3F11 21173F   			ld	hl,l_42
+   3F14 C34C3F   			jp	getrs
+   3F17          			l_42:
+   3F17 5F       			ld	e,a
+   3F18 211E3F   			ld	hl,l_43
+   3F1B C34C3F   			jp	getrs
+   3F1E          			l_43:
+   3F1E 57       			ld	d,a
+   3F1F D5       		push	de
+   3F20 C1       		pop	bc
+   3F21 D9       		exx
+   3F22          	;	GETW			; DE'
+   3F22 21283F   			ld	hl,l_44
+   3F25 C34C3F   			jp	getrs
+   3F28          			l_44:
+   3F28 5F       			ld	e,a
+   3F29 212F3F   			ld	hl,l_45
+   3F2C C34C3F   			jp	getrs
+   3F2F          			l_45:
+   3F2F 57       			ld	d,a
+   3F30 D5       		push	de
+   3F31 D9       		exx
+   3F32 D1       		pop	de
+   3F33 D9       		exx
+   3F34          	;	BANK_NEXT
+   3F34 21483F   			ld	hl,mainlp
+   3F37 C3763F   			jp	bnext
+   3F3A          	
+   3F3A          	
+   3F3A          		.dephase
+   18BA          		org	018c0h
+   18C0          		.phase	MONADR
+   3F00          	;	GETW			; HL
+   3F00 21063F   			ld	hl,l_46
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_46:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_47
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_47:
+   3F0D 57       			ld	d,a
+   3F0E D5       		push	de
+   3F0F D9       		exx
+   3F10 E1       		pop	hl
+   3F11 D9       		exx
+   3F12          	;	GETW			; IX
+   3F12 21183F   			ld	hl,l_48
+   3F15 C34C3F   			jp	getrs
+   3F18          			l_48:
+   3F18 5F       			ld	e,a
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   16
+
+
+   3F19 211F3F   			ld	hl,l_49
+   3F1C C34C3F   			jp	getrs
+   3F1F          			l_49:
+   3F1F 57       			ld	d,a
+   3F20 D5       		push	de
+   3F21 DDE1     		pop	ix
+   3F23          	;	GETW			; IY
+   3F23 21293F   			ld	hl,l_50
+   3F26 C34C3F   			jp	getrs
+   3F29          			l_50:
+   3F29 5F       			ld	e,a
+   3F2A 21303F   			ld	hl,l_51
+   3F2D C34C3F   			jp	getrs
+   3F30          			l_51:
+   3F30 57       			ld	d,a
+   3F31 D5       		push	de
+   3F32 FDE1     		pop	iy
+   3F34          	;	BANK_NEXT
+   3F34 21483F   			ld	hl,mainlp
+   3F37 C3763F   			jp	bnext
+   3F3A          	
+   3F3A          	
+   3F3A          		.dephase
+   18FA          		org	01900h
+   1900          		.phase	MONADR
+   3F00          	
+   3F00          	;	GETW			; BC
+   3F00 21063F   			ld	hl,l_52
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_52:
+   3F06 5F       			ld	e,a
+   3F07 210D3F   			ld	hl,l_53
+   3F0A C34C3F   			jp	getrs
+   3F0D          			l_53:
+   3F0D 57       			ld	d,a
+   3F0E D5       		push	de
+   3F0F          	;	GETW			; HL
+   3F0F 21153F   			ld	hl,l_54
+   3F12 C34C3F   			jp	getrs
+   3F15          			l_54:
+   3F15 5F       			ld	e,a
+   3F16 211C3F   			ld	hl,l_55
+   3F19 C34C3F   			jp	getrs
+   3F1C          			l_55:
+   3F1C 57       			ld	d,a
+   3F1D D5       		push	de
+   3F1E          	;	GETW			; DE
+   3F1E 21243F   			ld	hl,l_56
+   3F21 C34C3F   			jp	getrs
+   3F24          			l_56:
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   17
+
+
+   3F24 5F       			ld	e,a
+   3F25 212B3F   			ld	hl,l_57
+   3F28 C34C3F   			jp	getrs
+   3F2B          			l_57:
+   3F2B 57       			ld	d,a
+   3F2C          	;	BANK_NEXT
+   3F2C 21483F   			ld	hl,mainlp
+   3F2F C3763F   			jp	bnext
+   3F32          	
+   3F32          	
+   3F32          		.dephase
+   1932          		org	01940h
+   1940          		.phase	MONADR
+   3F00          	
+   3F00          	;	GETB
+   3F00 21063F   			ld	hl,l_58
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_58:
+   3F06 ED47     		ld	i,a
+   3F08          	;	GETB
+   3F08 210E3F   			ld	hl,l_59
+   3F0B C34C3F   			jp	getrs
+   3F0E          			l_59:
+   3F0E 47       		ld	b,a
+   3F0F          	;	BANK_NEXT
+   3F0F 21483F   			ld	hl,mainlp
+   3F12 C3763F   			jp	bnext
+   3F15          	
+   3F15          	
+   3F15          		.dephase
+   1955          		org	01980h
+   1980          		.phase	MONADR
+   3F00          	
+   3F00          	;	GETB
+   3F00 21063F   			ld	hl,l_60
+   3F03 C34C3F   			jp	getrs
+   3F06          			l_60:
+   3F06 ED47     		ld	i,a
+   3F08          	;	GETB
+   3F08 210E3F   			ld	hl,l_61
+   3F0B C34C3F   			jp	getrs
+   3F0E          			l_61:
+   3F0E 47       		ld	b,a
+   3F0F 212E3F   		ld	hl,shadow_gcmd
+   3F12 3A443F   		ld	a,(CMDWRE)
+   3F15 C34C3F   			jp	getrs
+   3F18          	
+   3F18          	
+   3F18          	;************************
+   3F18          	;****** NON SHADOW ******
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   18
+
+
+   3F18          	;************************
+   3F18          		.dephase
+   1998          		org	019c0h
+   19C0          		.phase	MONADR
+   3F00          	
+   3F00 AF       		xor	a
+   3F01 B0       		or	b
+   3F02 3A463F   		ld	a,(RUNON)		; @ i 1994.4.14
+   3F05 CA093F   		jp	z,1$
+   3F08 FB       		ei
+   3F09          	1$:
+   3F09 E1       		pop	hl
+   3F0A C1       		pop	bc
+   3F0B          	;	ld	a,(RUNON)		; @@@ d 1994.4.14
+   3F0B F1       		pop	af
+   3F0C C9       		ret
+   3F0D          	
+   3F0D          	nmientry:
+   3F0D F5       		push	af
+   3F0E 3A413F   		ld	a,(STAT)		; HOST_NMI(Break)
+   3F11 E602     		and	2			; Check HOST_NMI(Break)
+   3F13 C21A3F   		jp	nz,nmibrk
+   3F16          	;-- User NMI --
+   3F16 F1       		pop	af
+   3F17          	usrnmip:
+   3F17 C30000   		jp	0			; jmp to USR NMI
+   3F1A          	
+   3F1A          	nmibrk:
+   3F1A 3A403F   		ld	a,(CLRNMI)		; NMI Request CLR
+   3F1D 3A473F   		ld	a,(RUNOFF)
+   3F20          	
+   3F20 3E01     		ld	a,1
+   3F22 1813     		jr	next_brk
+   3F24          	
+   3F24          	;===== Break/Step End Entry =====
+   3F24          	bpret:
+   3F24 F5       		push	af
+   3F25 3A473F   		ld	a,(RUNOFF)
+   3F28          	;--eidichk--
+   3F28 ED57     		ld	a,i
+   3F2A EA343F   		jp	pe,1$		; EI
+   3F2D ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F2F EA343F   		jp	pe,1$		; EI
+   3F32 ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F34          	1$:
+   3F34 F3       		di
+   3F35 F5       		push	af		; I_MASK & (CY=0 not NMI)
+   3F36 AF       		xor	a
+   3F37          	next_brk:
+   3F37 C5       		push	bc
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   19
+
+
+   3F38 E5       		push	hl
+   3F39          	;	PUTB_MAIN
+   3F39 21483F   			ld	hl,mainlp
+   3F3C C3583F   			jp	putrs
+   3F3F          	
+   3F3F          	
+   3F3F          	;********************
+   3F3F          	;****** SHADOW ******
+   3F3F          	;********************
+   3F3F          		.dephase
+   19FF          		org	01a00h
+   1A00          		.phase	MONADR
+   3F00          	
+   3F00          	shadowentry:
+   3F00          	;--- NMI entry ---
+   3F00 F5       		push	af
+   3F01 3A413F   		ld	a,(STAT)		; HOST_NMI(Break)
+   3F04 E602     		and	2			; Check HOST_NMI(Break)
+   3F06 CA143F   		jp	z,shadow_sbrk
+   3F09          	
+   3F09 3A473F   		ld	a,(RUNOFF)
+   3F0C 3A403F   		ld	a,(CLRNMI)		; NMI Request CLR
+   3F0F 3E01     		ld	a,1
+   3F11 C3263F   		jp	shadow_next
+   3F14          	
+   3F14          	;===== Break/Step End Entry =====
+   3F14          	shadow_sbrk:
+   3F14 3A473F   		ld	a,(RUNOFF)
+   3F17          	;--eidichk--
+   3F17 ED57     		ld	a,i
+   3F19 EA233F   		jp	pe,1$		; EI
+   3F1C ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F1E EA233F   		jp	pe,1$		; EI
+   3F21 ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F23          	1$:
+   3F23 F3       		di
+   3F24 F5       		push	af		; I_MASK & (CY=0 not NMI)
+   3F25 AF       		xor	a
+   3F26          	shadow_next:
+   3F26 C5       		push	bc
+   3F27 E5       		push	hl
+   3F28          	;	PUTB_MAIN
+   3F28 21483F   			ld	hl,mainlp
+   3F2B C3583F   			jp	putrs
+   3F2E          	
+   3F2E          	shadow_gcmd:
+   3F2E AF       		xor	a
+   3F2F B0       		or	b
+   3F30 CA343F   		jp	z,1$
+   3F33 FB       		ei
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   20
+
+
+   3F34          	1$:
+   3F34 E1       		pop	hl
+   3F35 C1       		pop	bc
+   3F36 3E42     		ld	a,RUNON-4
+   3F38 ED4F     		ld	r,a
+   3F3A F1       		pop	af
+   3F3B C3463F   		jp	RUNON
+   3F3E          	
+   3F3E          	
+   3F3E          	;******************************************
+   3F3E          	;	BREAK
+   3F3E          	;******************************************
+   3F3E          		.dephase
+   1A3E          		org	01c00h
+   1C00          		.phase	MONADR
+   3F00          	
+   3F00          	;--eidichk--
+   3F00 ED57     		ld	a,i
+   3F02 EA0C3F   		jp	pe,eidiend	; EI
+   3F05 ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F07 EA0C3F   		jp	pe,eidiend	; EI
+   3F0A ED57     		ld	a,i		; retry for Z80/64180R0 Bug
+   3F0C          	eidiend:
+   3F0C F5       		push	af		; I_reg & EI/DI
+   3F0D          	;	PUTW			; DE
+   3F0D 7B       			ld	a,e
+   3F0E 21143F   			ld	hl,l_62
+   3F11 C3583F   			jp	putrs
+   3F14          			l_62:
+   3F14 7A       			ld	a,d
+   3F15 211B3F   			ld	hl,l_63
+   3F18 C3583F   			jp	putrs
+   3F1B          			l_63:
+   3F1B D1       		pop	de
+   3F1C          	;	PUTW_MAIN		; IM
+   3F1C 7B       			ld	a,e
+   3F1D 21233F   			ld	hl,l_64
+   3F20 C3583F   			jp	putrs
+   3F23          			l_64:
+   3F23 7A       			ld	a,d
+   3F24 21483F   			ld	hl,mainlp
+   3F27 C3583F   			jp	putrs
+   3F2A          	
+   3F2A          	
+   3F2A          		.dephase
+   1C2A          		org	01c40h
+   1C40          		.phase	MONADR
+   3F00          	
+   3F00 3A473F   		ld	a,(RUNOFF)	; for intr.
+   3F03          	;	PUTW			; DE
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   21
+
+
+   3F03 7B       			ld	a,e
+   3F04 210A3F   			ld	hl,l_65
+   3F07 C3583F   			jp	putrs
+   3F0A          			l_65:
+   3F0A 7A       			ld	a,d
+   3F0B 21113F   			ld	hl,l_66
+   3F0E C3583F   			jp	putrs
+   3F11          			l_66:
+   3F11 E1       		pop	hl
+   3F12 C1       		pop	bc
+   3F13 D1       		pop	de
+   3F14 C5       		push	bc
+   3F15 E5       		push	hl
+   3F16          	;	PUTW_MAIN		; IM
+   3F16 7B       			ld	a,e
+   3F17 211D3F   			ld	hl,l_67
+   3F1A C3583F   			jp	putrs
+   3F1D          			l_67:
+   3F1D 7A       			ld	a,d
+   3F1E 21483F   			ld	hl,mainlp
+   3F21 C3583F   			jp	putrs
+   3F24          	
+   3F24          	
+   3F24          		.dephase
+   1C64          		org	01c80h
+   1C80          		.phase	MONADR
+   3F00          	
+   3F00 D1       		pop	de
+   3F01          	;	PUTW			; HL
+   3F01 7B       			ld	a,e
+   3F02 21083F   			ld	hl,l_68
+   3F05 C3583F   			jp	putrs
+   3F08          			l_68:
+   3F08 7A       			ld	a,d
+   3F09 210F3F   			ld	hl,l_69
+   3F0C C3583F   			jp	putrs
+   3F0F          			l_69:
+   3F0F D1       		pop	de
+   3F10          	;	PUTW			; BC
+   3F10 7B       			ld	a,e
+   3F11 21173F   			ld	hl,l_70
+   3F14 C3583F   			jp	putrs
+   3F17          			l_70:
+   3F17 7A       			ld	a,d
+   3F18 211E3F   			ld	hl,l_71
+   3F1B C3583F   			jp	putrs
+   3F1E          			l_71:
+   3F1E D1       		pop	de
+   3F1F          	;	PUTW_MAIN		; AF
+   3F1F 7B       			ld	a,e
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   22
+
+
+   3F20 21263F   			ld	hl,l_72
+   3F23 C3583F   			jp	putrs
+   3F26          			l_72:
+   3F26 7A       			ld	a,d
+   3F27 21483F   			ld	hl,mainlp
+   3F2A C3583F   			jp	putrs
+   3F2D          	
+   3F2D          	
+   3F2D          		.dephase
+   1CAD          		org	01cc0h
+   1CC0          		.phase	MONADR
+   3F00          	
+   3F00 D1       		pop	de
+   3F01          	;	PUTW			; PC
+   3F01 7B       			ld	a,e
+   3F02 21083F   			ld	hl,l_73
+   3F05 C3583F   			jp	putrs
+   3F08          			l_73:
+   3F08 7A       			ld	a,d
+   3F09 210F3F   			ld	hl,l_74
+   3F0C C3583F   			jp	putrs
+   3F0F          			l_74:
+   3F0F 210000   		ld	hl,0
+   3F12 39       		add	hl,sp
+   3F13 EB       		ex	de,hl
+   3F14          	;	PUTW			; SP
+   3F14 7B       			ld	a,e
+   3F15 211B3F   			ld	hl,l_75
+   3F18 C3583F   			jp	putrs
+   3F1B          			l_75:
+   3F1B 7A       			ld	a,d
+   3F1C 21223F   			ld	hl,l_76
+   3F1F C3583F   			jp	putrs
+   3F22          			l_76:
+   3F22          	;	GETB			; IEF
+   3F22 21283F   			ld	hl,l_77
+   3F25 C34C3F   			jp	getrs
+   3F28          			l_77:
+   3F28 F3       		di
+   3F29          	;	BANK_NEXT
+   3F29 21483F   			ld	hl,mainlp
+   3F2C C3763F   			jp	bnext
+   3F2F          	
+   3F2F          	
+   3F2F          		.dephase
+   1CEF          		org	01d00h
+   1D00          		.phase	MONADR
+   3F00          	
+   3F00 08       		ex	af,af'
+   3F01 F5       		push	af
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   23
+
+
+   3F02 D1       		pop	de
+   3F03          	;	PUTW			; AF'
+   3F03 7B       			ld	a,e
+   3F04 210A3F   			ld	hl,l_78
+   3F07 C3583F   			jp	putrs
+   3F0A          			l_78:
+   3F0A 7A       			ld	a,d
+   3F0B 21113F   			ld	hl,l_79
+   3F0E C3583F   			jp	putrs
+   3F11          			l_79:
+   3F11 D9       		exx
+   3F12 C5       		push	bc
+   3F13 D9       		exx
+   3F14 D1       		pop	de
+   3F15          	;	PUTW			; BC'
+   3F15 7B       			ld	a,e
+   3F16 211C3F   			ld	hl,l_80
+   3F19 C3583F   			jp	putrs
+   3F1C          			l_80:
+   3F1C 7A       			ld	a,d
+   3F1D 21233F   			ld	hl,l_81
+   3F20 C3583F   			jp	putrs
+   3F23          			l_81:
+   3F23 D9       		exx
+   3F24 D5       		push	de
+   3F25 D9       		exx
+   3F26 D1       		pop	de
+   3F27          	;	PUTW_MAIN		; DE
+   3F27 7B       			ld	a,e
+   3F28 212E3F   			ld	hl,l_82
+   3F2B C3583F   			jp	putrs
+   3F2E          			l_82:
+   3F2E 7A       			ld	a,d
+   3F2F 21483F   			ld	hl,mainlp
+   3F32 C3583F   			jp	putrs
+   3F35          	;	BANK_NEXT
+   3F35 21483F   			ld	hl,mainlp
+   3F38 C3763F   			jp	bnext
+   3F3B          	
+   3F3B          		.dephase
+   1D3B          		org	01d40h
+   1D40          		.phase	MONADR
+   3F00          	
+   3F00 D9       		exx
+   3F01 E5       		push	hl
+   3F02 D9       		exx
+   3F03 D1       		pop	de
+   3F04          	;	PUTW			; HL'
+   3F04 7B       			ld	a,e
+   3F05 210B3F   			ld	hl,l_83
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   24
+
+
+   3F08 C3583F   			jp	putrs
+   3F0B          			l_83:
+   3F0B 7A       			ld	a,d
+   3F0C 21123F   			ld	hl,l_84
+   3F0F C3583F   			jp	putrs
+   3F12          			l_84:
+   3F12 DDE5     		push	ix
+   3F14 D1       		pop	de
+   3F15          	;	PUTW			; IX
+   3F15 7B       			ld	a,e
+   3F16 211C3F   			ld	hl,l_85
+   3F19 C3583F   			jp	putrs
+   3F1C          			l_85:
+   3F1C 7A       			ld	a,d
+   3F1D 21233F   			ld	hl,l_86
+   3F20 C3583F   			jp	putrs
+   3F23          			l_86:
+   3F23 FDE5     		push	iy
+   3F25 D1       		pop	de
+   3F26          	;	PUTW_MAIN		; IY
+   3F26 7B       			ld	a,e
+   3F27 212D3F   			ld	hl,l_87
+   3F2A C3583F   			jp	putrs
+   3F2D          			l_87:
+   3F2D 7A       			ld	a,d
+   3F2E 21483F   			ld	hl,mainlp
+   3F31 C3583F   			jp	putrs
+   3F34          	
+   3F34          	
+   3F34          		.dephase
+   1D74          		org	01d80h
+   1D80          		.phase	MONADR
+   3F00          	;================＜ＵＳＲＢＲＫＲＴＮ＞=======================
+   3F00          	; ユーザプログラムがブレークした直後にこのルーチン
+   3F00          	; が呼ばれます。ユーザプログラムブレーク後に
+   3F00          	; インタバルタイマ等のハードをストップしたい時に
+   3F00          	; この部分に記述してください。通常何も記述しなくて結構です。
+   3F00          	; ＳＰ以外のレジスタの保存は必要ありません。
+   3F00          	;=============================================================
+   3F00          	
+   3F00          	usrbrkrtn:
+   3F00          	;
+   3F00          	; この部分に処理ルーチンを記述します。
+   3F00          	;
+   3F00          	;	BANK_NEXT
+   3F00 21483F   			ld	hl,mainlp
+   3F03 C3763F   			jp	bnext
+   3F06          	
+   3F06          	;******************************************
+   3F06          	;	USER INIT2
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   25
+
+
+   3F06          	;******************************************
+   3F06          		.dephase
+   1D86          		org	01f40h
+   1F40          		.phase	MONADR
+   3F00          	
+   3F00          	;==========＜ＵＳＲＩＮＩＴ２＞================================
+   3F00          	; ターゲットシステムの初期化ルーチンを記述します。
+   3F00          	; この領域には、USRINIT1で記述しきれなかったルーチンを書いてください
+   3F00          	;--------------------------------------------------------------
+   3F00          	;
+   3F00          	USRINIT2:			; 変更禁止
+   3F00          	;
+   3F00          	; USRINIT1に全ての初期化ルーチンが記述できなかった場合は、
+   3F00          	; 残りのルーチンをこの部分に書き加えてください。
+   3F00          	; 初期化ルーチンは USRINIT1 , USRINIT2 の順で実行されます。
+   3F00          	;
+   3F00          	
+   3F00          	;-------------------------------------
+   3F00          	; この行より下は変更禁止
+   3F00          	;-------------------------------------
+   3F00          	;	BANK_NEXT
+   3F00 21483F   			ld	hl,mainlp
+   3F03 C3763F   			jp	bnext
+   3F06          	
+   3F06          	;******************************************
+   3F06          	;	USER INIT1
+   3F06          	;******************************************
+   3F06          		.dephase
+   1F46          		org	01f80h
+   1F80          		.phase	MONADR
+   3F00          	
+   3F00          	;==========＜ＵＳＲＩＮＩＴ＞================================
+   3F00          	; ターゲットシステムの初期化ルーチン
+   3F00          	; モニタプログラムが動作できるための最低限の初期化
+   3F00          	; を行なってください。
+   3F00          	; 例えば、
+   3F00          	;  1.ＤＲＡＭのリフレシュコントローラの初期化(64180etc.)
+   3F00          	;  2.ＷＡＩＴコントローラの初期化(64180etc.)
+   3F00          	;  3.その他必要なハードウェアの最低限の初期化
+   3F00          	; レジスタの保存は必要ありません。
+   3F00          	;
+   3F00          	; 初期化ルーチンを記述する領域はUSRINI1とUSRINIT2の２ヶ所あります 
+   3F00          	; USRINIT1(この部分)に記述できるバイト数は37Hバイトです。もし、この領域に
+   3F00          	; すべてのコードが記述できない場合はUSRINIT2に分けて書いてください。
+   3F00          	;============================================================
+   3F00          	USRINIT:
+   3F00          	;----------------------------------------
+   3F00          	; この部分に初期化ルーチンを書き加えます
+   3F00          	;----------------------------------------
+   3F00          	;-------- 64180 Sample (0WAIT , No Refresh) -------
+	IA80S Ver. 1.0 (C) 1992 by IWASAKI/K.M.CPAGE   26
+
+
+   3F00 AF       		xor	a
+   3F01          		out0	(32h),a
+   3F01 ED3932  +		db	0edh,01h+{r0=A},(32H)
+   3F04          		out0	(36h),a
+   3F04 ED3936  +		db	0edh,01h+{r0=A},(36H)
+   3F07          	
+   3F07 3EC8     		ld	a,0c8h		; BANK_LOW .. 0x4000 , COMMON_LOW .. 0xc000
+   3F09          		out0	(3ah),a
+   3F09 ED393A  +		db	0edh,01h+{r0=A},(3AH)
+   3F0C          	
+   3F0C 3E14     		ld	a,14h		; 0x3c000 - 0xc000 = 0x30000 ( COMMON BASE )
+   3F0E          		out0	(38h),a
+   3F0E ED3938  +		db	0edh,01h+{r0=A},(38H)
+   3F11          	;-------------------------------------------------
+   3F11          	;--------- TMPZ84C015BF --------------------------
+   3F11          	;	LD	A,03h
+   3F11          	;	OUT	(0F0h),A
+   3F11          	;	LD	A,0B1h
+   3F11          	;	OUT	(0F1h),A
+   3F11          	;
+   3F11          	;======== KC80 Sample (NMI,MMU) ===========
+   3F11          	;	ld	a,0fh		; B1 = 0f ( 0x4000 )
+   3F11          	;	out	(00h),a
+   3F11          	;	ld	a,032h		; B4 = 32 ( 0xCC00 )
+   3F11          	;	out	(06h),a
+   3F11          	;	ld	a,08h
+   3F11          	;	out	(3bh),a
+   3F11          	;==========================================
+   3F11          	;
+   3F11          	;-------------------------------------
+   3F11          	; この行より下は変更禁止
+   3F11          	;-------------------------------------
+   3F11 3A453F   		ld	a,(CMDRD)
+   3F14          	;	BANK_NEXT
+   3F14 21483F   			ld	hl,mainlp
+   3F17 C3763F   			jp	bnext
+   3F1A          	
+   3F1A          		.dephase
+   1F9A          		org	01fc0h
+   1FC0          		.phase	MONADR
+   3F00          	
+   3F00          		end
+0000-1FC0
+No Fatal error(s)
+

@@ -1,0 +1,1710 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:22  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatms.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            通信制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/08/07         K.Honda
+                     9:                                    a01. 2000/09/07         K.Honda
+                    10:                                    a02. 2001/03/22         K.Honda
+                    11:                                    a03. 2001/07/09         K.Honda
+                    12:                                    a04  2021/02/07     h.nishiura RTTF対応
+                    13:    
+                    14:    *********************************************************************/
+                    15:    
+                    16:    #include        <stdio.h>
+                    17:    #include    <machine.h>
+                    18:    
+                    19:    #include        "iodefine.h"
+                    20:    #include        "table.h"
+                    21:    
+                    22:    #include        "timer.h"
+                    23:    #include        "trace.h"
+                    24:    
+                    25:    /*@@@S*/
+                    26:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    27:            グローバル変数
+                    28:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    29:    
+                    30:    union SDRFORM   tms_sdr_data;           // ＴＭＳからの受信データ
+                    31:    union SDFORM    tms_sd_data;    // ＴＭＳへの送信データ
+                    32:    
+                    33:    unsigned char   tms_config_ok;
+                    34:    
+                    35:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    36:            定数定義
+                    37:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    38:    
+                    39:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    40:            構造体定義
+                    41:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    42:    
+                    43:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    44:            テーブル
+                    45:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    46:    
+                    47:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    48:                    外部参照
+                    49:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    50:    extern  struct  CONFIG_INFO             config_data;            // 設定情報
+                    51:    
+                    52:    extern  struct  BACKUP_DATA             backup_data;    // バックアップデータ
+                    53:    extern  char    dataVersionCRCL;
+                    54:    extern  char    dataVersionCRCH;
+                    55:    extern  unsigned char   tms_config_write;
+                    56:    
+                    57:    extern  struct st_ReadSIGNAL nowSignal;                 // 最新読みだし値
+                    58:    extern  struct  TIMER_CONTROL   timedata;               // タイマー情報
+                    59:    
+                    60:    extern  unsigned char   ev5000_time_adjust;
+                    61:    
+                    62:    extern  void HDLC_Initialize( int baud, char lowadr, int send_length );
+                    63:    extern  void HDLC_RecvEnable( void );
+                    64:    extern  void HDLC_SendEnable( char *buff, int send_length );
+                    65:    extern  void HDLC_RecvSendChange( void );
+                    66:    
+                    67:    extern  int (*HDLC_ReceiveEnd)( char *recvdata, short recvcnt, unsigned char status );
+                    68:    extern  int (*HDLC_ReceiveAbort)( void );
+                    69:    extern  int (*HDLC_SendEnd)( void );
+                    70:    extern  int (*HDLC_SendAbort)( void );
+                    71:    extern  int (*HDLC_SendStart)( void );
+                    72:    
+                    73:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    74:                    ローカル変数
+                    75:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    76:    
+                    77:    struct  CONFIG_INFO             tms_config_data;                // 設定情報
+                    78:    
+                    79:    static  char                    befAdjust;              // 時間設定の前回値
+                    80:    static  char                    befTalkBack[8]; // 前回の非常通報器要求の状態
+                    81:    
+                    82:    static  char                    sdflag;                 // ＳＤデータ送信要求
+                    83:    
+                    84:    static  char                    blockno;
+                    85:    static  char                    *tracep;                // トレース取り出しポインター
+                    86:    static  short                   rembytes;
+                    87:    
+                    88:    static  char                    firstFlag;              // 最初の通信フラグ
+                    89:    
+                    90:    /*@@@E*/
+                    91:    /************************************************************************
+                    92:    
+                    93:            Function name   << tms_sendsetup >>
+                    94:                                            送信準備処理
+                    95:            Syntax                  tms_sendsetup( void );
+                    96:            Argument                none
+                    97:            Author                  TOA Corporation  K.Honda
+                    98:            Revision                a00 2000/08/07
+                    99:                                    a01 2000/09/07  ＣＲＣコードの追加
+                   100:    
+                   101:    *************************************************************************/
+                   102:    int tms_sendsetup( void )
+    000000              _tms_sendsetup:                  ; function: tms_sendsetup
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   103:    {
+    000004 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+                   104:                    int             i;
+                   105:    
+                   106:                    tms_sd_data.SD.lowadr = 0x60;                                   // アドレス設定
+    00000A F860                   MOV.B       #96:8,R0L
+    00000C 6AA800                 MOV.B       R0L,@_tms_sd_data:24
+           <000000>     
+                   107:                    tms_sd_data.SD.highadr = 0x01;
+    000012 F801                   MOV.B       #1:8,R0L
+    000014 6AA800                 MOV.B       R0L,@_tms_sd_data+1:24
+           <000000>     
+                   108:                    tms_sd_data.SD.control = 0x13;                                  // ＵＩコード設定
+    00001A F813                   MOV.B       #19:8,R0L
+    00001C 6AA800                 MOV.B       R0L,@_tms_sd_data+2:24
+           <000000>     
+                   109:    
+                   110:                    tms_sd_data.SD.code = 0x30;                                             // ＳＤフォーマットのコード
+    000022 F830                   MOV.B       #48:8,R0L
+    000024 6AA800                 MOV.B       R0L,@_tms_sd_data+3:24
+           <000000>     
+                   111:                    tms_sd_data.SD.version = config_data.version;           // 自ＤＶＡＵバージョン
+    00002A 6A2000                 MOV.B       @_config_data+6:24,R0H
+           <000000>     
+    000030 6A2800                 MOV.B       @_config_data+7:24,R0L
+           <000000>     
+    000036 6AA000                 MOV.B       R0H,@_tms_sd_data+17:24
+           <000000>     
+    00003C 6AA800                 MOV.B       R0L,@_tms_sd_data+18:24
+           <000000>     
+                   112:    
+                   113:                    // テスト状況の設定
+                   114:                    tms_sd_data.SD.testResponce = DUALPORT.testResponce;
+    000042 6E680008               MOV.B       @(8:16,ER6),R0L
+    000046 6AA800                 MOV.B       R0L,@_tms_sd_data+4:24
+           <000000>     
+                   115:                    tms_sd_data.SD.itemNo = DUALPORT.testItemNo;
+    00004C 6E680009               MOV.B       @(9:16,ER6),R0L
+    000050 6AA800                 MOV.B       R0L,@_tms_sd_data+5:24
+           <000000>     
+                   116:                    tms_sd_data.SD.itemResult = DUALPORT.testItemResult;
+    000056 6E68000A               MOV.B       @(10:16,ER6),R0L
+    00005A 6AA800                 MOV.B       R0L,@_tms_sd_data+6:24
+           <000000>     
+                   117:                    tms_sd_data.SD.subItemResult = DUALPORT.testSubItemResult;
+    000060 6E68000B               MOV.B       @(11:16,ER6),R0L
+    000064 6AA800                 MOV.B       R0L,@_tms_sd_data+7:24
+           <000000>     
+                   118:                    tms_sd_data.SD.crcL = dataVersionCRCL;
+    00006A 6A2800                 MOV.B       @_dataVersionCRCL:24,R0L
+           <000000>     
+    000070 6AA800                 MOV.B       R0L,@_tms_sd_data+19:24
+           <000000>     
+                   119:                    tms_sd_data.SD.crcH = dataVersionCRCH;
+    000076 6A2800                 MOV.B       @_dataVersionCRCH:24,R0L
+           <000000>     
+    00007C 6AA800                 MOV.B       R0L,@_tms_sd_data+20:24
+           <000000>     
+                   120:    
+                   121:                    // 非常通報器の状態応答
+                   122:                    for( i=0; i<MAX_PAA; i++ ){
+    000082 1911                   SUB.W       R1,R1
+    000084              L206:                             
+                   123:                            tms_sd_data.SD.passengerAlarm[i] = DUALPORT.tms_answer.passengerAlarm[i];
+    000084 17F1                   EXTS.L      ER1
+    000086 0F94                   MOV.L       ER1,ER4
+    000088 1A80                   SUB.L       ER0,ER0
+    00008A F8EB                   MOV.B       #-21:8,R0L
+    00008C 0AE0                   ADD.L       ER6,ER0
+    00008E 0AC0                   ADD.L       ER4,ER0
+    000090 6808                   MOV.B       @ER0,R0L
+    000092 78406AA800             MOV.B       R0L,@(_tms_sd_data+22:24,ER4)
+           <000000>     
+    00009A 0B51                   INC.W       #1,R1
+    00009C 79210008               CMP.W       #8:16,R1
+    0000A0 4DE2                   BLT         L206:8
+                   124:                    }
+                   125:                    // 通信エラーの状態応答
+                   126:                    tms_sd_data.SD.dvaCommError = DUALPORT.tms_answer.dvaCommError;
+    0000A2 1A80                   SUB.L       ER0,ER0
+    0000A4 F8F3                   MOV.B       #-13:8,R0L
+    0000A6 0AE0                   ADD.L       ER6,ER0
+    0000A8 7A01                   MOV.L       #_tms_sd_data+30:32,ER1
+           <00000000>   
+    0000AE 1AA2                   SUB.L       ER2,ER2
+    0000B0 FA02                   MOV.B       #2:8,R2L
+    0000B2 5E                     JSR         @$MVN$3:24
+           <000000>     
+                   127:                    // モード状態の応答
+                   128:                    tms_sd_data.SD.dvaStatus = DUALPORT.tms_answer.dvaStatus;
+    0000B6 6E6800F5               MOV.B       @(245:16,ER6),R0L
+    0000BA 6AA800                 MOV.B       R0L,@_tms_sd_data+32:24
+           <000000>     
+                   129:    
+                   130:                    return 0;
+    0000C0 1900                   SUB.W       R0,R0
+                   131:    }
+    0000C2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   132:    
+                   133:    /************************************************************************
+                   134:    
+                   135:            Function name   << tms_receive_end >>
+                   136:                                            受信処理
+                   137:            Syntax                  tms_receive_end( *recvdata,recvcnt,status );
+                   138:            Argument                char *recvdata                  i : 受信データ
+                   139:                                            short recvcnt                   i : 受信データ数
+                   140:                                            unsigned char status    i : 受信ステータス
+                   141:            Author                  TOA Corporation  K.Honda
+                   142:            Revision                a00 2000/08/07
+                   143:                                    a01 2000/09/07  受信終了で呼び出すよう変更
+                   144:                                    a02 2001/03/22  最初のデータを初期値とする
+                   145:                                    a03 2001/07/09  ドア信号は、ＴＥＸＴ３１に変更
+                   146:                                    a04 2021/02/07 h.nishiura RTTF対応
+                   147:    
+                   148:    *************************************************************************/
+                   149:    int tms_receive_end( char *recvdata, short recvcnt, unsigned char status )
+    0000C6              _tms_receive_end:                ; function: tms_receive_end
+    0000C6 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0000CA 7A37000000             SUB.L       #44:32,SP
+           2C           
+                   150:    {
+    0000D0 7A03                   MOV.L       #_$rembytes:32,ER3
+           <00000000>   
+    0000D6 7A04                   MOV.L       #_$tracep:32,ER4
+           <00000000>   
+    0000DC 7A05001800             MOV.L       #1572864:32,ER5
+           00           
+    0000E2 01006FF000             MOV.L       ER0,@(10:16,SP)
+           0A           
+                   151:                    union SDRFORM   *recvp;
+                   152:                    int             i;
+                   153:                    unsigned char   onoff,on;
+                   154:    
+                   155:                    // 通信エラーのときは　何もしない
+                   156:                    if( status & 0x60 ){    /* CRC ERROR? or Over RUN Error? */
+    0000E8 6E7A0045               MOV.B       @(69:16,SP),R2L
+    0000EC EA60                   AND.B       #96:8,R2L
+    0000EE 461C                   BNE         L271:8
+                   157:                            recvcnt = 0;
+                   158:                            HDLC_RecvEnable();
+                   159:                            return 1;
+                   160:                    }
+                   161:    
+                   162:                    recvp = (union SDRFORM *)recvdata;
+    0000F0 01006F7600             MOV.L       @(10:16,SP),ER6
+           0A           
+                   163:    
+                   164:                    // 受信アドレスチェック
+                   165:                    // 自アドレス以外は　何もしない
+                   166:                    if( recvp->SDR.lowadr!=0x60 ){
+    0000F6 6868                   MOV.B       @ER6,R0L
+    0000F8 A860                   CMP.B       #96:8,R0L
+    0000FA 4610                   BNE         L271:8
+                   167:                            recvcnt = 0;
+                   168:                            HDLC_RecvEnable();
+                   169:                            return 1;
+                   170:                    }
+                   171:                    if( recvp->SDR.highadr!=0x01 ){
+    0000FC 6E680001               MOV.B       @(1:16,ER6),R0L
+    000100 A801                   CMP.B       #1:8,R0L
+    000102 4608                   BNE         L271:8
+                   172:                            recvcnt = 0;
+                   173:                            HDLC_RecvEnable();
+                   174:                            return 1;
+                   175:                    }
+                   176:                    if( recvp->SDR.control!=0x13 ){
+    000104 6E680002               MOV.B       @(2:16,ER6),R0L
+    000108 A813                   CMP.B       #19:8,R0L
+    00010A 470C                   BEQ         L212:8
+                   177:                            recvcnt = 0;
+                   178:                            HDLC_RecvEnable();
+                   179:                            return 1;
+    00010C              L271:                             
+    00010C 5E                     JSR         @_HDLC_RecvEnable:24
+           <000000>     
+    000110 79000001               MOV.W       #1:16,R0
+    000114 5A                     JMP         @L209:24
+           <000000>     
+    000118              L212:                             
+                   180:                    }
+                   181:    
+                   182:                    // 受信データの解析
+                   183:                    switch( recvp->SDR.code ){
+    000118 6E680003               MOV.B       @(3:16,ER6),R0L
+    00011C A820                   CMP.B       #32:8,R0L
+    00011E 4710                   BEQ         L202:8
+    000120 A821                   CMP.B       #33:8,R0L
+    000122 587005E0               BEQ         L203:16
+    000126 A822                   CMP.B       #34:8,R0L
+    000128 5870074A               BEQ         L204:16
+    00012C 5A                     JMP         @L205:24
+           <000000>     
+                   184:                    case 0x20:              /* SDR Format */
+    000130              L202:                             
+                   185:                            memcpy( &tms_sdr_data, recvdata, sizeof(tms_sdr_data) );
+    000130 1A80                   SUB.L       ER0,ER0
+    000132 F86A                   MOV.B       #106:8,R0L
+    000134 01006DF0               PUSH.L      ER0
+    000138 01006F7100             MOV.L       @(14:16,SP),ER1
+           0E           
+    00013E 7A00                   MOV.L       #_tms_sdr_data:32,ER0
+           <00000000>   
+    000144 5E                     JSR         @_memcpy:24
+           <000000>     
+    000148 0B97                   ADDS.L      #4,SP
+                   186:    
+                   187:                            // 受信データのフィールド確保
+                   188:    
+                   189:                            // テスト開始の状態設定
+                   190:                            DUALPORT.tms_request.testExecRequest = recvp->SDR.testRequest.testExecRequest;
+    00014A 1A80                   SUB.L       ER0,ER0
+    00014C F8C6                   MOV.B       #-58:8,R0L
+    00014E 0AD0                   ADD.L       ER5,ER0
+    000150 6E690004               MOV.B       @(4:16,ER6),R1L
+    000154 7769                   BLD.B       #6,R1L
+    000156 7D006760               BST.B       #6,@ER0
+                   191:                            // テスト要求の状態設定
+                   192:                            DUALPORT.tms_request.testStartRequest1 = recvp->SDR.testRequest.testStartRequest1;
+    00015A 1A80                   SUB.L       ER0,ER0
+    00015C F8C6                   MOV.B       #-58:8,R0L
+    00015E 0AD0                   ADD.L       ER5,ER0
+    000160 6E690004               MOV.B       @(4:16,ER6),R1L
+    000164 7709                   BLD.B       #0,R1L
+    000166 7D006750               BST.B       #5,@ER0
+                   193:                            DUALPORT.tms_request.testStartRequest2 = recvp->SDR.testRequest.testStartRequest2;
+    00016A 1A80                   SUB.L       ER0,ER0
+    00016C F8C6                   MOV.B       #-58:8,R0L
+    00016E 0AD0                   ADD.L       ER5,ER0
+    000170 6E690004               MOV.B       @(4:16,ER6),R1L
+    000174 7719                   BLD.B       #1,R1L
+    000176 7D006740               BST.B       #4,@ER0
+                   194:                            // テスト項目の設定
+                   195:                            DUALPORT.tms_request.itemNo = recvp->SDR.itemNo;
+    00017A 6E680005               MOV.B       @(5:16,ER6),R0L
+    00017E 6ED800C8               MOV.B       R0L,@(200:16,ER5)
+                   196:    
+                   197:                            // 日時情報が設定されていて、時刻設定のとき　内部時計を設定する
+                   198:                            if( recvp->SDR.activeText.timeDateValid ){
+    000182 6E680008               MOV.B       @(8:16,ER6),R0L
+    000186 7708                   BLD.B       #0,R0L
+    000188 584000E2               BCC         L214:16
+                   199:                                    if( recvp->SDR.activeText.timeDateAdjustment ){
+    00018C 6E680008               MOV.B       @(8:16,ER6),R0L
+    000190 7718                   BLD.B       #1,R0L
+    000192 584000D8               BCC         L215:16
+                   200:                                            if( befAdjust==0 ){
+    000196 6A2800                 MOV.B       @_$befAdjust:24,R0L
+           <000000>     
+    00019C 586000D6               BNE         L218:16
+                   201:                                                    befAdjust = 1;
+    0001A0 F801                   MOV.B       #1:8,R0L
+    0001A2 6AA800                 MOV.B       R0L,@_$befAdjust:24
+           <000000>     
+                   202:                                                    timedata.tm_year = (recvp->SDR.timeDate.yy10 * 10 + recvp->SDR.timeDate.yy1 );
+    0001A8 6E680009               MOV.B       @(9:16,ER6),R0L
+    0001AC 1108                   SHLR.B      R0L
+    0001AE 1108                   SHLR.B      R0L
+    0001B0 1108                   SHLR.B      R0L
+    0001B2 1108                   SHLR.B      R0L
+    0001B4 F00A                   MOV.B       #10:8,R0H
+    0001B6 5000                   MULXU.B     R0H,R0
+    0001B8 6E690009               MOV.B       @(9:16,ER6),R1L
+    0001BC E90F                   AND.B       #15:8,R1L
+    0001BE 0898                   ADD.B       R1L,R0L
+    0001C0 6AA800                 MOV.B       R0L,@_timedata+2:24
+           <000000>     
+                   203:                                                    timedata.tm_mon = recvp->SDR.timeDate.MM10 * 10 + recvp->SDR.timeDate.MM1;
+    0001C6 6E68000A               MOV.B       @(10:16,ER6),R0L
+    0001CA 1108                   SHLR.B      R0L
+    0001CC 1108                   SHLR.B      R0L
+    0001CE 1108                   SHLR.B      R0L
+    0001D0 1108                   SHLR.B      R0L
+    0001D2 F00A                   MOV.B       #10:8,R0H
+    0001D4 5000                   MULXU.B     R0H,R0
+    0001D6 6E69000A               MOV.B       @(10:16,ER6),R1L
+    0001DA E90F                   AND.B       #15:8,R1L
+    0001DC 0898                   ADD.B       R1L,R0L
+    0001DE 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   204:                                                    timedata.tm_day = recvp->SDR.timeDate.dd10 * 10 + recvp->SDR.timeDate.dd1;
+    0001E4 6E68000B               MOV.B       @(11:16,ER6),R0L
+    0001E8 1108                   SHLR.B      R0L
+    0001EA 1108                   SHLR.B      R0L
+    0001EC 1108                   SHLR.B      R0L
+    0001EE 1108                   SHLR.B      R0L
+    0001F0 F00A                   MOV.B       #10:8,R0H
+    0001F2 5000                   MULXU.B     R0H,R0
+    0001F4 6E69000B               MOV.B       @(11:16,ER6),R1L
+    0001F8 E90F                   AND.B       #15:8,R1L
+    0001FA 0898                   ADD.B       R1L,R0L
+    0001FC 6AA800                 MOV.B       R0L,@_timedata+4:24
+           <000000>     
+                   205:                                                    timedata.tm_hour = recvp->SDR.timeDate.hh10 * 10 + recvp->SDR.timeDate.hh1;
+    000202 6E68000C               MOV.B       @(12:16,ER6),R0L
+    000206 1108                   SHLR.B      R0L
+    000208 1108                   SHLR.B      R0L
+    00020A 1108                   SHLR.B      R0L
+    00020C 1108                   SHLR.B      R0L
+    00020E F00A                   MOV.B       #10:8,R0H
+    000210 5000                   MULXU.B     R0H,R0
+    000212 6E69000C               MOV.B       @(12:16,ER6),R1L
+    000216 E90F                   AND.B       #15:8,R1L
+    000218 0898                   ADD.B       R1L,R0L
+    00021A 6AA800                 MOV.B       R0L,@_timedata+5:24
+           <000000>     
+                   206:                                                    timedata.tm_min = recvp->SDR.timeDate.mm10 * 10 + recvp->SDR.timeDate.mm1;
+    000220 6E68000D               MOV.B       @(13:16,ER6),R0L
+    000224 1108                   SHLR.B      R0L
+    000226 1108                   SHLR.B      R0L
+    000228 1108                   SHLR.B      R0L
+    00022A 1108                   SHLR.B      R0L
+    00022C F00A                   MOV.B       #10:8,R0H
+    00022E 5000                   MULXU.B     R0H,R0
+    000230 6E69000D               MOV.B       @(13:16,ER6),R1L
+    000234 E90F                   AND.B       #15:8,R1L
+    000236 0898                   ADD.B       R1L,R0L
+    000238 6AA800                 MOV.B       R0L,@_timedata+6:24
+           <000000>     
+                   207:                                                    timedata.tm_sec = recvp->SDR.timeDate.ss10 * 10 + recvp->SDR.timeDate.ss1;
+    00023E 6E68000E               MOV.B       @(14:16,ER6),R0L
+    000242 1108                   SHLR.B      R0L
+    000244 1108                   SHLR.B      R0L
+    000246 1108                   SHLR.B      R0L
+    000248 1108                   SHLR.B      R0L
+    00024A F00A                   MOV.B       #10:8,R0H
+    00024C 5000                   MULXU.B     R0H,R0
+    00024E 6E69000E               MOV.B       @(14:16,ER6),R1L
+    000252 E90F                   AND.B       #15:8,R1L
+    000254 0898                   ADD.B       R1L,R0L
+    000256 6AA800                 MOV.B       R0L,@_timedata+7:24
+           <000000>     
+                   208:                                                    timedata.tm_msec = 0;
+    00025C 1888                   SUB.B       R0L,R0L
+    00025E 6AA800                 MOV.B       R0L,@_timedata+8:24
+           <000000>     
+                   209:    
+                   210:                                                    ev5000_time_adjust = 1;
+    000264 F801                   MOV.B       #1:8,R0L
+    000266 6AA800                 MOV.B       R0L,@_ev5000_time_adjust:24
+           <000000>     
+    00026C 4008                   BRA         L218:8
+    00026E              L215:                             
+                   211:                                            }
+                   212:                                    }
+                   213:                                    else {
+                   214:                                            befAdjust = 0;
+    00026E              L214:                             
+                   215:                                    }
+                   216:                            }
+                   217:                            else {
+                   218:                                    befAdjust = 0;
+    00026E 1888                   SUB.B       R0L,R0L
+    000270 6AA800                 MOV.B       R0L,@_$befAdjust:24
+           <000000>     
+    000276              L218:                             
+                   219:                            }
+                   220:                            // 車両タイプの設定
+                   221:                            if( recvp->SDR.activeText.carTypeValid ){
+    000276 6E680008               MOV.B       @(8:16,ER6),R0L
+    00027A 7738                   BLD.B       #3,R0L
+    00027C 584000F0               BCC         L219:16
+                   222:                                    for( i=0; i<8; i++ ){
+    000280 1900                   SUB.W       R0,R0
+    000282 6FF00024               MOV.W       R0,@(36:16,SP)
+    000286              L220:                             
+                   223:                                            backup_data.carInfo[i].carType = recvp->SDR.carInfo2[i].carType;
+    000286 6F700024               MOV.W       @(36:16,SP),R0
+    00028A 17F0                   EXTS.L      ER0
+    00028C 1030                   SHLL.L      ER0
+    00028E 01006FF000             MOV.L       ER0,@(16:16,SP)
+           10           
+    000294 1A91                   SUB.L       ER1,ER1
+    000296 F923                   MOV.B       #35:8,R1L
+    000298 0AE1                   ADD.L       ER6,ER1
+    00029A 0A81                   ADD.L       ER0,ER1
+    00029C 6E1A0001               MOV.B       @(1:16,ER1),R2L
+    0002A0 EA0F                   AND.B       #15:8,R2L
+    0002A2 1752                   EXTU.W      R2
+    0002A4 6F700024               MOV.W       @(36:16,SP),R0
+    0002A8 79080003               MOV.W       #3:16,E0
+    0002AC 01C05280               MULXS.W     E0,ER0
+    0002B0 0CA9                   MOV.B       R2L,R1L
+    0002B2 01006FF000             MOV.L       ER0,@(4:16,SP)
+           04           
+    0002B8 01006F7200             MOV.L       @(4:16,SP),ER2
+           04           
+    0002BE 78206A2800             MOV.B       @(_backup_data+31:24,ER2),R0L
+           <000000>     
+    0002C6 010069F2               MOV.L       ER2,@SP
+    0002CA 79020004               MOV.W       #4:16,R2
+    0002CE 5E                     JSR         @$BFINCR$3:24
+           <000000>     
+    0002D2 01006971               MOV.L       @SP,ER1
+    0002D6 78106AA800             MOV.B       R0L,@(_backup_data+31:24,ER1)
+           <000000>     
+                   224:                                            DUALPORT.tms_request.carInfo[i].carType = recvp->SDR.carInfo2[i].carType;
+    0002DE 1AA2                   SUB.L       ER2,ER2
+    0002E0 FADB                   MOV.B       #-37:8,R2L
+    0002E2 0AD2                   ADD.L       ER5,ER2
+    0002E4 01006F7000             MOV.L       @(16:16,SP),ER0
+           10           
+    0002EA 0A82                   ADD.L       ER0,ER2
+    0002EC 1A80                   SUB.L       ER0,ER0
+    0002EE F823                   MOV.B       #35:8,R0L
+    0002F0 0AE0                   ADD.L       ER6,ER0
+    0002F2 01006F7100             MOV.L       @(16:16,SP),ER1
+           10           
+    0002F8 0A90                   ADD.L       ER1,ER0
+    0002FA 6E090001               MOV.B       @(1:16,ER0),R1L
+    0002FE E90F                   AND.B       #15:8,R1L
+    000300 1751                   EXTU.W      R1
+    000302 0C98                   MOV.B       R1L,R0L
+    000304 6E200001               MOV.B       @(1:16,ER2),R0H
+    000308 E0F0                   AND.B       #-16:8,R0H
+    00030A E80F                   AND.B       #15:8,R0L
+    00030C 1480                   OR.B        R0L,R0H
+    00030E 6EA00001               MOV.B       R0H,@(1:16,ER2)
+    000312 6F700024               MOV.W       @(36:16,SP),R0
+    000316 0B50                   INC.W       #1,R0
+    000318 6FF00024               MOV.W       R0,@(36:16,SP)
+    00031C 79200008               CMP.W       #8:16,R0
+    000320 58D0FF62               BLT         L220:16
+                   225:                                    }
+                   226:                                    if( nowSignal.SIGNAL2.RBIT.addressOdd ){
+    000324 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    00032A 7728                   BLD.B       #2,R0L
+    00032C 4422                   BCC         L221:8
+                   227:                                            DUALPORT.tms_request.carType = backup_data.carInfo[0].carType;
+    00032E 6A2800                 MOV.B       @_backup_data+31:24,R0L
+           <000000>     
+    000334 1108                   SHLR.B      R0L
+    000336 1108                   SHLR.B      R0L
+    000338 1108                   SHLR.B      R0L
+    00033A 1108                   SHLR.B      R0L
+    00033C 0C89                   MOV.B       R0L,R1L
+    00033E 6E5800CB               MOV.B       @(203:16,ER5),R0L
+    000342 79020004               MOV.W       #4:16,R2
+    000346 5E                     JSR         @$BFINCR$3:24
+           <000000>     
+    00034A 6ED800CB               MOV.B       R0L,@(203:16,ER5)
+    00034E 4020                   BRA         L222:8
+    000350              L221:                             
+                   228:                                    }
+                   229:                                    else {
+                   230:                                            DUALPORT.tms_request.carType = backup_data.carInfo[7].carType;
+    000350 6A2800                 MOV.B       @_backup_data+52:24,R0L
+           <000000>     
+    000356 1108                   SHLR.B      R0L
+    000358 1108                   SHLR.B      R0L
+    00035A 1108                   SHLR.B      R0L
+    00035C 1108                   SHLR.B      R0L
+    00035E 0C89                   MOV.B       R0L,R1L
+    000360 6E5800CB               MOV.B       @(203:16,ER5),R0L
+    000364 79020004               MOV.W       #4:16,R2
+    000368 5E                     JSR         @$BFINCR$3:24
+           <000000>     
+    00036C 6ED800CB               MOV.B       R0L,@(203:16,ER5)
+    000370              L222:                             
+    000370              L219:                             
+                   231:                                    }
+                   232:                            }
+                   233:                            // 車両番号の設定
+                   234:                            if( recvp->SDR.activeText.carNoValid ){
+    000370 6E680008               MOV.B       @(8:16,ER6),R0L
+    000374 7728                   BLD.B       #2,R0L
+    000376 58400156               BCC         L223:16
+                   235:                                    for( i=0; i<8; i++ ){
+    00037A 1900                   SUB.W       R0,R0
+    00037C 6FF00024               MOV.W       R0,@(36:16,SP)
+    000380              L224:                             
+                   236:                                            backup_data.carInfo[i].carNo = recvp->SDR.carInfo2[i].carNo;
+    000380 6F700024               MOV.W       @(36:16,SP),R0
+    000384 17F0                   EXTS.L      ER0
+    000386 1030                   SHLL.L      ER0
+    000388 01006FF000             MOV.L       ER0,@(22:16,SP)
+           16           
+    00038E 1A91                   SUB.L       ER1,ER1
+    000390 F923                   MOV.B       #35:8,R1L
+    000392 0AE1                   ADD.L       ER6,ER1
+    000394 0A81                   ADD.L       ER0,ER1
+    000396 6810                   MOV.B       @ER1,R0H
+    000398 6E180001               MOV.B       @(1:16,ER1),R0L
+    00039C 7901000C               MOV.W       #12:16,R1
+    0003A0 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    0003A4 6F720024               MOV.W       @(36:16,SP),R2
+    0003A8 790A0003               MOV.W       #3:16,E2
+    0003AC 01C052A2               MULXS.W     E2,ER2
+    0003B0 0D01                   MOV.W       R0,R1
+    0003B2 78206A2000             MOV.B       @(_backup_data+29:24,ER2),R0H
+           <000000>     
+    0003BA 78206A2800             MOV.B       @(_backup_data+30:24,ER2),R0L
+           <000000>     
+    0003C2 01006FF200             MOV.L       ER2,@(4:16,SP)
+           04           
+    0003C8 7902000C               MOV.W       #12:16,R2
+    0003CC 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    0003D0 01006F7100             MOV.L       @(4:16,SP),ER1
+           04           
+    0003D6 78106AA000             MOV.B       R0H,@(_backup_data+29:24,ER1)
+           <000000>     
+    0003DE 78106AA800             MOV.B       R0L,@(_backup_data+30:24,ER1)
+           <000000>     
+                   237:                                            DUALPORT.tms_request.carInfo[i].carNo = recvp->SDR.carInfo2[i].carNo;
+    0003E6 1AA2                   SUB.L       ER2,ER2
+    0003E8 FADB                   MOV.B       #-37:8,R2L
+    0003EA 0AD2                   ADD.L       ER5,ER2
+    0003EC 01006F7000             MOV.L       @(22:16,SP),ER0
+           16           
+    0003F2 0A82                   ADD.L       ER0,ER2
+    0003F4 1A80                   SUB.L       ER0,ER0
+    0003F6 F823                   MOV.B       #35:8,R0L
+    0003F8 0AE0                   ADD.L       ER6,ER0
+    0003FA 01006F7100             MOV.L       @(22:16,SP),ER1
+           16           
+    000400 0A90                   ADD.L       ER1,ER0
+    000402 01006FF000             MOV.L       ER0,@(4:16,SP)
+           04           
+    000408 01006F7100             MOV.L       @(4:16,SP),ER1
+           04           
+    00040E 6810                   MOV.B       @ER1,R0H
+    000410 6E180001               MOV.B       @(1:16,ER1),R0L
+    000414 7901000C               MOV.W       #12:16,R1
+    000418 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    00041C 0D01                   MOV.W       R0,R1
+    00041E 6820                   MOV.B       @ER2,R0H
+    000420 6E280001               MOV.B       @(1:16,ER2),R0L
+    000424 010069F2               MOV.L       ER2,@SP
+    000428 7902000C               MOV.W       #12:16,R2
+    00042C 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    000430 01006971               MOV.L       @SP,ER1
+    000434 6890                   MOV.B       R0H,@ER1
+    000436 6E980001               MOV.B       R0L,@(1:16,ER1)
+    00043A 6F700024               MOV.W       @(36:16,SP),R0
+    00043E 0B50                   INC.W       #1,R0
+    000440 6FF00024               MOV.W       R0,@(36:16,SP)
+    000444 79200008               CMP.W       #8:16,R0
+    000448 58D0FF34               BLT         L224:16
+                   238:                                    }
+                   239:                                    if( nowSignal.SIGNAL2.RBIT.addressOdd ){
+    00044C 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    000452 7728                   BLD.B       #2,R0L
+    000454 4430                   BCC         L225:8
+                   240:                                            DUALPORT.tms_request.carNo = backup_data.carInfo[0].carNo;
+    000456 6A2000                 MOV.B       @_backup_data+29:24,R0H
+           <000000>     
+    00045C 6A2800                 MOV.B       @_backup_data+30:24,R0L
+           <000000>     
+    000462 7901000C               MOV.W       #12:16,R1
+    000466 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    00046A 0D01                   MOV.W       R0,R1
+    00046C 6E5000C9               MOV.B       @(201:16,ER5),R0H
+    000470 6E5800CA               MOV.B       @(202:16,ER5),R0L
+    000474 7902000C               MOV.W       #12:16,R2
+    000478 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    00047C 6ED000C9               MOV.B       R0H,@(201:16,ER5)
+    000480 6ED800CA               MOV.B       R0L,@(202:16,ER5)
+    000484 402E                   BRA         L226:8
+    000486              L225:                             
+                   241:                                    }
+                   242:                                    else {
+                   243:                                            DUALPORT.tms_request.carNo = backup_data.carInfo[0].carNo;
+    000486 6A2000                 MOV.B       @_backup_data+29:24,R0H
+           <000000>     
+    00048C 6A2800                 MOV.B       @_backup_data+30:24,R0L
+           <000000>     
+    000492 7901000C               MOV.W       #12:16,R1
+    000496 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    00049A 0D01                   MOV.W       R0,R1
+    00049C 6E5000C9               MOV.B       @(201:16,ER5),R0H
+    0004A0 6E5800CA               MOV.B       @(202:16,ER5),R0L
+    0004A4 7902000C               MOV.W       #12:16,R2
+    0004A8 5E                     JSR         @$BFINIR$3:24
+           <000000>     
+    0004AC 6ED000C9               MOV.B       R0H,@(201:16,ER5)
+    0004B0 6ED800CA               MOV.B       R0L,@(202:16,ER5)
+    0004B4              L226:                             
+                   244:                                    }
+                   245:                                    DUALPORT.pollingData.carNo = backup_data.carInfo[0].carNo;
+    0004B4 6A2000                 MOV.B       @_backup_data+29:24,R0H
+           <000000>     
+    0004BA 6A2800                 MOV.B       @_backup_data+30:24,R0L
+           <000000>     
+    0004C0 7901000C               MOV.W       #12:16,R1
+    0004C4 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    0004C8 6ED0000D               MOV.B       R0H,@(13:16,ER5)
+    0004CC 6ED8000E               MOV.B       R0L,@(14:16,ER5)
+    0004D0              L223:                             
+                   246:                            }
+                   247:                            // 連結状態の設定
+                   248:                            DUALPORT.tms_request.couplingUnitCode = recvp->SDR.couplingUnitCode;
+    0004D0 6E680011               MOV.B       @(17:16,ER6),R0L
+    0004D4 6ED800CC               MOV.B       R0L,@(204:16,ER5)
+                   249:    
+                   250:                            // ステーションコードの設定
+                   251:                            DUALPORT.tms_request.stationNumber = recvp->SDR.stationNumber;
+    0004D8 6E680013               MOV.B       @(19:16,ER6),R0L
+    0004DC 6ED800CD               MOV.B       R0L,@(205:16,ER5)
+                   252:                            // 次駅コードの設定
+                   253:                            if( DUALPORT.tms_request.nextStationName != recvp->SDR.nextStationName ){
+    0004E0 6E5800CE               MOV.B       @(206:16,ER5),R0L
+    0004E4 6E690014               MOV.B       @(20:16,ER6),R1L
+    0004E8 1C98                   CMP.B       R1L,R0L
+    0004EA 4722                   BEQ         L227:8
+                   254:                                    DUALPORT.tms_request.nextStationName = recvp->SDR.nextStationName;
+    0004EC 6E680014               MOV.B       @(20:16,ER6),R0L
+    0004F0 6ED800CE               MOV.B       R0L,@(206:16,ER5)
+                   255:                                    DUALPORT.pollingData.nextStation = recvp->SDR.nextStationName;
+    0004F4 6E680014               MOV.B       @(20:16,ER6),R0L
+    0004F8 6ED8000F               MOV.B       R0L,@(15:16,ER5)
+                   256:                                    if( firstFlag ){
+    0004FC 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    000502 470A                   BEQ         L228:8
+                   257:                                            DUALPORT.tms_request.change_nextStationName = 1;
+    000504 1A80                   SUB.L       ER0,ER0
+    000506 F8C6                   MOV.B       #-58:8,R0L
+    000508 0AD0                   ADD.L       ER5,ER0
+    00050A 7D007020               BSET.B      #2,@ER0
+    00050E              L228:                             
+    00050E              L227:                             
+                   258:                                    }
+                   259:                            }
+                   260:                            // 到着駅コードの設定
+                   261:                            DUALPORT.tms_request.destination = recvp->SDR.destination;
+    00050E 6E680015               MOV.B       @(21:16,ER6),R0L
+    000512 6ED800CF               MOV.B       R0L,@(207:16,ER5)
+                   262:                            DUALPORT.pollingData.destination = recvp->SDR.destination;
+    000516 6E680015               MOV.B       @(21:16,ER6),R0L
+    00051A 6ED80010               MOV.B       R0L,@(16:16,ER5)
+                   263:                            // ルートコードの設定
+                   264:                            if( DUALPORT.tms_request.routeCode != recvp->SDR.routeCode ){
+    00051E 6E5800D0               MOV.B       @(208:16,ER5),R0L
+    000522 6E690016               MOV.B       @(22:16,ER6),R1L
+    000526 1C98                   CMP.B       R1L,R0L
+    000528 4722                   BEQ         L229:8
+                   265:                                    DUALPORT.tms_request.routeCode = recvp->SDR.routeCode;
+    00052A 6E680016               MOV.B       @(22:16,ER6),R0L
+    00052E 6ED800D0               MOV.B       R0L,@(208:16,ER5)
+                   266:                                    DUALPORT.pollingData.routeCode = recvp->SDR.routeCode;
+    000532 6E680016               MOV.B       @(22:16,ER6),R0L
+    000536 6ED80011               MOV.B       R0L,@(17:16,ER5)
+                   267:                                    if( firstFlag ){
+    00053A 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    000540 470A                   BEQ         L230:8
+                   268:                                            DUALPORT.tms_request.change_routeCode = 1;
+    000542 1A80                   SUB.L       ER0,ER0
+    000544 F8C6                   MOV.B       #-58:8,R0L
+    000546 0AD0                   ADD.L       ER5,ER0
+    000548 7D007000               BSET.B      #0,@ER0
+    00054C              L230:                             
+    00054C              L229:                             
+                   269:                                    }
+                   270:                            }
+                   271:    
+                   272:                            // スペシャル放送コードの設定
+                   273:                            DUALPORT.tms_request.specialCode = recvp->SDR.specialCode;
+    00054C 6E68001F               MOV.B       @(31:16,ER6),R0L
+    000550 6ED800D9               MOV.B       R0L,@(217:16,ER5)
+                   274:    
+                   275:                            // 非常通報器の接続要求  ( OFF->ON 要求 )
+                   276:                            for( i=0; i<8; i++ ){
+    000554 1900                   SUB.W       R0,R0
+    000556 6FF00026               MOV.W       R0,@(38:16,SP)
+    00055A              L231:                             
+                   277:                                    onoff = befTalkBack[i] ^ recvp->SDR.talkBack[i];
+    00055A 6F700026               MOV.W       @(38:16,SP),R0
+    00055E 17F0                   EXTS.L      ER0
+    000560 01006FF000             MOV.L       ER0,@(40:16,SP)
+           28           
+    000566 7A10                   ADD.L       #_$befTalkBack:32,ER0
+           <00000000>   
+    00056C 01006FF000             MOV.L       ER0,@(32:16,SP)
+           20           
+    000572 1A91                   SUB.L       ER1,ER1
+    000574 F917                   MOV.B       #23:8,R1L
+    000576 0AE1                   ADD.L       ER6,ER1
+    000578 01006F7200             MOV.L       @(40:16,SP),ER2
+           28           
+    00057E 0AA1                   ADD.L       ER2,ER1
+    000580 6819                   MOV.B       @ER1,R1L
+    000582 6808                   MOV.B       @ER0,R0L
+    000584 1598                   XOR.B       R1L,R0L
+                   278:                                    on = onoff & recvp->SDR.talkBack[i];
+    000586 1689                   AND.B       R0L,R1L
+                   279:                                    DUALPORT.tms_request.talkBack[i] |= on;
+    000588 1A80                   SUB.L       ER0,ER0
+    00058A F8D1                   MOV.B       #-47:8,R0L
+    00058C 0AD0                   ADD.L       ER5,ER0
+    00058E 0AA0                   ADD.L       ER2,ER0
+    000590 6801                   MOV.B       @ER0,R1H
+    000592 1491                   OR.B        R1L,R1H
+    000594 6881                   MOV.B       R1H,@ER0
+                   280:                                    befTalkBack[i] = recvp->SDR.talkBack[i];
+    000596 1A80                   SUB.L       ER0,ER0
+    000598 F817                   MOV.B       #23:8,R0L
+    00059A 0AE0                   ADD.L       ER6,ER0
+    00059C 0AA0                   ADD.L       ER2,ER0
+    00059E 01006F7100             MOV.L       @(32:16,SP),ER1
+           20           
+    0005A4 6808                   MOV.B       @ER0,R0L
+    0005A6 6898                   MOV.B       R0L,@ER1
+    0005A8 6F700026               MOV.W       @(38:16,SP),R0
+    0005AC 0B50                   INC.W       #1,R0
+    0005AE 6FF00026               MOV.W       R0,@(38:16,SP)
+    0005B2 79200008               CMP.W       #8:16,R0
+    0005B6 4DA2                   BLT         L231:8
+                   281:                            }
+                   282:    
+                   283:                            // 自動放送の要求
+                   284:                            if( DUALPORT.tms_request.dbEffective != recvp->SDR.ATCpaActive.dbEffective ){
+    0005B8 1888                   SUB.B       R0L,R0L
+    0005BA 6E5900DA               MOV.B       @(218:16,ER5),R1L
+    0005BE 7779                   BLD.B       #7,R1L
+    0005C0 6708                   BST.B       #0,R0L
+    0005C2 1899                   SUB.B       R1L,R1L
+    0005C4 6E6A0020               MOV.B       @(32:16,ER6),R2L
+    0005C8 777A                   BLD.B       #7,R2L
+    0005CA 6709                   BST.B       #0,R1L
+    0005CC 1C98                   CMP.B       R1L,R0L
+    0005CE 4722                   BEQ         L232:8
+                   285:                                    DUALPORT.tms_request.dbEffective = recvp->SDR.ATCpaActive.dbEffective;
+    0005D0 1A80                   SUB.L       ER0,ER0
+    0005D2 F8DA                   MOV.B       #-38:8,R0L
+    0005D4 0AD0                   ADD.L       ER5,ER0
+    0005D6 6E690020               MOV.B       @(32:16,ER6),R1L
+    0005DA 7779                   BLD.B       #7,R1L
+    0005DC 7D006770               BST.B       #7,@ER0
+                   286:                                    if( firstFlag ){
+    0005E0 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    0005E6 470A                   BEQ         L233:8
+                   287:                                            DUALPORT.tms_request.change_dbEffective = 1;
+    0005E8 1A80                   SUB.L       ER0,ER0
+    0005EA F8C6                   MOV.B       #-58:8,R0L
+    0005EC 0AD0                   ADD.L       ER5,ER0
+    0005EE 7D007030               BSET.B      #3,@ER0
+    0005F2              L233:                             
+    0005F2              L232:                             
+                   288:                                    }
+                   289:                            }
+                   290:                            // 自動放送の要求
+                   291:                            if( DUALPORT.tms_request.atcActive != recvp->SDR.ATCpaActive.atcActive ){
+    0005F2 1888                   SUB.B       R0L,R0L
+    0005F4 6E5900DA               MOV.B       @(218:16,ER5),R1L
+    0005F8 7769                   BLD.B       #6,R1L
+    0005FA 6708                   BST.B       #0,R0L
+    0005FC 1899                   SUB.B       R1L,R1L
+    0005FE 6E6A0020               MOV.B       @(32:16,ER6),R2L
+    000602 776A                   BLD.B       #6,R2L
+    000604 6709                   BST.B       #0,R1L
+    000606 1C98                   CMP.B       R1L,R0L
+    000608 4722                   BEQ         L234:8
+                   292:                                    DUALPORT.tms_request.atcActive = recvp->SDR.ATCpaActive.atcActive;
+    00060A 1A80                   SUB.L       ER0,ER0
+    00060C F8DA                   MOV.B       #-38:8,R0L
+    00060E 0AD0                   ADD.L       ER5,ER0
+    000610 6E690020               MOV.B       @(32:16,ER6),R1L
+    000614 7769                   BLD.B       #6,R1L
+    000616 7D006760               BST.B       #6,@ER0
+                   293:                                    if( firstFlag ){
+    00061A 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    000620 470A                   BEQ         L235:8
+                   294:                                            DUALPORT.tms_request.change_atcActive = 1;
+    000622 1A80                   SUB.L       ER0,ER0
+    000624 F8C7                   MOV.B       #-57:8,R0L
+    000626 0AD0                   ADD.L       ER5,ER0
+    000628 7D007060               BSET.B      #6,@ER0
+    00062C              L235:                             
+    00062C              L234:                             
+                   295:                                    }
+                   296:                            }
+                   297:                            // 自動放送の禁止
+                   298:                            if( DUALPORT.tms_request.broadCastOff != recvp->SDR.door.broadCastOff ){
+    00062C 1888                   SUB.B       R0L,R0L
+    00062E 6E5900DA               MOV.B       @(218:16,ER5),R1L
+    000632 7759                   BLD.B       #5,R1L
+    000634 6708                   BST.B       #0,R0L
+    000636 1899                   SUB.B       R1L,R1L
+    000638 6E6A0021               MOV.B       @(33:16,ER6),R2L
+    00063C 773A                   BLD.B       #3,R2L
+    00063E 6709                   BST.B       #0,R1L
+    000640 1C98                   CMP.B       R1L,R0L
+    000642 4722                   BEQ         L236:8
+                   299:                                    DUALPORT.tms_request.broadCastOff = recvp->SDR.door.broadCastOff;
+    000644 1A80                   SUB.L       ER0,ER0
+    000646 F8DA                   MOV.B       #-38:8,R0L
+    000648 0AD0                   ADD.L       ER5,ER0
+    00064A 6E690021               MOV.B       @(33:16,ER6),R1L
+    00064E 7739                   BLD.B       #3,R1L
+    000650 7D006750               BST.B       #5,@ER0
+                   300:                                    if( firstFlag ){
+    000654 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    00065A 470A                   BEQ         L237:8
+                   301:                                            DUALPORT.tms_request.change_broadCastOff = 1;
+    00065C 1A80                   SUB.L       ER0,ER0
+    00065E F8C7                   MOV.B       #-57:8,R0L
+    000660 0AD0                   ADD.L       ER5,ER0
+    000662 7D007050               BSET.B      #5,@ER0
+    000666              L237:                             
+    000666              L236:                             
+                   302:                                    }
+                   303:                            }
+                   304:                            // ドア状態の設定
+                   305:                            if( recvp->SDR.doorStatus.doorClosed==0 ){
+    000666 6E680022               MOV.B       @(34:16,ER6),R0L
+    00066A 7708                   BLD.B       #0,R0L
+    00066C 450C                   BCS         L238:8
+                   306:                                    DUALPORT.tms_request.doorStatus=1;
+    00066E 1A80                   SUB.L       ER0,ER0
+    000670 F8DA                   MOV.B       #-38:8,R0L
+    000672 0AD0                   ADD.L       ER5,ER0
+    000674 7D007010               BSET.B      #1,@ER0
+    000678 400A                   BRA         L239:8
+    00067A              L238:                             
+                   307:                            }
+                   308:                            else {
+                   309:                                    DUALPORT.tms_request.doorStatus=0;
+    00067A 1A80                   SUB.L       ER0,ER0
+    00067C F8DA                   MOV.B       #-38:8,R0L
+    00067E 0AD0                   ADD.L       ER5,ER0
+    000680 7D007210               BCLR.B      #1,@ER0
+    000684              L239:                             
+                   310:                            }
+                   311:    
+                   312:                            if( DUALPORT.tms_request.doorOpenEffective ){
+    000684 6E5800DA               MOV.B       @(218:16,ER5),R0L
+    000688 7748                   BLD.B       #4,R0L
+    00068A 443E                   BCC         L240:8
+                   313:                                    if( DUALPORT.tms_request.doorOpen != recvp->SDR.door.doorOpen ){
+    00068C 6E5800DA               MOV.B       @(218:16,ER5),R0L
+    000690 1108                   SHLR.B      R0L
+    000692 1108                   SHLR.B      R0L
+    000694 E803                   AND.B       #3:8,R0L
+    000696 6E690021               MOV.B       @(33:16,ER6),R1L
+    00069A E903                   AND.B       #3:8,R1L
+    00069C 1C98                   CMP.B       R1L,R0L
+    00069E 472A                   BEQ         L241:8
+                   314:                                            DUALPORT.tms_request.doorOpen = recvp->SDR.door.doorOpen;
+    0006A0 6E6E0021               MOV.B       @(33:16,ER6),R6L
+    0006A4 EE03                   AND.B       #3:8,R6L
+    0006A6 0CE9                   MOV.B       R6L,R1L
+    0006A8 6E5800DA               MOV.B       @(218:16,ER5),R0L
+    0006AC 79020402               MOV.W       #1026:16,R2
+    0006B0 5E                     JSR         @$BFINCR$3:24
+           <000000>     
+    0006B4 6ED800DA               MOV.B       R0L,@(218:16,ER5)
+                   315:                                            if( firstFlag ){
+    0006B8 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    0006BE 470A                   BEQ         L242:8
+                   316:                                                    DUALPORT.tms_request.change_doorOpen = 1;
+    0006C0 1A80                   SUB.L       ER0,ER0
+    0006C2 F8C7                   MOV.B       #-57:8,R0L
+    0006C4 0AD0                   ADD.L       ER5,ER0
+    0006C6 7D007040               BSET.B      #4,@ER0
+    0006CA              L242:                             
+    0006CA              L241:                             
+    0006CA              L240:                             
+                   317:                                            }
+                   318:                                    }
+                   319:                            }
+                   320:    
+                   321:                            if( firstFlag ){
+    0006CA 6A2800                 MOV.B       @_$firstFlag:24,R0L
+           <000000>     
+    0006D0 470A                   BEQ         L243:8
+                   322:                                    // ＴＭＳアクティブフラグ
+                   323:                                    DUALPORT.tms_request.Active = 1;
+    0006D2 1A80                   SUB.L       ER0,ER0
+    0006D4 F8C6                   MOV.B       #-58:8,R0L
+    0006D6 0AD0                   ADD.L       ER5,ER0
+    0006D8 7D007070               BSET.B      #7,@ER0
+    0006DC              L243:                             
+                   324:                            }
+                   325:    
+                   326:                            // ＴＭＳ有効タイマー
+                   327:                            timedata.tmsActiveTimer = TMS_OFFLINE_TIME;
+    0006DC 790001F4               MOV.W       #500:16,R0
+    0006E0 6AA000                 MOV.B       R0H,@_timedata+11:24
+           <000000>     
+    0006E6 6AA800                 MOV.B       R0L,@_timedata+12:24
+           <000000>     
+                   328:    
+                   329:                            HDLC_RecvSendChange();
+    0006EC 5E                     JSR         @_HDLC_RecvSendChange:24
+           <000000>     
+                   330:                            sdflag = 1;
+                   331:    
+                   332:                            firstFlag = 1;
+    0006F0 F801                   MOV.B       #1:8,R0L
+    0006F2 6AA800                 MOV.B       R0L,@_$firstFlag:24
+           <000000>     
+    0006F8 6AA800                 MOV.B       R0L,@_$sdflag:24
+           <000000>     
+                   333:    
+                   334:                            // 応答データの準備
+                   335:                            tms_sendsetup();
+    0006FE 5E                     JSR         @_tms_sendsetup:24
+           <000000>     
+                   336:                            break;
+    000702 5A                     JMP         @L213:24
+           <000000>     
+    000706              L203:                             
+                   337:    
+                   338:                    case 0x21:              // TDR
+                   339:    
+                   340:                            HDLC_RecvSendChange();
+    000706 5E                     JSR         @_HDLC_RecvSendChange:24
+           <000000>     
+                   341:                            sdflag = 0;
+    00070A 1888                   SUB.B       R0L,R0L
+    00070C 6AA800                 MOV.B       R0L,@_$sdflag:24
+           <000000>     
+                   342:    
+                   343:                            tms_sd_data.TD.lowadr = 0x60;                                   // アドレス設定
+    000712 F860                   MOV.B       #96:8,R0L
+    000714 6AA800                 MOV.B       R0L,@_tms_sd_data:24
+           <000000>     
+                   344:                            tms_sd_data.TD.highadr = 0x01;
+    00071A F801                   MOV.B       #1:8,R0L
+    00071C 6AA800                 MOV.B       R0L,@_tms_sd_data+1:24
+           <000000>     
+                   345:                            tms_sd_data.TD.control = 0x13;                                  // ＵＩコード設定
+    000722 F813                   MOV.B       #19:8,R0L
+    000724 6AA800                 MOV.B       R0L,@_tms_sd_data+2:24
+           <000000>     
+                   346:    
+                   347:                            tms_sd_data.TD.code = 0x31;
+    00072A F831                   MOV.B       #49:8,R0L
+    00072C 6AA800                 MOV.B       R0L,@_tms_sd_data+3:24
+           <000000>     
+                   348:                            tms_sd_data.TD.traceNo = 0;
+    000732 1888                   SUB.B       R0L,R0L
+    000734 6AA800                 MOV.B       R0L,@_tms_sd_data+5:24
+           <000000>     
+                   349:    
+                   350:                            if( recvp->TDR.blockNo==0 ){            // Initial Request
+    00073A 6E680005               MOV.B       @(5:16,ER6),R0L
+    00073E 4652                   BNE         L244:8
+                   351:    
+                   352:                                    blockno = 0;
+    000740 1888                   SUB.B       R0L,R0L
+    000742 6AA800                 MOV.B       R0L,@_$blockno:24
+           <000000>     
+                   353:                                    tms_sd_data.TD.blockNo = blockno;
+    000748 6AA800                 MOV.B       R0L,@_tms_sd_data+4:24
+           <000000>     
+                   354:    
+                   355:                                    tms_sd_data.TD.data[0] = 0;             // fault
+    00074E 6AA800                 MOV.B       R0L,@_tms_sd_data+6:24
+           <000000>     
+                   356:                                    tms_sd_data.TD.data[1] = 0;             // year
+    000754 6AA800                 MOV.B       R0L,@_tms_sd_data+7:24
+           <000000>     
+                   357:                                    tms_sd_data.TD.data[2] = 0;             // month
+    00075A 6AA800                 MOV.B       R0L,@_tms_sd_data+8:24
+           <000000>     
+                   358:                                    tms_sd_data.TD.data[3] = 0;             // day
+    000760 6AA800                 MOV.B       R0L,@_tms_sd_data+9:24
+           <000000>     
+                   359:                                    tms_sd_data.TD.data[4] = 0;             // hour
+    000766 6AA800                 MOV.B       R0L,@_tms_sd_data+10:24
+           <000000>     
+                   360:                                    tms_sd_data.TD.data[5] = 0;             // min
+    00076C 6AA800                 MOV.B       R0L,@_tms_sd_data+11:24
+           <000000>     
+                   361:                                    tms_sd_data.TD.data[6] = 0;             // sec
+    000772 6AA800                 MOV.B       R0L,@_tms_sd_data+12:24
+           <000000>     
+                   362:    
+                   363:                                    tracep = (char *)TraceGet( 1 );
+    000778 79000001               MOV.W       #1:16,R0
+    00077C 5E                     JSR         @_TraceGet:24
+           <000000>     
+    000780 010069C0               MOV.L       ER0,@ER4
+                   364:                                    rembytes = sizeof(struct TRACE);
+    000784 7900000C               MOV.W       #12:16,R0
+    000788 69B0                   MOV.W       R0,@ER3
+                   365:    
+                   366:                                    i= 7;
+    00078A 79060007               MOV.W       #7:16,R6
+    00078E 5A                     JMP         @L254:24
+           <000000>     
+    000792              L244:                             
+                   367:                            }
+                   368:                            else {
+                   369:                                    blockno++;
+    000792 7A00                   MOV.L       #_$blockno:32,ER0
+           <00000000>   
+    000798 6809                   MOV.B       @ER0,R1L
+    00079A 0A09                   INC.B       R1L
+    00079C 6889                   MOV.B       R1L,@ER0
+                   370:                                    if( blockno!=recvp->TDR.blockNo ){              // ブロックの再計算
+    00079E 6A2800                 MOV.B       @_$blockno:24,R0L
+           <000000>     
+    0007A4 17D0                   EXTS.W      R0
+    0007A6 6E690005               MOV.B       @(5:16,ER6),R1L
+    0007AA 1751                   EXTU.W      R1
+    0007AC 1D10                   CMP.W       R1,R0
+    0007AE 4752                   BEQ         L246:8
+                   371:                                            blockno = 0;
+    0007B0 1888                   SUB.B       R0L,R0L
+    0007B2 6AA800                 MOV.B       R0L,@_$blockno:24
+           <000000>     
+                   372:                                            i=0;
+    0007B8 1900                   SUB.W       R0,R0
+    0007BA 0D02                   MOV.W       R0,R2
+                   373:                                            tracep = (char *)TraceGet( 1 );
+    0007BC 79000001               MOV.W       #1:16,R0
+                   374:                                            while( tracep!=NULL ){
+    0007C0 4036                   BRA         L273:8
+    0007C2              L247:                             
+                   375:                                                    i+= sizeof(struct TRACE);
+    0007C2 0D20                   MOV.W       R2,R0
+    0007C4 7910000C               ADD.W       #12:16,R0
+    0007C8 0D02                   MOV.W       R0,R2
+                   376:                                                    if( i>100 ){
+    0007CA 79200064               CMP.W       #100:16,R0
+    0007CE 4F26                   BLE         L249:8
+                   377:                                                            blockno++;
+    0007D0 7A00                   MOV.L       #_$blockno:32,ER0
+           <00000000>   
+    0007D6 6809                   MOV.B       @ER0,R1L
+    0007D8 0A09                   INC.B       R1L
+    0007DA 6889                   MOV.B       R1L,@ER0
+                   378:                                                            i-=100;
+    0007DC 0D20                   MOV.W       R2,R0
+    0007DE 79300064               SUB.W       #100:16,R0
+    0007E2 0D02                   MOV.W       R0,R2
+                   379:                                                            if( blockno==recvp->TDR.blockNo )
+    0007E4 6A2800                 MOV.B       @_$blockno:24,R0L
+           <000000>     
+    0007EA 17D0                   EXTS.W      R0
+    0007EC 6E690005               MOV.B       @(5:16,ER6),R1L
+    0007F0 1751                   EXTU.W      R1
+    0007F2 1D10                   CMP.W       R1,R0
+    0007F4 470C                   BEQ         L251:8
+                   380:                                                                    break;
+    0007F6              L249:                             
+                   381:                                                    }
+                   382:                                                    tracep = (char *)TraceGet( 0 );
+    0007F6 1900                   SUB.W       R0,R0
+    0007F8              L273:                             
+    0007F8 5E                     JSR         @_TraceGet:24
+           <000000>     
+    0007FC 010069C0               MOV.L       ER0,@ER4
+    000800 46C0                   BNE         L247:8
+    000802              L251:                             
+    000802              L246:                             
+                   383:                                            }
+                   384:                                    }
+                   385:    
+                   386:                                    tms_sd_data.TD.blockNo = blockno;
+    000802 6A2800                 MOV.B       @_$blockno:24,R0L
+           <000000>     
+    000808 6AA800                 MOV.B       R0L,@_tms_sd_data+4:24
+           <000000>     
+                   387:    
+                   388:                                    if( rembytes==0 ){
+    00080E 6930                   MOV.W       @ER3,R0
+    000810 4610                   BNE         L252:8
+                   389:                                            tracep = (char *)TraceGet( 0 );
+    000812 1900                   SUB.W       R0,R0
+    000814 5E                     JSR         @_TraceGet:24
+           <000000>     
+    000818 010069C0               MOV.L       ER0,@ER4
+                   390:                                            rembytes = sizeof(struct TRACE);
+    00081C 7900000C               MOV.W       #12:16,R0
+    000820 69B0                   MOV.W       R0,@ER3
+    000822              L252:                             
+                   391:                                    }
+                   392:                                    i = 0;
+    000822 1966                   SUB.W       R6,R6
+                   393:                            }
+                   394:    
+                   395:                            for( ; i<100; i++ ){
+    000824 4046                   BRA         L254:8
+    000826              L253:                             
+                   396:                                    if( tracep==NULL ){
+    000826 01006940               MOV.L       @ER4,ER0
+    00082A 4610                   BNE         L255:8
+                   397:                                            tms_sd_data.TD.data[i] = 0;     // zero padding
+    00082C 0D60                   MOV.W       R6,R0
+    00082E 17F0                   EXTS.L      ER0
+    000830 1899                   SUB.B       R1L,R1L
+    000832 78006AA900             MOV.B       R1L,@(_tms_sd_data+6:24,ER0)
+           <000000>     
+                   398:                                            continue;
+    00083A 402E                   BRA         L256:8
+    00083C              L255:                             
+                   399:                                    }
+                   400:                                    tms_sd_data.TD.data[i] = *tracep++;     // trace data
+    00083C 01006940               MOV.L       @ER4,ER0
+    000840 6C09                   MOV.B       @ER0+,R1L
+    000842 010069C0               MOV.L       ER0,@ER4
+    000846 0D60                   MOV.W       R6,R0
+    000848 17F0                   EXTS.L      ER0
+    00084A 78006AA900             MOV.B       R1L,@(_tms_sd_data+6:24,ER0)
+           <000000>     
+                   401:                                    rembytes--;
+    000852 6930                   MOV.W       @ER3,R0
+    000854 1B50                   DEC.W       #1,R0
+    000856 69B0                   MOV.W       R0,@ER3
+                   402:                                    if( rembytes==0 ){
+    000858 4610                   BNE         L257:8
+                   403:                                            tracep = (char *)TraceGet( 0 );
+    00085A 1900                   SUB.W       R0,R0
+    00085C 5E                     JSR         @_TraceGet:24
+           <000000>     
+    000860 010069C0               MOV.L       ER0,@ER4
+                   404:                                            rembytes = sizeof(struct TRACE);
+    000864 7900000C               MOV.W       #12:16,R0
+    000868 69B0                   MOV.W       R0,@ER3
+    00086A              L257:                             
+    00086A              L256:                             
+    00086A 0B56                   INC.W       #1,R6
+    00086C              L254:                             
+    00086C 79260064               CMP.W       #100:16,R6
+    000870 4DB4                   BLT         L253:8
+                   405:                                    }
+                   406:                            }
+                   407:                            break;
+    000872 5A                     JMP         @L213:24
+           <000000>     
+    000876              L204:                             
+                   408:    
+                   409:                    case 0x22:              // LDR
+                   410:                            HDLC_RecvSendChange();
+    000876 5E                     JSR         @_HDLC_RecvSendChange:24
+           <000000>     
+                   411:                            sdflag = 2;
+    00087A F802                   MOV.B       #2:8,R0L
+    00087C 6AA800                 MOV.B       R0L,@_$sdflag:24
+           <000000>     
+                   412:    
+                   413:                            if( (recvp->LDR.blockNo & 0x7F)==0 ){
+    000882 6E680004               MOV.B       @(4:16,ER6),R0L
+    000886 E87F                   AND.B       #127:8,R0L
+    000888 4610                   BNE         L258:8
+                   414:                                    tracep = (char *)&tms_config_data;
+    00088A 7A00                   MOV.L       #_tms_config_data:32,ER0
+           <00000000>   
+    000890 010069C0               MOV.L       ER0,@ER4
+                   415:                                    rembytes = sizeof(tms_config_data);
+    000894 79000010               MOV.W       #16:16,R0
+    000898 69B0                   MOV.W       R0,@ER3
+    00089A              L258:                             
+                   416:    //                              rembytes = 20;
+                   417:                            }
+                   418:                            if( rembytes>=101 ){
+    00089A 6930                   MOV.W       @ER3,R0
+    00089C 79200065               CMP.W       #101:16,R0
+    0008A0 4D38                   BLT         L259:8
+                   419:                                    for( i=0; i<101; i++ ){
+    0008A2 1900                   SUB.W       R0,R0
+    0008A4 0D02                   MOV.W       R0,R2
+    0008A6              L260:                             
+                   420:                                            *tracep++ = recvp->LDR.data[i];
+    0008A6 0D20                   MOV.W       R2,R0
+    0008A8 17F0                   EXTS.L      ER0
+    0008AA 1A91                   SUB.L       ER1,ER1
+    0008AC F905                   MOV.B       #5:8,R1L
+    0008AE 0AE1                   ADD.L       ER6,ER1
+    0008B0 0A81                   ADD.L       ER0,ER1
+    0008B2 01006940               MOV.L       @ER4,ER0
+    0008B6 6819                   MOV.B       @ER1,R1L
+    0008B8 6889                   MOV.B       R1L,@ER0
+    0008BA 01006940               MOV.L       @ER4,ER0
+    0008BE 0B70                   INC.L       #1,ER0
+    0008C0 010069C0               MOV.L       ER0,@ER4
+    0008C4 0D20                   MOV.W       R2,R0
+    0008C6 0B50                   INC.W       #1,R0
+    0008C8 0D02                   MOV.W       R0,R2
+    0008CA 79200065               CMP.W       #101:16,R0
+    0008CE 4DD6                   BLT         L260:8
+                   421:                                    }
+                   422:    //                              memcpy( tracep, recvp->LDR.data, 101 );
+                   423:    //                              tracep += 100;
+                   424:                                    rembytes -= 101;
+    0008D0 6930                   MOV.W       @ER3,R0
+    0008D2 79300065               SUB.W       #101:16,R0
+    0008D6 69B0                   MOV.W       R0,@ER3
+    0008D8 4062                   BRA         L261:8
+    0008DA              L259:                             
+                   425:                            }
+                   426:                            else {
+                   427:                                    for( i=0; i<rembytes; i++ ){
+    0008DA 1900                   SUB.W       R0,R0
+    0008DC 4022                   BRA         L274:8
+    0008DE              L262:                             
+                   428:                                            *tracep++ = recvp->LDR.data[i];
+    0008DE 0D20                   MOV.W       R2,R0
+    0008E0 17F0                   EXTS.L      ER0
+    0008E2 1A91                   SUB.L       ER1,ER1
+    0008E4 F905                   MOV.B       #5:8,R1L
+    0008E6 0AE1                   ADD.L       ER6,ER1
+    0008E8 0A81                   ADD.L       ER0,ER1
+    0008EA 01006940               MOV.L       @ER4,ER0
+    0008EE 6819                   MOV.B       @ER1,R1L
+    0008F0 6889                   MOV.B       R1L,@ER0
+    0008F2 01006940               MOV.L       @ER4,ER0
+    0008F6 0B70                   INC.L       #1,ER0
+    0008F8 010069C0               MOV.L       ER0,@ER4
+    0008FC 0D20                   MOV.W       R2,R0
+    0008FE 0B50                   INC.W       #1,R0
+    000900              L274:                             
+    000900 0D02                   MOV.W       R0,R2
+    000902 6931                   MOV.W       @ER3,R1
+    000904 1D10                   CMP.W       R1,R0
+    000906 4DD6                   BLT         L262:8
+                   429:                                    }
+                   430:    //                              memcpy( tracep, recvp->LDR.data, rembytes );
+                   431:                                    dataVersionCRCL = recvp->LDR.data[i++];
+    000908 0B50                   INC.W       #1,R0
+    00090A 0D02                   MOV.W       R0,R2
+    00090C 1B50                   DEC.W       #1,R0
+    00090E 17F0                   EXTS.L      ER0
+    000910 1A91                   SUB.L       ER1,ER1
+    000912 F905                   MOV.B       #5:8,R1L
+    000914 0AE1                   ADD.L       ER6,ER1
+    000916 0A81                   ADD.L       ER0,ER1
+    000918 6819                   MOV.B       @ER1,R1L
+    00091A 6AA900                 MOV.B       R1L,@_dataVersionCRCL:24
+           <000000>     
+                   432:                                    dataVersionCRCH = recvp->LDR.data[i++];
+    000920 0D20                   MOV.W       R2,R0
+    000922 17F0                   EXTS.L      ER0
+    000924 1A91                   SUB.L       ER1,ER1
+    000926 F905                   MOV.B       #5:8,R1L
+    000928 0AE1                   ADD.L       ER6,ER1
+    00092A 0A81                   ADD.L       ER0,ER1
+    00092C 6819                   MOV.B       @ER1,R1L
+    00092E 6AA900                 MOV.B       R1L,@_dataVersionCRCH:24
+           <000000>     
+                   433:    
+                   434:                                    tms_config_ok = 1;
+    000934 F801                   MOV.B       #1:8,R0L
+    000936 6AA800                 MOV.B       R0L,@_tms_config_ok:24
+           <000000>     
+    00093C              L261:                             
+                   435:                            }
+                   436:    
+                   437:                            tms_sd_data.LD.lowadr = 0x60;                                   // アドレス設定
+    00093C F860                   MOV.B       #96:8,R0L
+    00093E 6AA800                 MOV.B       R0L,@_tms_sd_data:24
+           <000000>     
+                   438:                            tms_sd_data.LD.highadr = 0x01;
+    000944 F801                   MOV.B       #1:8,R0L
+    000946 6AA800                 MOV.B       R0L,@_tms_sd_data+1:24
+           <000000>     
+                   439:                            tms_sd_data.LD.control = 0x13;                                  // ＵＩコード設定
+    00094C F813                   MOV.B       #19:8,R0L
+    00094E 6AA800                 MOV.B       R0L,@_tms_sd_data+2:24
+           <000000>     
+                   440:    
+                   441:                            tms_sd_data.LD.code = 0x32;
+    000954 F832                   MOV.B       #50:8,R0L
+    000956 6AA800                 MOV.B       R0L,@_tms_sd_data+3:24
+           <000000>     
+                   442:                            tms_sd_data.LD.blockNo = (recvp->LDR.blockNo+1) & 0x7F;
+    00095C 6E6E0004               MOV.B       @(4:16,ER6),R6L
+    000960 8E01                   ADD.B       #1:8,R6L
+    000962 EE7F                   AND.B       #127:8,R6L
+    000964 6AAE00                 MOV.B       R6L,@_tms_sd_data+4:24
+           <000000>     
+                   443:    
+                   444:                            break;
+    00096A 4004                   BRA         L213:8
+    00096C              L205:                             
+                   445:    
+                   446:                    default:
+                   447:                            HDLC_RecvEnable();
+    00096C 5E                     JSR         @_HDLC_RecvEnable:24
+           <000000>     
+                   448:                            break;
+    000970              L213:                             
+                   449:                    }
+                   450:    }
+    000970              L209:                             
+    000970 7A17000000             ADD.L       #44:32,SP
+           2C           
+    000976 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   451:    
+                   452:    
+                   453:    /************************************************************************
+                   454:    
+                   455:            Function name   << tms_send_end >>
+                   456:                                            送信終了処理
+                   457:            Syntax                  tms_send_end( void );
+                   458:            Argument                none
+                   459:            Author                  TOA Corporation  K.Honda
+                   460:            Revision                a00 2000/08/07
+                   461:                                    a01 2000/09/07  通信見直し
+                   462:    
+                   463:    *************************************************************************/
+                   464:    int tms_send_end( void )
+    00097A              _tms_send_end:                   ; function: tms_send_end
+                   465:    {
+                   466:                    HDLC_RecvEnable();
+    00097A 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   467:    }
+                   468:    
+                   469:    
+                   470:    /************************************************************************
+                   471:    
+                   472:            Function name   << tms_send_abort >>
+                   473:                                            送信中断処理
+                   474:            Syntax                  tms_send_abort( void );
+                   475:            Argument                none
+                   476:            Author                  TOA Corporation  K.Honda
+                   477:            Revision                a00 2000/08/07
+                   478:                                    a01 2000/09/07  通信見直し
+                   479:    
+                   480:    *************************************************************************/
+                   481:    int tms_send_abort( void )
+    00097E              _tms_send_abort:                 ; function: tms_send_abort
+                   482:    {
+                   483:                    HDLC_RecvEnable();
+    00097E 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   484:    }
+                   485:    
+                   486:    /************************************************************************
+                   487:    
+                   488:            Function name   << tms_recv_abort >>
+                   489:                                            受信中断処理
+                   490:            Syntax                  tms_recv_abort( void );
+                   491:            Argument                none
+                   492:            Author                  TOA Corporation  K.Honda
+                   493:            Revision                a00 2000/08/07
+                   494:                                    a01 2000/09/07  通信見直し
+                   495:    
+                   496:    *************************************************************************/
+                   497:    int tms_recv_abort( void )
+    000982              _tms_recv_abort:                 ; function: tms_recv_abort
+                   498:    {
+                   499:                    HDLC_RecvEnable();
+    000982 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   500:    }
+                   501:    
+                   502:    /************************************************************************
+                   503:    
+                   504:            Function name   << tms_send_start >>
+                   505:                                            送信開始処理
+                   506:            Syntax                  tms_send_start( void );
+                   507:            Argument                none
+                   508:            Author                  TOA Corporation  K.Honda
+                   509:            Revision                a00 2000/08/07
+                   510:                                    a01 2000/09/07  通信見直し
+                   511:    
+                   512:    *************************************************************************/
+                   513:    int tms_send_start( void )
+    000986              _tms_send_start:                 ; function: tms_send_start
+    000986 01006DF2               PUSH.L      ER2
+                   514:    {
+                   515:                    if( sdflag==1 ){
+    00098A 6A2800                 MOV.B       @_$sdflag:24,R0L
+           <000000>     
+    000990 A801                   CMP.B       #1:8,R0L
+    000992 4610                   BNE         L264:8
+                   516:                            HDLC_SendEnable( (char *)&tms_sd_data, sizeof(tms_sd_data.SD) );
+    000994 7901002B               MOV.W       #43:16,R1
+    000998 7A00                   MOV.L       #_tms_sd_data:32,ER0
+           <00000000>   
+    00099E 5E                     JSR         @_HDLC_SendEnable:24
+           <000000>     
+    0009A2 4018                   BRA         L265:8
+    0009A4              L264:                             
+                   517:                    }
+                   518:                    else if( sdflag==0 ){
+    0009A4 0C88                   MOV.B       R0L,R0L
+    0009A6 4606                   BNE         L266:8
+                   519:                            HDLC_SendEnable( (char *)&tms_sd_data, sizeof(tms_sd_data.TD) );
+    0009A8 7901006A               MOV.W       #106:16,R1
+    0009AC 4004                   BRA         L275:8
+    0009AE              L266:                             
+                   520:                    }
+                   521:                    else {
+                   522:                            HDLC_SendEnable( (char *)&tms_sd_data, sizeof(tms_sd_data.LD) );
+    0009AE 79010006               MOV.W       #6:16,R1
+    0009B2              L275:                             
+    0009B2 7A00                   MOV.L       #_tms_sd_data:32,ER0
+           <00000000>   
+    0009B8 5E                     JSR         @_HDLC_SendEnable:24
+           <000000>     
+    0009BC              L265:                             
+                   523:                    }
+                   524:    
+                   525:                    if( tms_config_ok ){
+    0009BC 6A2800                 MOV.B       @_tms_config_ok:24,R0L
+           <000000>     
+    0009C2 4724                   BEQ         L268:8
+                   526:                            tms_config_ok = 0;
+    0009C4 1888                   SUB.B       R0L,R0L
+    0009C6 6AA800                 MOV.B       R0L,@_tms_config_ok:24
+           <000000>     
+                   527:                            config_data = tms_config_data;
+    0009CC 7A00                   MOV.L       #_tms_config_data:32,ER0
+           <00000000>   
+    0009D2 7A01                   MOV.L       #_config_data:32,ER1
+           <00000000>   
+    0009D8 1AA2                   SUB.L       ER2,ER2
+    0009DA FA10                   MOV.B       #16:8,R2L
+    0009DC 5E                     JSR         @$MVN$3:24
+           <000000>     
+                   528:                            tms_config_write = 1;
+    0009E0 F801                   MOV.B       #1:8,R0L
+    0009E2 6AA800                 MOV.B       R0L,@_tms_config_write:24
+           <000000>     
+    0009E8              L268:                             
+                   529:                    }
+                   530:    }
+    0009E8 01006D72               POP.L       ER2
+    0009EC 5470                   RTS
+                   531:    
+                   532:    /************************************************************************
+                   533:    
+                   534:            Function name   << tms_initialize >>
+                   535:                                            初期設定
+                   536:            Syntax                  tms_initialize( void );
+                   537:            Argument                none
+                   538:            Author                  TOA Corporation  K.Honda
+                   539:            Revision                a00 2000/08/07
+                   540:                                    a01 2000/09/07  通信見直し
+                   541:                                            a02 2001/07/09  EIDS Door Status Initialize
+                   542:    
+                   543:    *************************************************************************/
+                   544:    void tms_initialize( void )
+    0009EE              _tms_initialize:                 ; function: tms_initialize
+                   545:    {
+                   546:                    firstFlag = 0;
+    0009EE 1888                   SUB.B       R0L,R0L
+    0009F0 6AA800                 MOV.B       R0L,@_$firstFlag:24
+           <000000>     
+                   547:    
+                   548:                    tms_config_ok = 0;
+    0009F6 6AA800                 MOV.B       R0L,@_tms_config_ok:24
+           <000000>     
+                   549:    
+                   550:                    /** ＨＤＬＣ通信部を初期設定 **/
+                   551:                    HDLC_Initialize( 9600, 0x60, sizeof(tms_sd_data) );
+    0009FC 7908006A               MOV.W       #106:16,E0
+    000A00 F960                   MOV.B       #96:8,R1L
+    000A02 79002580               MOV.W       #9600:16,R0
+    000A06 5E                     JSR         @_HDLC_Initialize:24
+           <000000>     
+                   552:    
+                   553:                    // 送信情報の初期設定
+                   554:                    memset( &tms_sd_data, 0, sizeof(tms_sd_data) ); // 初期はリセット状態
+    000A0A 1A80                   SUB.L       ER0,ER0
+    000A0C F86A                   MOV.B       #106:8,R0L
+    000A0E 01006DF0               PUSH.L      ER0
+    000A12 1911                   SUB.W       R1,R1
+    000A14 7A00                   MOV.L       #_tms_sd_data:32,ER0
+           <00000000>   
+    000A1A 5E                     JSR         @_memset:24
+           <000000>     
+    000A1E 0B97                   ADDS.L      #4,SP
+                   555:                    tms_sd_data.SD.lowadr = 0x60;                                   // アドレス設定
+    000A20 F860                   MOV.B       #96:8,R0L
+    000A22 6AA800                 MOV.B       R0L,@_tms_sd_data:24
+           <000000>     
+                   556:                    tms_sd_data.SD.highadr = 0x01;
+    000A28 F801                   MOV.B       #1:8,R0L
+    000A2A 6AA800                 MOV.B       R0L,@_tms_sd_data+1:24
+           <000000>     
+                   557:                    tms_sd_data.SD.control = 0x13;                                  // ＵＩコード設定
+    000A30 F813                   MOV.B       #19:8,R0L
+    000A32 6AA800                 MOV.B       R0L,@_tms_sd_data+2:24
+           <000000>     
+                   558:    
+                   559:                    tms_sd_data.SD.code = 0x30;                                             // ＳＤフォーマットのコード
+    000A38 F830                   MOV.B       #48:8,R0L
+    000A3A 6AA800                 MOV.B       R0L,@_tms_sd_data+3:24
+           <000000>     
+                   560:                    tms_sd_data.SD.version = config_data.version;   // 自ＤＶＡＵバージョン
+    000A40 6A2000                 MOV.B       @_config_data+6:24,R0H
+           <000000>     
+    000A46 6A2800                 MOV.B       @_config_data+7:24,R0L
+           <000000>     
+    000A4C 6AA000                 MOV.B       R0H,@_tms_sd_data+17:24
+           <000000>     
+    000A52 6AA800                 MOV.B       R0L,@_tms_sd_data+18:24
+           <000000>     
+                   561:    
+                   562:                    HDLC_ReceiveEnd = tms_receive_end;
+    000A58 7A00                   MOV.L       #_tms_receive_end:32,ER0
+           <00000000>   
+    000A5E 01006BA000             MOV.L       ER0,@_HDLC_ReceiveEnd:24
+           <000000>     
+                   563:                    HDLC_ReceiveAbort = tms_recv_abort;
+    000A66 7A00                   MOV.L       #_tms_recv_abort:32,ER0
+           <00000000>   
+    000A6C 01006BA000             MOV.L       ER0,@_HDLC_ReceiveAbort:24
+           <000000>     
+                   564:                    HDLC_SendEnd = tms_send_end;
+    000A74 7A00                   MOV.L       #_tms_send_end:32,ER0
+           <00000000>   
+    000A7A 01006BA000             MOV.L       ER0,@_HDLC_SendEnd:24
+           <000000>     
+                   565:                    HDLC_SendAbort = tms_send_abort;
+    000A82 7A00                   MOV.L       #_tms_send_abort:32,ER0
+           <00000000>   
+    000A88 01006BA000             MOV.L       ER0,@_HDLC_SendAbort:24
+           <000000>     
+                   566:                    HDLC_SendStart = tms_send_start;
+    000A90 7A00                   MOV.L       #_tms_send_start:32,ER0
+           <00000000>   
+    000A96 01006BA000             MOV.L       ER0,@_HDLC_SendStart:24
+           <000000>     
+                   567:    
+                   568:                    HDLC_RecvEnable();
+    000A9E 5E                     JSR         @_HDLC_RecvEnable:24
+           <000000>     
+                   569:    
+                   570:                    DUALPORT.tms_request.doorStatus = 1;                    // 2001/07/09 EIDS のドア状態はクローズ
+    000AA2 7A00001800             MOV.L       #1573082:32,ER0
+           DA           
+    000AA8 7D007010               BSET.B      #1,@ER0
+                   571:    }
+    000AAC 5470                   RTS
+                   572:    
+  B                                                      ; section
+    000000              _tms_sdr_data:                   ; static: tms_sdr_data
+    000000 0000006A               .RES.B      106
+    00006A              _tms_sd_data:                    ; static: tms_sd_data
+    00006A 0000006A               .RES.B      106
+    0000D4              _tms_config_ok:                  ; static: tms_config_ok
+    0000D4 00000001               .RES.B      1
+    0000D5              _tms_config_data:                ; static: tms_config_data
+    0000D5 00000010               .RES.B      16
+    0000E5              _$befAdjust:                     ; static: befAdjust
+    0000E5 00000001               .RES.B      1
+    0000E6              _$befTalkBack:                   ; static: befTalkBack
+    0000E6 00000008               .RES.B      8
+    0000EE              _$sdflag:                        ; static: sdflag
+    0000EE 00000001               .RES.B      1
+    0000EF              _$blockno:                       ; static: blockno
+    0000EF 00000001               .RES.B      1
+    0000F0              _$tracep:                        ; static: tracep
+    0000F0 00000004               .RES.L      1
+    0000F4              _$rembytes:                      ; static: rembytes
+    0000F4 00000002               .RES.W      1
+    0000F6              _$firstFlag:                     ; static: firstFlag
+    0000F6 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:22  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000AAE Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x000000F7 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000AAE Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x000000F7 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000BA5 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       26 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       11 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        104 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvatms.c -object=.\obj\dvatms.obj
+CPU         : 300ha:24

@@ -1,0 +1,574 @@
+################################################################################
+#                                                                              #
+#      IAR Universal Linker V4.50C/WIN                                         #
+#                                                                              #
+#           Link time     =  03/Jul/2000  21:44:43                             #
+#           Target CPU    =  z80                                               #
+#           List file     =  z:\mtrc\mcp\debug\list\mcp.map                    #
+#           Output file 1 =  z:\mtrc\mcp\debug\exe\mcp.a01                     #
+#           Output format =  intel-extended                                    #
+#           Command line  =  -A Z:\MTRC\MCP\Debug\Obj\MCPCOMM.r01 -A           #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPCOMMA.r01 -A             #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPDISP.r01 -A              #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPINIT.r01 -A              #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPINITA.r01 -A             #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPMAIN.r01 -A              #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPPIO.r01 -A               #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPPIOA.r01 -A              #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPTIMEA.r01 -A             #
+#                            Z:\MTRC\MCP\Debug\Obj\MCPTIMER.r01 -o             #
+#                            Z:\MTRC\MCP\Debug\Exe\MCP.a01 -Fintel-extended    #
+#                            -B -l Z:\MTRC\MCP\Debug\List\MCP.map -xms         #
+#                            -IC:\IAR\EW22\Z80\lib\ -f Z:\MTRC\MCP\link.xcl    #
+#                            (-cZ80 -C CL64180 -Z(code)RCODE,CODE,CONST=0100   #
+#                            -Z(data)RDATA,UDATA0=C000)                        #
+#                                                                              #
+#                                               (c) Copyright IAR Systems 1998 #
+################################################################################
+
+
+
+
+
+                ****************************************
+                *                                      *
+                *           CROSS REFERENCE            *
+                *                                      *
+                ****************************************
+
+                  There are no program entries.
+
+
+
+
+                ****************************************
+                *                                      *
+                *              MODULE MAP              *
+                *                                      *
+                ****************************************
+
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpcomm.r01
+  PROGRAM MODULE, NAME : mcpcomm
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 0508 - 07F3
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           asci_0_recv_ir          0705            mcpcomma
+           asci_0_send_ir          07D1            mcpcomma
+           mcpReceive              0648            Not referred to
+           mcpSend                 0508            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ?0001                   0545 
+           ?0002                   0556 
+           ?0006                   0584 
+           ?0007                   0584 
+           ?0004                   0584 
+           ?0005                   05AA 
+           ?0008                   05BF 
+           ?0048                   05C7 
+           ?0049                   05CF 
+           ?0000                   05D2 
+           ?0011                   0606 
+           ?0012                   0606 
+           ?0009                   0606 
+           ?0010                   0626 
+           ?0013                   0635 
+           ?0014                   065E 
+           ?0015                   0662 
+           ?0016                   06BA 
+           ?0017                   06EA 
+           ?0018                   06FD 
+           ?0019                   0701 
+           ?0020                   0702 
+           ?0021                   0711 
+           ?0022                   0719 
+           ?0023                   0720 
+           ?0025                   0726 
+           ?0026                   0737 
+           ?0024                   073A 
+           ?0028                   0741 
+           ?0029                   0744 
+           ?0030                   074E 
+           ?0032                   0759 
+           ?0033                   0769 
+           ?0031                   0771 
+           ?0034                   0778 
+           ?0035                   0792 
+           ?0036                   0796 
+           ?0037                   0798 
+           ?0038                   07A2 
+           ?0039                   07AE 
+           ?0040                   07B8 
+           ?0042                   07C5 
+           ?0043                   07C8 
+           ?0041                   07C8 
+           ?0027                   07CE 
+           ?0044                   07CE 
+           ?0045                   07DD 
+           ?0046                   07E2 
+           ?0047                   07F1 
+    -------------------------------------------------------------------------
+UDATA0
+  Relative segment, address : C002 - C061
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           address                 C002            mcpmain
+           sendarea                C004            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           recvbcc                 C04F 
+           recvbuff                C00C 
+           recvdle                 C04E 
+           recvlen                 C04C 
+           recvphase               C04D 
+           sendbuff                C050 
+           sendcnt                 C061 
+           sendlen                 C060 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpcomma.r01
+  PROGRAM MODULE, NAME : mcpcomma
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 0100 - 017D
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           asci_0_initialize       0100            CSTARTUP
+           asci_0_tx_disable       0115            mcpcomm
+           asci_0_tx_enable        0128            mcpcomm
+           asci_0_transmit         013B            mcpcomm
+           asci_0_ir               0140            CSTARTUP
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           asci_0_ir10             0157 
+           asci_0_ir20             016F 
+           asci_0_ir100            0175 
+           asci_0_receive_10       0161 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpdisp.r01
+  PROGRAM MODULE, NAME : mcpdisp
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 07F4 - 0B03
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           mcpBlinkCount           0A3A            Not referred to
+           mcpDynamicScanDisplay   0AFA            mcptimer
+           mcpGetFont              07F4            Not referred to
+           mcpMatrixOutput         0A5C            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ?0001                   0835 
+           ?0002                   0847 
+           ?0034                   08C4 
+           ?0000                   08C7 
+           ?0005                   08CE 
+           ?0006                   08E0 
+           ?0009                   08E7 
+           ?0010                   08F9 
+           ?0012                   092E 
+           ?0015                   0994 
+           ?0016                   09A5 
+           ?0018                   09B6 
+           ?0019                   09E7 
+           ?0020                   0A16 
+           ?0035                   0A1E 
+           ?0014                   0A21 
+           ?0013                   0A21 
+           ?0036                   0A29 
+           ?0008                   0A2C 
+           ?0037                   0A34 
+           ?0004                   0A37 
+           ?0021                   0A41 
+           ?0022                   0A48 
+           ?0023                   0A4C 
+           ?0024                   0A57 
+           ?0025                   0A5B 
+           ?0027                   0A68 
+           ?0028                   0A79 
+           ?0031                   0A80 
+           ?0032                   0A91 
+           ?0038                   0AEA 
+           ?0030                   0AEC 
+           ?0039                   0AF4 
+           ?0026                   0AF7 
+    -------------------------------------------------------------------------
+CONST
+  Relative segment, address : 0CBB - 0F35
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           font_data               0CBB 
+    -------------------------------------------------------------------------
+UDATA0
+  Relative segment, address : C062 - C27A
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           blinkPositionData       C11F            Not referred to
+           ledShiftData            C1BF            mcptimer
+           matrix_blink            C07D            mcpcomm
+           matrix_led              C064            mcpcomm
+           rawData                 C07F            Not referred to
+           sw_blink                C07C            mcpcomm
+           sw_led                  C062            mcpcomm
+                                                   mcppio
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           blinkCount              C27A 
+           blinkPositionCheck      C279 
+           now_matrix_led          C261 
+           now_sw_led              C25F 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpinit.r01
+  PROGRAM MODULE, NAME : mcpinit
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 0B04 - 0B04
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           mcpInitialize           0B04            mcpmain
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpinita.r01
+  PROGRAM MODULE, NAME : CSTARTUP
+
+Absolute parts
+     0000 - 0006
+     0038 - 003D
+     0040 - 0057
+     0066 - 006B
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           PRGBEGIN                0003            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ROMTOP                  0000 
+  SEGMENTS IN THE MODULE
+  ======================
+    -------------------------------------------------------------------------
+RCODE
+  Relative segment, address : 017E - 038B
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           prg_name                017E            Not referred to
+           prg_version             01A2            Not referred to
+           init_ic                 025C            Not referred to
+           read_dipsw              0279            Not referred to
+           watch_dog_reset         0284            mcpmain
+           _Bankchange             028B            Not referred to
+           __enable                02AD            mcpmain
+           __disable               02AF            Not referred to
+           ram_check               02B1            Not referred to
+           rom_check               035A            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           BOOTSTRUP               01F1 
+           dummy                   01A4 
+           nmi_ir                  01AB 
+           nmi_ir_999              01BF 
+           int1_ir                 01C9 
+           int2_ir                 01DD 
+           BOOTSTRUP10             0204 
+           BOOTSTRUP11             020A 
+           BOOTSTRUP12             0210 
+           BOOTSTRUP13             0216 
+           BOOTSTRUP14             021C 
+           BOOTSTRUP15             0222 
+           BOOTSTRUP16             0228 
+           x180_init               022E 
+           BBR_tbl                 029D 
+           ram_check100            02B4 
+           ram_check200            02BF 
+           ram_check900            0355 
+           ram_check300            02E3 
+           ram_check400            0307 
+           ram_check500            032B 
+           rom_check100            035F 
+           rom_check200            036A 
+           rom_check900            038A 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcpmain.r01
+  PROGRAM MODULE, NAME : mcpmain
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 0B05 - 0B74
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           main                    0B05            CSTARTUP
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ?0001                   0B22 
+           ?0002                   0B33 
+           ?0009                   0B3E 
+           ?0000                   0B40 
+           ?0004                   0B53 
+           ?0005                   0B61 
+           ?0006                   0B6D 
+           ?0008                   0B70 
+    -------------------------------------------------------------------------
+UDATA0
+  Relative segment, address : C27B - C27D
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           preReadIO               C27C 
+           readCount               C27B 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcppio.r01
+  PROGRAM MODULE, NAME : mcppio
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 0B75 - 0C13
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           mcpSwitchIn             0B75            mcpmain
+                                                   mcptimer
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ?0000                   0B8C 
+           ?0001                   0B92 
+           ?0003                   0B99 
+           ?0005                   0BD9 
+           ?0007                   0BF8 
+           ?0008                   0C01 
+           ?0009                   0C08 
+           ?0006                   0C08 
+           ?0004                   0C08 
+           ?0002                   0C08 
+    -------------------------------------------------------------------------
+UDATA0
+  Relative segment, address : C27E - C286
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           nowReadIO               C282            mcpmain
+           offReadIO               C280            Not referred to
+           onReadIO                C27E            Not referred to
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           preReadIO               C285 
+           readCount               C284 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcppioa.r01
+  PROGRAM MODULE, NAME : mcppioa
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 038C - 0402
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           csio_initialize         038C            CSTARTUP
+           csio_output             03A5            mcptimer
+           csio_strobe             03B8            mcptimer
+           switch_read             03CC            mcppio
+           io_output_on            03D5            mcpmain
+                                                   mcppio
+                                                   mcptimer
+           io_output_off           03EC            mcpmain
+                                                   mcppio
+                                                   mcptimer
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           csio_100                03AF 
+           csio_strobeOFF          03C5 
+           csio_strobeEND          03CA 
+    -------------------------------------------------------------------------
+RDATA
+  Relative segment, address : C000 - C001
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           iodata                  C000 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcptimea.r01
+  PROGRAM MODULE, NAME : mcptimea
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 0403 - 04C0
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           timer_0_initialize      0403            CSTARTUP
+           timer_0_ir              042D            CSTARTUP
+           timer_1_initialize      0462            CSTARTUP
+           timer_1_ir              048C            CSTARTUP
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           timer_0_ir999           0457 
+           timer_0_ir100           044A 
+           timer_0_ir900           044D 
+           timer_1_ir999           04B6 
+           timer_1_ir100           04A9 
+           timer_1_ir900           04AC 
+
+    *************************************************************************
+
+  FILE NAME : z:\mtrc\mcp\debug\obj\mcptimer.r01
+  PROGRAM MODULE, NAME : mcptimer
+
+  SEGMENTS IN THE MODULE
+  ======================
+CODE
+  Relative segment, address : 0C14 - 0CBA
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           timer_0_func            0C14            mcptimea
+           timer_1_func            0C1B            mcptimea
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           ?0001                   0C42 
+           ?0002                   0C53 
+           ?0004                   0C65 
+           ?0005                   0C6D 
+           ?0000                   0C6F 
+    -------------------------------------------------------------------------
+CONST
+  Relative segment, address : 0F36 - 0F45
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           col_pos                 0F36 
+    -------------------------------------------------------------------------
+UDATA0
+  Relative segment, address : C287 - C287
+           LOCALS                 ADDRESS          
+           ======                 =======          
+           colCount                C287 
+
+    *************************************************************************
+
+  FILE NAME : c:\iar\ew22\z80\lib\cl64180.r01
+  LIBRARY MODULE, NAME : ?LIB_VERSION_L00
+
+Absolute parts
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?CL64180L_4_04_L00      0000            mcpcomm
+                                                   mcpdisp
+                                                   mcpinit
+                                                   mcpmain
+                                                   mcppio
+                                                   mcptimer
+    -------------------------------------------------------------------------
+  LIBRARY MODULE, NAME : ?SS_RSH_L02
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 04C1 - 04CA
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?SS_RSH_L02             04C1            mcpdisp
+
+    -------------------------------------------------------------------------
+  LIBRARY MODULE, NAME : ?S_MUL_L02
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 04CB - 04E0
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?S_MUL_L02              04CB            mcpdisp
+                                                   mcptimer
+
+    -------------------------------------------------------------------------
+  LIBRARY MODULE, NAME : ?ENT_PARM_DIRECT_L09
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 04E1 - 04EC
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?ENT_PARM_DIRECT_L09    04E1            mcpcomm
+
+    -------------------------------------------------------------------------
+  LIBRARY MODULE, NAME : ?ENT_AUTO_DIRECT_L09
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 04ED - 0500
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?ENT_AUTO_DIRECT_L09    04ED            mcpcomm
+                                                   mcpdisp
+                                                   mcpmain
+                                                   mcppio
+                                                   mcptimer
+
+    -------------------------------------------------------------------------
+  LIBRARY MODULE, NAME : ?LEAVE_DIRECT_L09
+
+  SEGMENTS IN THE MODULE
+  ======================
+RCODE
+  Relative segment, address : 0501 - 0507
+           ENTRIES                ADDRESS          REF BY MODULE
+           =======                =======          =============
+           ?LEAVE_DIRECT_L09       0501            mcpcomm
+                                                   mcpdisp
+                                                   mcppio
+                                                   mcptimer
+
+
+
+
+                ****************************************
+                *                                      *
+                *      SEGMENTS IN ADDRESS ORDER       *
+                *                                      *
+                ****************************************
+
+
+ SEGMENT               START ADDRESS    END ADDRESS  TYPE  ORG  P/N  ALIGN
+ =======               =============    ===========  ====  ===  ===  =====
+RCODE                        0100     -     0507      rel  stc  pos   0     
+CODE                         0508     -     0CBA      rel  flt  pos   0     
+CONST                        0CBB     -     0F45      rel  flt  pos   0     
+RDATA                        C000     -     C001      rel  stc  pos   0     
+UDATA0                       C002     -     C287      rel  flt  pos   0     
+                             0000     -     0006     aseg  
+                             0038     -     003D     aseg  
+                             0040     -     0057     aseg  
+                             0066     -     006B     aseg  
+
+                ****************************************
+                *                                      *
+                *        END OF CROSS REFERENCE        *
+                *                                      *
+                ****************************************
+
+  3697 bytes of CODE memory
+   648 bytes of DATA memory
+
+Errors: none
+Warnings: none
+

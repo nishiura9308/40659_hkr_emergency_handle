@@ -1,0 +1,517 @@
+################################################################################
+#                                                                              #
+#      IAR Universal Linker V4.50C/386                                         #
+#                                                                              #
+#           Link time     =  06/Dec/2000  09:19:40                             #
+#           Target CPU    =  z80                                               #
+#           List file     =  mcp.map                                           #
+#           Output file 1 =  mcp.hex                                           #
+#           Output format =  intel-standard                                    #
+#           Command line  =  -f LINK.CMD (-cZ80 -FIntel-Standard -A            #
+#                            .\obj\mcpInitA.r01 -A .\obj\mcpTimeA.r01 -A       #
+#                            .\obj\mcpCommA.r01 -A .\obj\mcpPioA.r01 -A        #
+#                            .\obj\mcpMain.r01 -A .\obj\mcpInit.r01 -A         #
+#                            .\obj\mcpPio.r01 -A .\obj\mcpTimer.r01 -A         #
+#                            .\obj\mcpDisp.r01 -A .\obj\mcpComm.r01 -C CL64180 #
+#                            -Z(code)RCODE,CODE,CONST,CSTR=0100                #
+#                            -Z(data)RDATA,UDATA0=C000) -o MCP.hex -l MCP.map  #
+#                            -t -xes                                           #
+#                                                                              #
+#                                               (c) Copyright IAR Systems 1998 #
+################################################################################
+
+
+
+
+
+                ****************************************
+                *                                      *
+                *           CROSS REFERENCE            *
+                *                                      *
+                ****************************************
+
+                  There are no program entries.
+
+
+                ****************************************
+                *                                      *
+                *              ENTRY LIST              *
+                *                                      *
+                ****************************************
+
+CSTARTUP ( .\obj\mcpinita.r01 )
+  PRGBEGIN                         0003 
+  prg_name                         0100 
+  prg_version                      0124 
+  init_ic                          01E3 
+  read_dipsw                       0200 
+  watch_dog_reset                  020B 
+  _Bankchange                      0211 
+  __enable                         0233 
+  __disable                        0235 
+  ram_check                        0237 
+  rom_check                        02D9 
+  HALTCPU                          030E 
+mcptimea ( .\obj\mcptimea.r01 )
+  timer_0_initialize               0310 
+  timer_0_ir                       033B 
+  timer_1_initialize               0360 
+  timer_1_ir                       038B 
+mcpcomma ( .\obj\mcpcomma.r01 )
+  asci_0_initialize                03CF 
+  asci_0_tx_disable                03E4 
+  asci_0_tx_enable                 03F9 
+  asci_0_rx_disable                0411 
+  asci_0_rx_enable                 042D 
+  asci_0_transmit                  0442 
+  asci_0_ir                        0447 
+mcppioa ( .\obj\mcppioa.r01 )
+  csio_initialize                  0490 
+  csio_output                      04AC 
+  csio_strobe                      04C0 
+  switch_read                      04D5 
+  io_output_on                     04DE 
+  io_output_off                    04F5 
+  csio_ir                          0512 
+  io_disp_set                      0551 
+  iodata                           C000 
+mcpmain ( .\obj\mcpmain.r01 )
+  main                             0CAA 
+  ?0008                            0CF0 
+  ?0009                            0CFE 
+  ?0010                            0D0A 
+  ?0011                            0DA7 
+  ?0012                            0DB7 
+  ?0013                            0DC5 
+  ?0015                            0DC8 
+  preReadIO                        C01C 
+  readCount                        C01B 
+mcpinit ( .\obj\mcpinit.r01 )
+  mcpInitialize                    0DD0 
+  ?0000                            0DD7 
+  ?0001                            0DDA 
+  ?0002                            0DE1 
+  ?0003                            0DE4 
+mcppio ( .\obj\mcppio.r01 )
+  debug_Display                    0DE5 
+  mcpSwitchIn                      1250 
+  nowReadIO                        C022 
+  offReadIO                        C020 
+  onReadIO                         C01E 
+  ?0008                            0DF7 
+  ?0010                            0E0D 
+  ?0013                            0E20 
+  ?0014                            0E31 
+  ?0121                            0E47 
+  ?0012                            0E49 
+  ?0017                            0E50 
+  ?0018                            0E61 
+  ?0122                            0E77 
+  ?0016                            0E79 
+  ?0021                            0E80 
+  ?0022                            0E91 
+  ?0123                            0EA7 
+  ?0020                            0EA9 
+  ?0025                            0EB0 
+  ?0026                            0EC1 
+  ?0124                            0ED7 
+  ?0024                            0ED9 
+  ?0011                            0ED9 
+  ?0028                            0EE1 
+  ?0031                            0EF4 
+  ?0032                            0F05 
+  ?0125                            0F1B 
+  ?0030                            0F1D 
+  ?0035                            0F24 
+  ?0036                            0F35 
+  ?0126                            0F4B 
+  ?0034                            0F4D 
+  ?0039                            0F54 
+  ?0040                            0F65 
+  ?0127                            0F7B 
+  ?0038                            0F7D 
+  ?0043                            0F84 
+  ?0044                            0F95 
+  ?0128                            0FAB 
+  ?0042                            0FAD 
+  ?0029                            0FAD 
+  ?0046                            0FB5 
+  ?0049                            0FC8 
+  ?0050                            0FD9 
+  ?0129                            0FEF 
+  ?0048                            0FF1 
+  ?0053                            0FF8 
+  ?0054                            1009 
+  ?0130                            101F 
+  ?0052                            1021 
+  ?0057                            1028 
+  ?0058                            1039 
+  ?0131                            104F 
+  ?0056                            1051 
+  ?0061                            1058 
+  ?0062                            1069 
+  ?0132                            107F 
+  ?0060                            1081 
+  ?0047                            1081 
+  ?0064                            1089 
+  ?0067                            109C 
+  ?0068                            10AD 
+  ?0133                            10C3 
+  ?0066                            10C5 
+  ?0071                            10CC 
+  ?0072                            10DD 
+  ?0134                            10F3 
+  ?0070                            10F5 
+  ?0075                            10FC 
+  ?0076                            110D 
+  ?0135                            1123 
+  ?0074                            1125 
+  ?0079                            112C 
+  ?0080                            113D 
+  ?0136                            1153 
+  ?0078                            1155 
+  ?0065                            1155 
+  ?0082                            115D 
+  ?0085                            1170 
+  ?0086                            1181 
+  ?0137                            1197 
+  ?0084                            1199 
+  ?0089                            11A0 
+  ?0090                            11B1 
+  ?0138                            11C7 
+  ?0088                            11C9 
+  ?0093                            11D0 
+  ?0094                            11E1 
+  ?0139                            11F7 
+  ?0092                            11F9 
+  ?0097                            1200 
+  ?0098                            1211 
+  ?0140                            1227 
+  ?0096                            1229 
+  ?0083                            1229 
+  ?0009                            122B 
+  ?0101                            1232 
+  ?0102                            124A 
+  ?0100                            124A 
+  ?0104                            126B 
+  ?0105                            1277 
+  ?0106                            1285 
+  ?0107                            128C 
+  ?0109                            1294 
+  ?0111                            12D4 
+  ?0112                            12E4 
+  ?0113                            1306 
+  ?0115                            1325 
+  ?0116                            1335 
+  ?0117                            1343 
+  ?0114                            1343 
+  ?0118                            1350 
+  ?0119                            1353 
+  ?0110                            1355 
+  ?0120                            1359 
+  ?0108                            1359 
+  ?0103                            2C35 
+  ?0103                            2C35 
+  preReadIO                        C025 
+  readCount                        C024 
+mcptimer ( .\obj\mcptimer.r01 )
+  timer_0_func                     1370 
+  timer_1_func                     1369 
+  col_pos                          29A5 
+  colCount                         C027 
+mcpdisp ( .\obj\mcpdisp.r01 )
+  mcpBlinkCount                    1793 
+  mcpDynamicScanDisplay            17B5 
+  mcpGetFont                       1386 
+  blinkPositionCheck               C1A8 
+  blinkPositionData                C108 
+  matrix_blink                     C044 
+  matrix_led                       C02A 
+  now_matrix_blink                 C064 
+  now_matrix_led                   C04A 
+  now_sw_blink                     C062 
+  now_sw_led                       C048 
+  rawData                          C068 
+  sw_blink                         C042 
+  sw_led                           C028 
+  ?0000                            13A0 
+  ?0003                            13AD 
+  ?0004                            13BE 
+  ?0061                            13F9 
+  ?0002                            13FB 
+  ?0001                            13FE 
+  ?0006                            140A 
+  ?0009                            1417 
+  ?0010                            1428 
+  ?0062                            1463 
+  ?0008                            1465 
+  ?0007                            1468 
+  ?0013                            146F 
+  ?0014                            1481 
+  ?0017                            1488 
+  ?0018                            149A 
+  ?0020                            14CF 
+  ?0023                            1535 
+  ?0024                            1547 
+  ?0026                            1558 
+  ?0027                            1592 
+  ?0028                            15CD 
+  ?0063                            15D5 
+  ?0022                            15D8 
+  ?0021                            15D8 
+  ?0064                            15E0 
+  ?0016                            15E3 
+  ?0065                            15EE 
+  ?0012                            15F1 
+  ?0030                            15F8 
+  ?0031                            160A 
+  ?0033                            161F 
+  ?0036                            1636 
+  ?0037                            1648 
+  ?0039                            165E 
+  ?0042                            1665 
+  ?0043                            1676 
+  ?0045                            1687 
+  ?0046                            16B1 
+  ?0047                            16DC 
+  ?0066                            16E4 
+  ?0041                            16E7 
+  ?0040                            16EA 
+  ?0050                            16F1 
+  ?0051                            1702 
+  ?0053                            1713 
+  ?0054                            173D 
+  ?0055                            1768 
+  ?0067                            1770 
+  ?0049                            1773 
+  ?0048                            1773 
+  ?0068                            177B 
+  ?0035                            177E 
+  ?0034                            177E 
+  ?0069                            1789 
+  ?0029                            178C 
+  ?0056                            179A 
+  ?0057                            17A1 
+  ?0058                            17A5 
+  ?0059                            17B0 
+  ?0060                            17B4 
+  font_data                        29B5 
+  blinkCount                       C1A9 
+mcpcomm ( .\obj\mcpcomm.r01 )
+  asci_0_recv_ir                   1C5F 
+  asci_0_send_ir                   17B9 
+  mcpReceive                       198E 
+  mcpSend                          17DC 
+  address                          C1AA 
+  mcp_active                       C1B4 
+  mcp_sendactive                   C1B5 
+  sendarea                         C1AC 
+  ?0000                            17C5 
+  ?0001                            17CA 
+  ?0002                            17D9 
+  ?0005                            1849 
+  ?0006                            1849 
+  ?0003                            1849 
+  ?0004                            1869 
+  ?0007                            1878 
+  ?0009                            187F 
+  ?0010                            1890 
+  ?0014                            18BE 
+  ?0015                            18BE 
+  ?0012                            18BE 
+  ?0013                            18E4 
+  ?0016                            18F9 
+  ?0069                            1901 
+  ?0070                            1909 
+  ?0008                            190C 
+  ?0019                            1940 
+  ?0020                            1940 
+  ?0017                            1940 
+  ?0018                            1960 
+  ?0021                            196F 
+  ?0022                            19A5 
+  ?0023                            19A9 
+  ?0024                            19C5 
+  ?0026                            19CC 
+  ?0027                            1A41 
+  ?0028                            1AA3 
+  ?0025                            1AA6 
+  ?0030                            1AAD 
+  ?0031                            1B22 
+  ?0032                            1B84 
+  ?0029                            1B84 
+  ?0033                            1B92 
+  ?0034                            1C17 
+  ?0035                            1C24 
+  ?0037                            1C3E 
+  ?0038                            1C42 
+  ?0036                            1C42 
+  ?0039                            1C55 
+  ?0040                            1C59 
+  ?0041                            1C5A 
+  ?0042                            1C72 
+  ?0043                            1C7A 
+  ?0044                            1C81 
+  ?0046                            1C87 
+  ?0047                            1C98 
+  ?0045                            1C9B 
+  ?0049                            1CA2 
+  ?0050                            1CA5 
+  ?0051                            1CAF 
+  ?0053                            1CBA 
+  ?0054                            1CCB 
+  ?0052                            1CD3 
+  ?0055                            1CDA 
+  ?0056                            1CF4 
+  ?0057                            1CF8 
+  ?0058                            1CFA 
+  ?0059                            1D04 
+  ?0060                            1D10 
+  ?0061                            1D1C 
+  ?0063                            1D30 
+  ?0065                            1D45 
+  ?0066                            1D4A 
+  ?0067                            1D50 
+  ?0064                            1D50 
+  ?0062                            1D50 
+  ?0048                            1D56 
+  ?0068                            1D56 
+  recvbcc                          C1F9 
+  recvbuff                         C1B6 
+  recvdle                          C1F8 
+  recvlen                          C1F6 
+  recvphase                        C1F7 
+  sendbuff                         C1FA 
+  sendcnt                          C23B 
+  sendlen                          C23A 
+?LIB_VERSION_L00 ( v:\lib\cl64180.r01 )
+  ?CL64180L_4_04_L00               0000 
+?C_LSH_L01 ( v:\lib\cl64180.r01 )
+  ?C_LSH_L01                       060E 
+?US_RSH_L02 ( v:\lib\cl64180.r01 )
+  ?US_RSH_L02                      0615 
+?SS_RSH_L02 ( v:\lib\cl64180.r01 )
+  ?SS_RSH_L02                      061F 
+?SS_DIV_L02 ( v:\lib\cl64180.r01 )
+  ?SS_DIV_L02                      0629 
+?SS_MOD_L02 ( v:\lib\cl64180.r01 )
+  ?SS_MOD_L02                      0645 
+?S_FIND_SIGN_L02 ( v:\lib\cl64180.r01 )
+  ?S_FIND_SIGN_L02                 0661 
+?S_DIVMOD_L02 ( v:\lib\cl64180.r01 )
+  ?S_DIVMOD_L02                    067D 
+?S_MUL_L02 ( v:\lib\cl64180.r01 )
+  ?S_MUL_L02                       0693 
+?SS_CMP_L02 ( v:\lib\cl64180.r01 )
+  ?SS_CMP_L02                      06A9 
+?SS_DIVASG_L02 ( v:\lib\cl64180.r01 )
+  ?SS_DIVASG_L02                   06BB 
+?UL_DIV_L03 ( v:\lib\cl64180.r01 )
+  ?UL_DIV_L03                      06C5 
+?UL_MOD_L03 ( v:\lib\cl64180.r01 )
+  ?UL_MOD_L03                      06ED 
+?L_DIVMOD_L03 ( v:\lib\cl64180.r01 )
+  ?L_DIVMOD_L03                    0712 
+?SL_CMP_L03 ( v:\lib\cl64180.r01 )
+  ?SL_CMP_L03                      076A 
+?L_INC_L03 ( v:\lib\cl64180.r01 )
+  ?L_INC_L03                       079B 
+?L_NOT_L03 ( v:\lib\cl64180.r01 )
+  ?L_NOT_L03                       07A3 
+?L_NEG_L03 ( v:\lib\cl64180.r01 )
+  ?L_NEG_L03                       07B2 
+?UL_DIVASG_L03 ( v:\lib\cl64180.r01 )
+  ?UL_DIVASG_L03                   07C4 
+?L_END_MULDIVASG_L03 ( v:\lib\cl64180.r01 )
+  ?L_END_MULDIVASG_L03             07D4 
+?L_NEGASG_L03 ( v:\lib\cl64180.r01 )
+  ?L_NEGASG_L03                    07DD 
+?L_END_ASG_L03 ( v:\lib\cl64180.r01 )
+  ?L_END_ASG_L03                   07EB 
+?F_MUL_L04 ( v:\lib\cl64180.r01 )
+  ?F_MUL_L04                       07F4 
+?F_DIV_L04 ( v:\lib\cl64180.r01 )
+  ?F_DIV_L04                       08E4 
+?F_ADD_SUB_L04 ( v:\lib\cl64180.r01 )
+  ?F_SUB_L04                       099B 
+  ?F_ADD_L04                       09AF 
+?F_TO_L_L04 ( v:\lib\cl64180.r01 )
+  ?F_TO_L_L04                      0ABE 
+?L_TO_F_L04 ( v:\lib\cl64180.r01 )
+  ?SL_TO_F_L04                     0B1C 
+  ?UL_TO_F_L04                     0B32 
+?F_NEGASG_L04 ( v:\lib\cl64180.r01 )
+  ?F_NEGASG_L04                    0B5F 
+?F_MULASG_L04 ( v:\lib\cl64180.r01 )
+  ?F_MULASG_L04                    0B75 
+?F_DIVASG_L04 ( v:\lib\cl64180.r01 )
+  ?F_DIVASG_L04                    0B85 
+?F_SUBASG_L04 ( v:\lib\cl64180.r01 )
+  ?F_SUBASG_L04                    0B95 
+?F_END_ASG2_L04 ( v:\lib\cl64180.r01 )
+  ?F_END_ASG2_L04                  0BA5 
+?F_ROUND_L04 ( v:\lib\cl64180.r01 )
+  ?F_ROUND_L04                     0BAE 
+  ?F_UP_ROUND_L04                  0BBE 
+?F_UNPACK_L04 ( v:\lib\cl64180.r01 )
+  ?F_UNPACK_L04                    0BD5 
+?F_PACK_L04 ( v:\lib\cl64180.r01 )
+  ?F_PACK_L04                      0C2A 
+  ?F_OVERFLOW_L04                  0C15 
+  ?F_UNDERFLOW2_L04                0C22 
+  ?F_UNDERFLOW_L04                 0C23 
+  ?F_NO_PACK_L04                   0C40 
+?C_V_SWITCH_L06 ( v:\lib\cl64180.r01 )
+  ?C_V_SWITCH_L06                  0C4F 
+?V_SWITCH_END_L06 ( v:\lib\cl64180.r01 )
+  ?V_SWITCH_END_L06                0C61 
+?ENT_PARM_DIRECT_L09 ( v:\lib\cl64180.r01 )
+  ?ENT_PARM_DIRECT_L09             0C6B 
+?ENT_AUTO_DIRECT_L09 ( v:\lib\cl64180.r01 )
+  ?ENT_AUTO_DIRECT_L09             0C77 
+?LEAVE_DIRECT_L09 ( v:\lib\cl64180.r01 )
+  ?LEAVE_DIRECT_L09                0C8B 
+?CALL_IND_L09 ( v:\lib\cl64180.r01 )
+  ?CALL_IND_L09                    0C92 
+?MEMSET_L11 ( v:\lib\cl64180.r01 )
+  ?MEMSET_L11                      0C93 
+_formatted_write ( v:\lib\cl64180.r01 )
+  _formatted_write                 21C0 
+sprintf ( v:\lib\cl64180.r01 )
+  sprintf                          2966 
+
+
+
+                ****************************************
+                *                                      *
+                *      SEGMENTS IN ADDRESS ORDER       *
+                *                                      *
+                ****************************************
+
+
+ SEGMENT               START ADDRESS    END ADDRESS  TYPE  ORG  P/N  ALIGN
+ =======               =============    ===========  ====  ===  ===  =====
+RCODE                        0100     -     0CA9      rel  stc  pos   0     
+CODE                         0CAA     -     29A4      rel  flt  pos   0     
+CONST                        29A5     -     2C34      rel  flt  pos   0     
+CSTR                         2C35     -     2C6E      rel  flt  pos   0     
+RDATA                        C000     -     C01A      rel  stc  pos   0     
+UDATA0                       C01B     -     C23B      rel  flt  pos   0     
+                             0000     -     0006     aseg  
+                             0038     -     003D     aseg  
+                             0040     -     0057     aseg  
+                             0066     -     006B     aseg  
+                             3FFF     -     3FFF     aseg  
+
+                ****************************************
+                *                                      *
+                *        END OF CROSS REFERENCE        *
+                *                                      *
+                ****************************************
+
+ 11163 bytes of CODE memory
+   572 bytes of DATA memory
+
+Errors: none
+Warnings: none
+

@@ -1,0 +1,457 @@
+;/*[mcpPioA.ASM]***********************************************************
+;	【香港地下鉄　自動放送制御】
+;*-------------------------------------------------------------------*
+;	ＰＩＯ出力レベル０モジュール
+;*-------------------------------------------------------------------*
+;    Author	TOA Corporation   K.Honda
+;
+;    Revison	a00. 2000/06/26
+;		a01. 2000/09/07  Ｃのマトリックス表示からアセンブラーへ変更
+;********************************************************************/
+	module	'香港地下鉄 AAU MCP S/W'
+$.\INC\MCPHW.INC
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	データ
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	RSEG	RDATA :DATA
+
+public iodata
+iodata:
+	defs	2
+
+colCount:
+	defs	1
+dadr:
+	defs	2
+badr:
+	defs	2
+colCode:
+	defs	1
+
+csData:
+	defs	16
+csCount:
+	defs	1
+csAdr:
+	defs	2
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	プログラム部
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	RSEG	RCODE :CODE
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< csio_initialize >>				*
+;*		クロック同期式シリアルの初期化				*
+;*    Syntax	csio_initialize();					*
+;*    Argument	none							*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ●クロック同期式シリアル出力の初期化を行う。
+;
+	public	csio_initialize	;.(Function)
+csio_initialize:
+	push	af
+	push	hl
+
+	ld	a,00101000b
+	out0	(DERA),a	;. TXS/CKS is Multiplex I/O
+	ld	a,10101000b
+	out0	(DDRA),a		;. TXS/CKS/TEND1 is Output
+	ld	a,10101000b
+	out0	(ODRA),a		;. TEND1 is Initial High
+
+	ld	a,0
+	out0	(CNTR),a	;. CSI/O Initialize   200Kbps
+
+	ld	(csCount),a
+
+	pop	hl
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< csio_output >>				*
+;*		クロック同期式シリアルの出力				*
+;*    Syntax	csio_output( data );					*
+;*    Argument	char data	　i : Output Data.			*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;	data = reg.C
+;
+	public	csio_output	;.(Function)
+csio_output:
+	push	af
+
+	ld	a,e
+	out0	(TRDR),a		;. Output Data Ready
+
+	ld	a,10h
+	out0	(CNTR),a	;. CSI/O Output   200Kbps
+
+csio_100:
+	in0		a,(CNTR)
+	and		80h
+	jp		z,csio_100
+
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< csio_strobe >>				*
+;*		クロック同期式シリアルの Strobe Signal ON/OFF		*
+;*    Syntax	csio_strobe( on );					*
+;*    Argument	char on	　i :  0=Strobe Signal OFF / 1= Strobe Signal ON *
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;	on = reg.E
+;
+	public	csio_strobe	;.(Function)
+csio_strobe:
+	push	af
+
+	ld		a,e
+	or		a
+	jp		z,csio_strobeOFF
+
+	ld	a,00000000b
+	out0	(ODRA),a		;. TEND1 = Low
+	jp		csio_strobeEND
+csio_strobeOFF:
+	ld	a,10101000b
+	out0	(ODRA),a		;. TEND1 is Initial High
+
+csio_strobeEND:
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< switch_read >>				*
+;*		スイッチ情報の読み込み					*
+;*    Syntax	r = switch_read( void );				*
+;*    Argument	short r	  o	:　Import Switch data			*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;	output Reg.HL
+;
+	public	switch_read	;.(Function)
+switch_read:
+	push	af
+
+	in		a,(EXT_PORT0)
+	ld		l,a
+	in		a,(EXT_PORT1)
+	ld		h,a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< io_output_on >>				*
+;*		Ｉ／Ｏ出力のＯＮ処理					*
+;*    Syntax	io_output_on( ondata1, ondata2 );			*
+;*    Argument	char ondata1	o ： Set data of Port0			*
+;*    		char ondata2 	o ： Set data of Port1			*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	ondata1 = reg.E
+;.		b0...b4 = 分割表示制御　ＣＯＬ番号
+;.		b5 = ＣＯＬ出力有効ビット
+;.	ondata2 = reg.C
+;.		b0 = Matrix LED Enable
+;.		b1 = Matrix LED 高輝度
+;.		b2 = Switch LED Enable
+;.		b3 = Switch LED 高輝度
+;.		b7 = Watch Dog Enable
+;
+	public	io_output_on	;.(Function)
+io_output_on:
+	push	af
+
+	ld		a,(iodata)
+	or		E
+	ld		(iodata),a
+	out0	(EXT_PORT0),a
+
+	ld		a,(iodata+1)
+	or		C
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< io_output_off >>				*
+;* 		Ｉ／Ｏ出力のＯＦＦ処理					*
+;*    Syntax	io_output_off( offdata1, offdata2 );			*
+;*    Argument	char offdata1	i ： Set OFF data of Port0		*
+;*		char offdata2	i ： Set OFF data of Port1		*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/06/26						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	offdata1 = reg.E
+;.		b0...b4 = 分割表示制御　ＣＯＬ番号
+;.		b5 = ＣＯＬ出力有効ビット
+;.	offdata2 = reg.C
+;.		b0 = Matrix LED Enable
+;.		b1 = Matrix LED 高輝度
+;.		b2 = Switch LED Enable
+;.		b3 = Switch LED 高輝度
+;.		b7 = Watch Dog Enable
+;
+	public	io_output_off	;.(Function)
+io_output_off:
+	push	af
+
+	ld		a,E
+	CPL
+	ld		E,A
+	ld		a,(iodata)
+	AND		E
+	ld		(iodata),a
+	out0	(EXT_PORT0),a
+
+	ld		a,C
+	CPL
+	ld		C,A
+	ld		a,(iodata+1)
+	AND		C
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< csio_ir >>					*
+;*			同期転送割り込み処理				*
+;*	Syntax		csio_ir( );					*
+;*	Argument	none						*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/09/07						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	同期転送によるマトリックスＬＥＤへの出力処理
+;.	１ｍＳ以内に１０バイトを転送する
+
+	public	csio_ir
+csio_ir:
+	di				;. 割り込み禁止
+	push	af
+	push	hl
+
+	ld	a,(CNTR)
+	and	80h
+	jr	z,csio_ir100
+
+	ld	a,0
+	out0	(CNTR),a	;. CSI/O Stop
+
+	ld	hl,(csAdr)
+	ld	a,(csCount)
+	cp	0
+	jr	z,csio_ir100
+
+	dec	a
+	ld	(csCount),a
+
+	ld	a,(hl)
+	inc	hl
+	ld	(csAdr),hl
+
+	out0	(TRDR),a		;. Output Data Ready
+
+	ld	a,50h
+	out0	(CNTR),a	;. CSI/O Output   200Kbps
+
+csio_ir100:
+	pop	hl
+	pop	af
+	ei				;. 割り込み許可
+	reti
+
+;/***********************************************************************
+;*									*
+;*    Function name	<< io_disp_set >>				*
+;*		ダイナミックスキャン処理				*
+;*    Syntax	io_disp_set( );						*
+;*    Argument	none							*
+;*    Author	TOA Corporation   K.Honda				*
+;*    Revison	a00. 2000/09/07						*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+extern	rawData
+extern	blinkPositionData
+extern	blinkPositionCheck
+
+colTable:
+	defb	10h,11h,12h,13h,14h,15h,16h,17h
+	defb	08h,09h,0Ah,0Bh,0Ch,0Dh,0Eh,0Fh
+
+	public	io_disp_set	;.(Function)
+io_disp_set:
+	ld	a,(csCount)
+	cp	0
+	ret	nz
+
+	ld	a,0
+	out0	(CNTR),a	;. CSI/O Stop
+
+	ld		a,(iodata+1)
+	or		05h
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+	ld		bc,(colCode)
+	ld		a,(iodata)
+	AND		BINNOT 1Fh
+	or		20h
+	or		c
+	ld		(iodata),a
+	out0	(EXT_PORT0),a
+
+	ld	a,00101000b
+	out0	(ODRA),a		;. TEND1 = Low
+
+	ld	a,10101100b
+	out0	(ODRA),a		;. TEND1 = High 
+
+	ld	a,00101000b
+	out0	(ODRA),a		;. TEND1 = Low
+
+	ld		a,(iodata+1)
+	and		BINNOT 05h
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+
+
+
+
+	ld		a,(colCount)
+	inc		a
+	and		0Fh
+	ld		(colCount),a
+
+	ld	de,(colCount)
+	ld	d,0
+
+	ld	hl,colTable
+	add	hl,de
+	ld	a,(hl)
+	ld	(colCode),a
+
+	ld	l,e
+	ld	h,0
+	add	hl,hl		;x2
+	add	hl,hl		;x4
+	add	hl,de		;x5
+	add	hl,hl		;x10
+	push	hl
+	ld	bc,rawData
+	add	hl,bc
+	ld	(dadr),hl
+	pop		hl
+	ld	bc,blinkPositionData
+	add	hl,bc
+	ld	(badr),hl
+
+	ld	bc,(blinkPositionCheck)
+	ld	de,(dadr)
+
+	exx
+	ld	hl,csData
+	ld	(csAdr),hl
+	exx
+
+	ld		a,c
+	cp	0
+	jp	z,csio_400
+
+	ld	b,10
+csio_310:
+; 1byte-10byte
+	ld	a,(de)
+	ld	c,a
+	ld	a,(hl)
+	cpl
+	and	c
+
+	exx
+	ld		(hl),a
+	inc		hl
+	exx
+
+	inc		de
+	inc		hl
+	dec		b
+	jr		nz,csio_310
+	jr		csio_500
+
+csio_400:
+	ld	b,10
+csio_410:
+; 1byte-10byte
+	ld	a,(de)
+
+	exx
+	ld		(hl),a
+	inc		hl
+	exx
+
+	inc		de
+	inc		hl
+	dec		b
+	jr		nz,csio_410
+
+
+csio_500:
+	ld	a,9
+	ld	(csCount),a
+	ld	hl,csData
+	ld	(csAdr),hl
+
+	ld	a,(hl)
+	inc	hl
+	ld	(csAdr),hl
+
+	out0	(TRDR),a		;. Output Data Ready
+
+	ld	a,50h
+	out0	(CNTR),a	;. CSI/O Output   200Kbps
+
+	ret
+
+	END
+

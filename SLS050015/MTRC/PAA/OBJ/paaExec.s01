@@ -1,0 +1,1480 @@
+	NAME	paaexec(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	EXTERN	address
+	PUBLIC	amp1Active
+	PUBLIC	amp2Active
+	PUBLIC	ampFailCount1
+	PUBLIC	ampFailCount2
+	EXTERN	csio_output
+	PUBLIC	emg_rsc
+	PUBLIC	initial_voice_level
+	EXTERN	io_output_off1
+	EXTERN	io_output_off2
+	EXTERN	io_output_off3
+	EXTERN	io_output_off4
+	EXTERN	io_output_on1
+	EXTERN	io_output_on2
+	EXTERN	io_output_on3
+	EXTERN	io_output_on4
+	PUBLIC	ledCount
+	PUBLIC	noise_checkCount
+	EXTERN	nowReadIO
+	PUBLIC	opeMode
+	PUBLIC	paaAMPCheck
+	PUBLIC	paaExecuteAUTO
+	PUBLIC	paaExecuteCAB
+	PUBLIC	paaExecuteEMG
+	PUBLIC	paaExecuteINIT
+	PUBLIC	paaExecuteMAN
+	PUBLIC	paaExecuteMode
+	PUBLIC	paaExecuteTEST
+	PUBLIC	paaGetMode
+	PUBLIC	paaLEDOUT
+	PUBLIC	paaSetVolume
+	EXTERN	sendarea
+	PUBLIC	testCount
+	PUBLIC	voice_bus_mode
+	EXTERN	?CL64180L_4_04_L00
+	EXTERN	?C_LSH_L01
+	EXTERN	?SS_RSH_L02
+	EXTERN	?C_S_SWITCH_L06
+	EXTERN	?C_V_SWITCH_L06
+	RSEG	CODE
+paaGetMode:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        実行制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	
+; 10.	*********************************************************************/
+; 11.	
+; 12.	#include "IOFUNC.h"
+; 13.	
+; 14.	#include "COMMDEF.h"
+; 15.	
+; 16.	/*@@@S*/
+; 17.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 18.	        グローバル変数
+; 19.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 20.	/** 音声バスモード **/
+; 21.	char    voice_bus_mode;
+; 22.	
+; 23.	char    emg_rsc;                                /*非常通報器番号フラグ*/
+; 24.	
+; 25.	char    initial_voice_level;    /*基本音量データ
+; 26.	                                                                        下位６ビットのみ使用
+; 27.	                                                                */
+; 28.	
+; 29.	short   noise_checkCount;               /* 騒音検出カウンター */
+; 30.	char    amp1Active;
+; 31.	char    amp2Active;
+; 32.	short   ampFailCount1;          /* アンプフェイルカウンターＣＨ。１ */
+; 33.	short   ampFailCount2;          /* アンプフェイルカウンターＣＨ。２ */
+; 34.	short   testCount;                      /* テスト用カウンター */
+; 35.	char    ledCount;                       /* ＬＥＤ点滅カウンター */
+; 36.	
+; 37.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 38.	        ローカル定数定義
+; 39.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 40.	/** 操作モード **/
+; 41.	#define OPE_INIT        0
+; 42.	#define OPE_CAB         1
+; 43.	#define OPE_MAN         2
+; 44.	#define OPE_EMG         3
+; 45.	#define OPE_TRS         4
+; 46.	#define OPE_AUTO        5
+; 47.	#define OPE_TEST        6
+; 48.	
+; 49.	
+; 50.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 51.	        ローカル構造体定義
+; 52.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 53.	
+; 54.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 55.	        ローカルテーブル
+; 56.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 57.	
+; 58.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 59.	                外部参照
+; 60.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 61.	
+; 62.	/** スイッチデータ **/
+; 63.	extern  short   nowReadIO;
+; 64.	#define IN_24V  0x1000
+; 65.	#define AMPON1  0x0400
+; 66.	#define AMPON2  0x0800
+; 67.	#define MICON   0x0020
+; 68.	
+; 69.	/** 送信エリア **/
+; 70.	extern  struct PAASEND  sendarea;
+; 71.	
+; 72.	
+; 73.	extern  unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+; 74.	                                                                                   下位４ビット＝ＤＩＰＳＷアドレス */
+; 75.	
+; 76.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 77.	                ローカル変数
+; 78.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 79.	static  short   checkAmp;                       /* 騒音検出するアンプ */
+; 80.	static  char    befNoiseLevel;          /* 前回ノイズレベル */
+; 81.	static  char    befOpeMode;                     /* 前回の音声バスモード */
+; 82.	static  char    testRSCNo;                      /* テスト用非常通報器番号 */
+; 83.	static  char    befTestRSCNo;           /* 前回テスト用非常通報器番号 */
+; 84.	static  char    testTrouble;            /* テスト用非常通報器ビット */
+; 85.	static  char    ampok;
+; 86.	static  char    bef_emg_rsc;            /* 前回の非常通報器ビット */
+; 87.	static  char    testPhase;                      /* 音声マイク検出フェーズ */
+; 88.	
+; 89.	/** 操作モード **/
+; 90.	char    opeMode;                                /*操作モード*/
+; 91.	
+; 92.	/*@@@E*/
+; 93.	/************************************************************************
+; 94.	
+; 95.	        Function name   << paaGetMode >>
+; 96.	                                        操作モードの取得
+; 97.	        Syntax                  paaGetMode( void );
+; 98.	        Argument                none
+; 99.	        Author                  TOA Corporation  K.Honda
+; 100.	        Revision                a00 2000/06/27
+; 101.	
+; 102.	*************************************************************************/
+; 103.	void paaGetMode( void )
+; 104.	{
+	PUSH	DE
+; 105.	#if 0
+; 106.	                io_output_off4( 0x07 );
+; 107.	                io_output_on4( voice_bus_mode & 0x07 );
+; 108.	#else
+; 109.	                io_output_off4( 0x0F );
+	LD	E,15
+	CALL	io_output_off4
+; 110.	                io_output_on4( (address >> 8) & 0x0F );
+	LD	HL,(address)
+	LD	L,H
+	LD	H,0
+	LD	A,L
+	AND	15
+	LD	E,A
+	CALL	io_output_on4
+; 111.	#endif
+; 112.	
+; 113.	                switch( voice_bus_mode & 0x00F ){
+	LD	A,(voice_bus_mode)
+	AND	15
+	LD	E,A
+	CALL	?C_V_SWITCH_L06
+	DEFW	7
+	DEFB	0
+	DEFB	1
+	DEFB	2
+	DEFB	3
+	DEFB	4
+	DEFB	5
+	DEFB	15
+	DEFW	?0000
+	DEFW	?0007
+	DEFW	?0006
+	DEFW	?0005
+	DEFW	?0004
+	DEFW	?0003
+	DEFW	?0002
+	DEFW	?0001
+?0001:
+; 114.	                case    0x00:           /* CAB/CAB */
+; 115.	                        opeMode = OPE_CAB;
+	LD	A,1
+	LD	(opeMode),A
+; 116.	                        break;
+	JR	?0000
+?0002:
+; 117.	                case    0x01:           /* Manual */
+; 118.	                        opeMode = OPE_MAN;
+	LD	A,2
+	LD	(opeMode),A
+; 119.	                        break;
+	JR	?0000
+?0003:
+; 120.	                case    0x02:           /* Emergency */
+; 121.	                        opeMode = OPE_EMG;
+	LD	A,3
+	LD	(opeMode),A
+; 122.	                        break;
+	JR	?0000
+?0004:
+; 123.	                case    0x03:           /* TRS */
+; 124.	                        opeMode = OPE_TRS;
+	LD	A,4
+	LD	(opeMode),A
+; 125.	                        break;
+	JR	?0000
+?0005:
+; 126.	                case    0x04:           /* AUTO */
+; 127.	                        opeMode = OPE_AUTO;
+	LD	A,5
+	LD	(opeMode),A
+; 128.	                        break;
+	JR	?0000
+?0006:
+; 129.	                case    0x05:           /* TEST */
+; 130.	                        opeMode = OPE_TEST;
+	LD	A,6
+	LD	(opeMode),A
+; 131.	                        break;
+	JR	?0000
+?0007:
+; 132.	                case    0x0F:           /* Initial */
+; 133.	                        opeMode = OPE_INIT;
+	XOR	A
+	LD	(opeMode),A
+; 134.	                        break;
+	JR	?0000
+?0000:
+; 135.	                }
+; 136.	
+; 137.	}
+	POP	DE
+	RET
+paaSetVolume:
+; 138.	
+; 139.	/************************************************************************
+; 140.	
+; 141.	        Function name   << paaSetVolume >>
+; 142.	                                        操作モードの取得
+; 143.	        Syntax                  paaSetVolume( void );
+; 144.	        Argument                none
+; 145.	        Author                  TOA Corporation  K.Honda
+; 146.	        Revision                a00 2000/06/27
+; 147.	                                        a01 2000/10/10  CH.1 のチェックのみ
+; 148.	                                        a02 2003/07/07  h.nisiura AGCステップを6→4に変更
+; 149.	*************************************************************************/
+; 150.	void paaSetVolume( void )
+; 151.	{
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+; 152.	                char    noiseLevel,nowNoise;
+; 153.	                char    level;
+; 154.	                unsigned short  setValue;
+; 155.	
+; 156.	                if( opeMode!=OPE_AUTO ){
+	LD	A,(opeMode)
+	CP	5
+	JR	Z,?0009
+?0008:
+; 157.	                        noise_checkCount=0;
+	LD	HL,0
+	LD	(noise_checkCount),HL
+; 158.	                        return;
+; 159.	                }
+	JP	?0026
+?0009:
+; 160.	
+; 161.	                        /* 音声バス２４Ｖを認識中は、音量調整しない */
+; 162.	                if( nowReadIO & IN_24V ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	16
+	OR	B
+	JR	Z,?0011
+?0010:
+; 163.	                        noise_checkCount=0;
+	LD	HL,0
+	LD	(noise_checkCount),HL
+; 164.	                        return;
+; 165.	                }
+	JP	?0026
+?0011:
+; 166.	
+; 167.	                if( noise_checkCount<30 ){
+	LD	BC,32798
+	LD	HL,(noise_checkCount)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0013
+?0012:
+; 168.	                        return;
+; 169.	                }
+	JP	?0026
+?0013:
+; 170.	                noise_checkCount=0;
+	LD	HL,0
+	LD	(noise_checkCount),HL
+; 171.	
+; 172.	                noiseLevel = (nowReadIO & 0x0300)>>8;
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	E,A
+	LD	A,H
+	AND	3
+	LD	D,A
+	LD	B,8
+	CALL	?SS_RSH_L02
+	LD	(IX-6),E
+; 173.	
+; 174.	                nowNoise = noiseLevel;
+	LD	(IX-5),E
+; 175.	                if( befNoiseLevel < noiseLevel ){
+	LD	A,(befNoiseLevel)
+	CP	(IX-6)
+	JR	NC,?0015
+?0014:
+; 176.	                        nowNoise = befNoiseLevel;
+	LD	A,(befNoiseLevel)
+	LD	(IX-5),A
+?0015:
+; 177.	                }
+; 178.	
+; 179.	                if( nowNoise==0 ){              /* 最小 */
+	XOR	A
+	OR	(IX-5)
+	JR	NZ,?0017
+?0016:
+; 180.	                        level = initial_voice_level + 8;                /* -8dB */
+	LD	A,(initial_voice_level)
+	ADD	A,8
+	LD	(IX-4),A
+?0017:
+; 181.	                }
+; 182.	                if( nowNoise==1 ){              /* 中 */
+	LD	B,(IX-5)
+	DEC	B
+	JR	NZ,?0019
+?0018:
+; 183.	                        level = initial_voice_level + 4;                /* -4dB */
+	LD	A,(initial_voice_level)
+	ADD	A,4
+	LD	(IX-4),A
+?0019:
+; 184.	                }
+; 185.	                if( nowNoise==2 ){              /* 最大 */
+	LD	B,(IX-5)
+	DEC	B
+	DEC	B
+	JR	NZ,?0021
+?0020:
+; 186.	                        level = initial_voice_level + 0;                /* -0dB */
+	LD	A,(initial_voice_level)
+	LD	(IX-4),A
+?0021:
+; 187.	                }
+; 188.	                if( nowNoise==3 ){              /* 最大 */
+	LD	A,(IX-5)
+	CP	3
+	JR	NZ,?0023
+?0022:
+; 189.	                        level = initial_voice_level + 0;                /* -0dB */
+	LD	A,(initial_voice_level)
+	LD	(IX-4),A
+?0023:
+; 190.	                }
+; 191.	                if( level>0x3E ){
+	LD	A,62
+	CP	(IX-4)
+	JR	NC,?0025
+?0024:
+; 192.	                        level = 0x3E;
+	LD	(IX-4),62
+?0025:
+; 193.	                }
+; 194.	                befNoiseLevel = noiseLevel;
+	LD	B,(IX-6)
+	LD	A,B
+	LD	(befNoiseLevel),A
+; 195.	
+; 196.	#if 0
+; 197.	                io_output_off4( 0x07 );
+; 198.	                io_output_on4( befNoiseLevel & 0x07 );
+; 199.	#endif
+; 200.	
+; 201.	                setValue = ((unsigned short)level<<2)+0x1803;   /* Left,Right Set, CS=L */
+	LD	L,(IX-4)
+	LD	H,0
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	BC,6147
+	ADD	HL,BC
+	LD	(IX-3),L
+	LD	(IX-2),H
+; 202.	                csio_output( setValue );                /* 出力 ( 13 bit )*/
+	LD	E,L
+	CALL	csio_output
+; 203.	
+; 204.	#if 0
+; 205.	                checkAmp ^= 1;
+; 206.	                if( checkAmp ){
+; 207.	#endif
+; 208.	                        io_output_off3( 0x01 );         /* AMP1 Noise Level ON */
+	LD	E,1
+	CALL	io_output_off3
+; 209.	                        io_output_on3( 0x02 );          /* AMP2 Noise Level OFF */
+	LD	E,2
+	CALL	io_output_on3
+; 210.	#if 0
+; 211.	                }
+; 212.	                else {
+; 213.	                        io_output_on3( 0x01 );          /* AMP1 Noise Level OFF */
+; 214.	                        io_output_off3( 0x02 );         /* AMP2 Noise Level ON */
+; 215.	                }
+; 216.	#endif
+; 217.	}
+?0026:
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+paaAMPCheck:
+; 218.	
+; 219.	/************************************************************************
+; 220.	
+; 221.	        Function name   << paaAMPCheck >>
+; 222.	                                        アンプ故障のチェック
+; 223.	        Syntax                  paaAMPCheck( void );
+; 224.	        Argument                none
+; 225.	        Author                  TOA Corporation  K.Honda
+; 226.	        Revision                a00 2000/06/27
+; 227.	
+; 228.	*************************************************************************/
+; 229.	void paaAMPCheck( void )
+; 230.	{
+	PUSH	BC
+; 231.	                        /* 放送中 */
+; 232.	                if( nowReadIO & IN_24V ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	16
+	OR	B
+	JR	Z,?0028
+?0027:
+; 233.	                        if( ampFailCount1>=6000 ){
+	LD	BC,38768
+	LD	HL,(ampFailCount1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	C,?0030
+?0029:
+; 234.	                                ampFailCount1 = 6000;
+	LD	HL,6000
+	LD	(ampFailCount1),HL
+; 235.	                                sendarea.trouble | 0x01;
+; 236.	                        }
+; 237.	                        else {
+	JR	?0031
+?0030:
+; 238.	                                sendarea.trouble &= ~0x01;
+	LD	A,(sendarea+4)
+	AND	254
+	LD	(sendarea+4),A
+?0031:
+; 239.	                        }
+; 240.	                        if( ampFailCount2>=6000 ){
+	LD	BC,38768
+	LD	HL,(ampFailCount2)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	C,?0033
+?0032:
+; 241.	                                ampFailCount2 = 6000;
+	LD	HL,6000
+	LD	(ampFailCount2),HL
+; 242.	                                sendarea.trouble | 0x02;
+; 243.	                        }
+; 244.	                        else {
+	JR	?0034
+?0033:
+; 245.	                                sendarea.trouble &= ~0x02;
+	LD	A,(sendarea+4)
+	AND	253
+	LD	(sendarea+4),A
+?0034:
+?0028:
+; 246.	                        }
+; 247.	                }
+; 248.	}
+	POP	BC
+	RET
+paaExecuteAUTO:
+; 249.	
+; 250.	
+; 251.	/************************************************************************
+; 252.	
+; 253.	        Function name   << paaExecuteAUTO >>
+; 254.	                                        車内放送モードの処理
+; 255.	        Syntax                  paaExecuteAUTO( void );
+; 256.	        Argument                none
+; 257.	        Author                  TOA Corporation  K.Honda
+; 258.	        Revision                a00 2000/06/27
+; 259.	
+; 260.	*************************************************************************/
+; 261.	void paaExecuteAUTO( void )
+; 262.	{
+	PUSH	BC
+	PUSH	DE
+; 263.	                if( befOpeMode!=opeMode ){
+	LD	A,(opeMode)
+	LD	B,A
+	LD	A,(befOpeMode)
+	CP	B
+	JR	Z,?0036
+?0035:
+; 264.	                        befOpeMode = opeMode;
+	LD	A,(opeMode)
+	LD	(befOpeMode),A
+; 265.	                        io_output_on2( 0xC0 );                  /* AMP1, AMP2 on */
+	LD	E,192
+	CALL	io_output_on2
+; 266.	                        io_output_on4( 0xC0 );
+	LD	E,192
+	CALL	io_output_on4
+; 267.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 268.	                        io_output_on2( 0x3F );                  /* All Speaker ON */
+	LD	E,63
+	CALL	io_output_on2
+; 269.	                        io_output_on1( 0x20 );                  /* RSC Switch gate ON */
+	LD	E,32
+	CALL	io_output_on1
+; 270.	                        amp1Active = 1;
+	LD	A,1
+	LD	(amp1Active),A
+; 271.	                        amp2Active = 1;
+	LD	A,1
+	LD	(amp2Active),A
+; 272.	                        ampFailCount1 = 0;
+	LD	HL,0
+	LD	(ampFailCount1),HL
+; 273.	                        ampFailCount2 = 0;
+	LD	HL,0
+	LD	(ampFailCount2),HL
+?0036:
+; 274.	                }
+; 275.	
+; 276.	                paaAMPCheck();
+	CALL	paaAMPCheck
+; 277.	}
+	POP	DE
+	POP	BC
+	RET
+paaExecuteMAN:
+; 278.	
+; 279.	/************************************************************************
+; 280.	
+; 281.	        Function name   << paaExecuteMAN >>
+; 282.	                                        マニュアル放送モードの処理
+; 283.	        Syntax                  paaExecuteMAN( void );
+; 284.	        Argument                none
+; 285.	        Author                  TOA Corporation  K.Honda
+; 286.	        Revision                a00 2000/06/27
+; 287.	
+; 288.	*************************************************************************/
+; 289.	void paaExecuteMAN( void )
+; 290.	{
+	PUSH	BC
+	PUSH	DE
+; 291.	                if( befOpeMode!=opeMode ){
+	LD	A,(opeMode)
+	LD	B,A
+	LD	A,(befOpeMode)
+	CP	B
+	JR	Z,?0038
+?0037:
+; 292.	                        befOpeMode = opeMode;
+	LD	A,(opeMode)
+	LD	(befOpeMode),A
+; 293.	                        io_output_on2( 0xC0 );                  /* AMP1, AMP2 on */
+	LD	E,192
+	CALL	io_output_on2
+; 294.	                        io_output_on4( 0xC0 );
+	LD	E,192
+	CALL	io_output_on4
+; 295.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 296.	                        io_output_on2( 0x3F );                  /* All Speaker ON */
+	LD	E,63
+	CALL	io_output_on2
+; 297.	                        io_output_on1( 0x20 );                  /* RSC Switch gate ON */
+	LD	E,32
+	CALL	io_output_on1
+; 298.	                        amp1Active = 1;
+	LD	A,1
+	LD	(amp1Active),A
+; 299.	                        amp2Active = 1;
+	LD	A,1
+	LD	(amp2Active),A
+; 300.	                        ampFailCount1 = 0;
+	LD	HL,0
+	LD	(ampFailCount1),HL
+; 301.	                        ampFailCount2 = 0;
+	LD	HL,0
+	LD	(ampFailCount2),HL
+?0038:
+; 302.	                }
+; 303.	
+; 304.	                paaAMPCheck();
+	CALL	paaAMPCheck
+; 305.	}
+	POP	DE
+	POP	BC
+	RET
+paaExecuteCAB:
+; 306.	
+; 307.	
+; 308.	/************************************************************************
+; 309.	
+; 310.	        Function name   << paaExecuteCAB >>
+; 311.	                                        ＣＡＢ／ＣＡＢモードの処理
+; 312.	        Syntax                  paaExecuteCAB( void );
+; 313.	        Argument                none
+; 314.	        Author                  TOA Corporation  K.Honda
+; 315.	        Revision                a00 2000/06/27
+; 316.	                                        a01 2001/05/23 スピーカー６のＯＦＦを行なっていなかったのを修正
+; 317.	*************************************************************************/
+; 318.	void paaExecuteCAB( void )
+; 319.	{
+	PUSH	BC
+	PUSH	DE
+; 320.	                if( befOpeMode!=opeMode ){
+	LD	A,(opeMode)
+	LD	B,A
+	LD	A,(befOpeMode)
+	CP	B
+	JR	Z,?0040
+?0039:
+; 321.	                        befOpeMode = opeMode;
+	LD	A,(opeMode)
+	LD	(befOpeMode),A
+; 322.	                        io_output_off2( 0xC0 );                 /* AMP1, AMP2 off */
+	LD	E,192
+	CALL	io_output_off2
+; 323.	                        io_output_off4( 0xC0 );
+	LD	E,192
+	CALL	io_output_off4
+; 324.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 325.	                        io_output_off2( 0x3F );                 /* All Speaker OFF */
+	LD	E,63
+	CALL	io_output_off2
+; 326.	                        io_output_on1( 0x20 );                  /* RSC Switch gate ON */
+	LD	E,32
+	CALL	io_output_on1
+?0040:
+; 327.	                }
+; 328.	
+; 329.	                paaAMPCheck();
+	CALL	paaAMPCheck
+; 330.	}
+	POP	DE
+	POP	BC
+	RET
+paaExecuteEMG:
+; 331.	
+; 332.	/************************************************************************
+; 333.	
+; 334.	        Function name   << paaExecuteEMG >>
+; 335.	                                        非常通報モードの処理
+; 336.	        Syntax                  paaExecuteEMG( void );
+; 337.	        Argument                none
+; 338.	        Author                  TOA Corporation  K.Honda
+; 339.	        Revision                a00 2000/06/27
+; 340.	
+; 341.	*************************************************************************/
+; 342.	void paaExecuteEMG( void )
+; 343.	{
+	PUSH	BC
+	PUSH	DE
+; 344.	                if( befOpeMode!=opeMode ){
+	LD	A,(opeMode)
+	LD	B,A
+	LD	A,(befOpeMode)
+	CP	B
+	JR	Z,?0042
+?0041:
+; 345.	                        befOpeMode = opeMode;
+	LD	A,(opeMode)
+	LD	(befOpeMode),A
+; 346.	                        io_output_on2( 0xC0 );                  /* AMP1, AMP2 on */
+	LD	E,192
+	CALL	io_output_on2
+; 347.	                        io_output_on4( 0xC0 );
+	LD	E,192
+	CALL	io_output_on4
+; 348.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 349.	                        io_output_off2( 0x3F );                 /* All Speaker OFF */
+	LD	E,63
+	CALL	io_output_off2
+; 350.	                        io_output_on1( 0x20 );                  /* RSC Switch gate ON */
+	LD	E,32
+	CALL	io_output_on1
+; 351.	
+; 352.	                        bef_emg_rsc = 0;
+	XOR	A
+	LD	(bef_emg_rsc),A
+?0042:
+; 353.	                }
+; 354.	                if( emg_rsc & 0x07 ){   /* EMGP1-3 */
+	LD	A,(emg_rsc)
+	AND	7
+	JR	Z,?0044
+?0043:
+; 355.	                        io_output_on2( 0x40 );                  /* AMP1 on */
+	LD	E,64
+	CALL	io_output_on2
+; 356.	                        io_output_on4( 0x40 );
+	LD	E,64
+	CALL	io_output_on4
+; 357.	                        amp1Active = 1;
+	LD	A,1
+	LD	(amp1Active),A
+; 358.	                }
+; 359.	                else {
+	JR	?0045
+?0044:
+; 360.	                        amp1Active = 0;
+	XOR	A
+	LD	(amp1Active),A
+; 361.	                        io_output_off2( 0x40 );                 /* AMP1 off */
+	LD	E,64
+	CALL	io_output_off2
+; 362.	                        io_output_off4( 0x40 );
+	LD	E,64
+	CALL	io_output_off4
+?0045:
+; 363.	                }
+; 364.	                if( emg_rsc & 0x18 ){   /* EMGP4-5 */
+	LD	A,(emg_rsc)
+	AND	24
+	JR	Z,?0047
+?0046:
+; 365.	                        amp2Active = 1;
+	LD	A,1
+	LD	(amp2Active),A
+; 366.	                        io_output_on2( 0x80 );                  /* AMP2 on */
+	LD	E,128
+	CALL	io_output_on2
+; 367.	                        io_output_on4( 0x80 );
+	LD	E,128
+	CALL	io_output_on4
+; 368.	                }
+; 369.	                else {
+	JR	?0048
+?0047:
+; 370.	                        amp2Active = 0;
+	XOR	A
+	LD	(amp2Active),A
+; 371.	                        io_output_off2( 0x80 );                 /* AMP2 off */
+	LD	E,128
+	CALL	io_output_off2
+; 372.	                        io_output_off4( 0x80 );
+	LD	E,128
+	CALL	io_output_off4
+?0048:
+; 373.	                }
+; 374.	
+; 375.	                if( emg_rsc!=bef_emg_rsc ){
+	LD	A,(bef_emg_rsc)
+	LD	B,A
+	LD	A,(emg_rsc)
+	CP	B
+	JR	Z,?0050
+?0049:
+; 376.	                        bef_emg_rsc = emg_rsc;
+	LD	A,(emg_rsc)
+	LD	(bef_emg_rsc),A
+; 377.	
+; 378.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 379.	                        io_output_off2( 0x3F );                 /* All Speaker OFF */
+	LD	E,63
+	CALL	io_output_off2
+; 380.	
+; 381.	                        io_output_off1( emg_rsc );              /* RSC Gate ON by Request */
+	LD	DE,(emg_rsc)
+	CALL	io_output_off1
+; 382.	                        io_output_on2( emg_rsc );       /* Speaker ON by Request */
+	LD	DE,(emg_rsc)
+	CALL	io_output_on2
+?0050:
+; 383.	                }
+; 384.	
+; 385.	                paaAMPCheck();
+	CALL	paaAMPCheck
+; 386.	}
+	POP	DE
+	POP	BC
+	RET
+paaExecuteTEST:
+; 387.	
+; 388.	/************************************************************************
+; 389.	
+; 390.	        Function name   << paaExecuteTEST >>
+; 391.	                                        テストモードの処理
+; 392.	        Syntax                  paaExecuteTEST( void );
+; 393.	        Argument                none
+; 394.	        Author                  TOA Corporation  K.Honda
+; 395.	        Revision                a00 2000/06/27
+; 396.	                                a01 2000/11/07 ５秒間のチェック間隔
+; 397.	                                a02 2001/04/16 スピーカーを切り替えてから２秒間ウェイト
+; 398.	                                a03 2001/05/23 スピーカー６のＯＦＦを行なっていなかったのを修正
+; 399.	*************************************************************************/
+; 400.	void paaExecuteTEST( void )
+; 401.	{
+	PUSH	BC
+	PUSH	DE
+; 402.	                if( befOpeMode!=opeMode ){
+	LD	A,(opeMode)
+	LD	B,A
+	LD	A,(befOpeMode)
+	CP	B
+	JR	Z,?0052
+?0051:
+; 403.	                        befOpeMode = opeMode;
+	LD	A,(opeMode)
+	LD	(befOpeMode),A
+; 404.	                        io_output_on2( 0xC0 );                  /* AMP1, AMP2 on */
+	LD	E,192
+	CALL	io_output_on2
+; 405.	                        io_output_on4( 0xC0 );
+	LD	E,192
+	CALL	io_output_on4
+; 406.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 407.	                        io_output_off2( 0x3F );                 /* All Speaker OFF */
+	LD	E,63
+	CALL	io_output_off2
+; 408.	                        io_output_off1( 0x20 );                 /* RSC Switch gate OFF */
+	LD	E,32
+	CALL	io_output_off1
+; 409.	
+; 410.	                        sendarea.trouble = 0;
+	XOR	A
+	LD	(sendarea+4),A
+; 411.	
+; 412.	                        testCount = 0;
+	LD	HL,0
+	LD	(testCount),HL
+; 413.	                        testRSCNo = 0;
+	XOR	A
+	LD	(testRSCNo),A
+; 414.	                        befTestRSCNo = 1;
+	LD	A,1
+	LD	(befTestRSCNo),A
+; 415.	
+; 416.	                        amp1Active = 1;
+	LD	A,1
+	LD	(amp1Active),A
+; 417.	                        amp2Active = 1;
+	LD	A,1
+	LD	(amp2Active),A
+; 418.	                        ampok = 0;
+	XOR	A
+	LD	(ampok),A
+; 419.	                        testPhase = 0;
+	XOR	A
+	LD	(testPhase),A
+?0052:
+; 420.	                }
+; 421.	
+; 422.	                if( testRSCNo >= 5 ){
+	LD	A,(testRSCNo)
+	CP	5
+	JR	C,?0054
+?0053:
+; 423.	                        testRSCNo = 0;
+	XOR	A
+	LD	(testRSCNo),A
+?0054:
+; 424.	                }
+; 425.	
+; 426.	                if( (nowReadIO & IN_24V)==0 ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	16
+	OR	B
+	JR	NZ,?0056
+?0055:
+; 427.	                        return;
+; 428.	                }
+	JP	?0093
+?0056:
+; 429.	
+; 430.	                if( nowReadIO & AMPON1 ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	4
+	OR	B
+	JR	Z,?0058
+?0057:
+; 431.	                        ampok |= AMPON1;
+	LD	A,(ampok)
+	OR	0
+	LD	(ampok),A
+; 432.	                        sendarea.trouble &= ~0x01;
+	LD	A,(sendarea+4)
+	AND	254
+	LD	(sendarea+4),A
+?0058:
+; 433.	                }
+; 434.	                if( nowReadIO & AMPON2 ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	8
+	OR	B
+	JR	Z,?0060
+?0059:
+; 435.	                        ampok |= AMPON2;
+	LD	A,(ampok)
+	OR	0
+	LD	(ampok),A
+; 436.	                        sendarea.trouble &= ~0x02;
+	LD	A,(sendarea+4)
+	AND	253
+	LD	(sendarea+4),A
+?0060:
+; 437.	                }
+; 438.	
+; 439.	                /* 放送中 */
+; 440.	                if( (ampok & AMPON1)==0 ){
+	LD	A,(ampok)
+	AND	0
+	JR	NZ,?0062
+?0061:
+; 441.	                        if( ampFailCount1>=100 ){
+	LD	BC,32868
+	LD	HL,(ampFailCount1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	C,?0064
+?0063:
+; 442.	                                ampFailCount1 = 100;
+	LD	HL,100
+	LD	(ampFailCount1),HL
+; 443.	                                sendarea.trouble | 0x01;
+; 444.	                        }
+; 445.	                        else {
+	JR	?0065
+?0064:
+; 446.	                                sendarea.trouble &= ~0x01;
+	LD	A,(sendarea+4)
+	AND	254
+	LD	(sendarea+4),A
+?0065:
+?0062:
+; 447.	                        }
+; 448.	                }
+; 449.	                if( (ampok & AMPON2)==0 ){
+	LD	A,(ampok)
+	AND	0
+	JR	NZ,?0067
+?0066:
+; 450.	                        if( ampFailCount2>=100 ){
+	LD	BC,32868
+	LD	HL,(ampFailCount2)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	C,?0069
+?0068:
+; 451.	                                ampFailCount2 = 100;
+	LD	HL,100
+	LD	(ampFailCount2),HL
+; 452.	                                sendarea.trouble | 0x02;
+; 453.	                        }
+; 454.	                        else {
+	JR	?0070
+?0069:
+; 455.	                                sendarea.trouble &= ~0x02;
+	LD	A,(sendarea+4)
+	AND	253
+	LD	(sendarea+4),A
+?0070:
+?0067:
+; 456.	                        }
+; 457.	                }
+; 458.	
+; 459.	                if( befTestRSCNo != testRSCNo ){
+	LD	A,(testRSCNo)
+	LD	B,A
+	LD	A,(befTestRSCNo)
+	CP	B
+	JR	Z,?0072
+?0071:
+; 460.	                        befTestRSCNo = testRSCNo;
+	LD	A,(testRSCNo)
+	LD	(befTestRSCNo),A
+; 461.	
+; 462.	                        testPhase = 0;
+	XOR	A
+	LD	(testPhase),A
+?0072:
+; 463.	                }
+; 464.	
+; 465.	                if( testPhase==0 ){             /* スピーカーとマイクをすべてＯＦＦにし、音声が入っていないことを確認する*/
+	LD	A,(testPhase)
+	OR	A
+	JR	NZ,?0074
+?0073:
+; 466.	                        io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 467.	                        io_output_off2( 0x3F );                 /* All Speaker OFF */
+	LD	E,63
+	CALL	io_output_off2
+; 468.	
+; 469.	                        if( (nowReadIO & MICON)==0 ){           /* EMG Microphone InActive? */
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	32
+	LD	B,A
+	LD	A,H
+	AND	0
+	OR	B
+	JR	NZ,?0076
+?0075:
+; 470.	                                testPhase++;
+	LD	HL,testPhase
+	INC	(HL)
+?0076:
+; 471.	                        }
+; 472.	                        return;
+; 473.	                }
+	JP	?0093
+?0074:
+; 474.	
+; 475.	                if( testPhase==1 ){             /* スピーカーとマイクをＯＮにする */
+	LD	A,(testPhase)
+	DEC	A
+	JR	NZ,?0078
+?0077:
+; 476.	                        testTrouble = 0x01<<testRSCNo;
+	LD	A,(testRSCNo)
+	LD	B,A
+	LD	A,1
+	CALL	?C_LSH_L01
+	LD	(testTrouble),A
+; 477.	                        io_output_on2( testTrouble );   /* Speaker ON by TEST RSC No. */
+	LD	E,A
+	CALL	io_output_on2
+; 478.	                        if( testRSCNo==5 ){
+	LD	A,(testRSCNo)
+	CP	5
+	JR	NZ,?0080
+?0079:
+; 479.	                                io_output_off1( 0x10 ); /* RSC Gate ON by TEST RSC No. */
+	LD	E,16
+	CALL	io_output_off1
+; 480.	                        }
+; 481.	                        else {
+	JR	?0081
+?0080:
+; 482.	                                io_output_off1( testTrouble );  /* RSC Gate ON by TEST RSC No. */
+	LD	DE,(testTrouble)
+	CALL	io_output_off1
+?0081:
+; 483.	                        }
+; 484.	                        testCount = 0;
+	LD	HL,0
+	LD	(testCount),HL
+; 485.	
+; 486.	                        testPhase=2;
+	LD	A,2
+	LD	(testPhase),A
+; 487.	                        return;
+; 488.	                }
+	JR	?0093
+?0078:
+; 489.	
+; 490.	                if( testPhase==2 ){             /* ２秒間はチェックしない */
+	LD	A,(testPhase)
+	DEC	A
+	DEC	A
+	JR	NZ,?0083
+?0082:
+; 491.	                        if( testCount<200 ){            /* ２秒までは無視する */
+	LD	BC,32968
+	LD	HL,(testCount)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0085
+?0084:
+; 492.	                                return;
+; 493.	                        }
+	JR	?0093
+?0085:
+; 494.	                        testPhase = 3;
+	LD	A,3
+	LD	(testPhase),A
+; 495.	                        testCount = 0;
+	LD	HL,0
+	LD	(testCount),HL
+?0083:
+; 496.	                }
+; 497.	                                                                /* マイクに音声が入ることを確認する */
+; 498.	                if( nowReadIO & MICON ){                /* EMG Microphone Active? */
+	LD	A,(nowReadIO)
+	AND	32
+	JR	Z,?0087
+?0086:
+; 499.	                        testTrouble = 0;
+	XOR	A
+	LD	(testTrouble),A
+?0087:
+; 500.	                }
+; 501.	
+; 502.	                if( testCount>=500 ){   /* ５秒間の確認時間 */
+	LD	BC,33268
+	LD	HL,(testCount)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	C,?0089
+?0088:
+; 503.	                        testCount = 0;
+	LD	HL,0
+	LD	(testCount),HL
+; 504.	                        if( testTrouble ){
+	LD	A,(testTrouble)
+	OR	A
+	JR	Z,?0091
+?0090:
+; 505.	                                sendarea.trouble |= (testTrouble<<2);
+	LD	A,(testTrouble)
+	ADD	A,A
+	ADD	A,A
+	LD	B,A
+	LD	A,(sendarea+4)
+	OR	B
+	LD	(sendarea+4),A
+; 506.	                        }
+; 507.	                        else {
+	JR	?0092
+?0091:
+; 508.	                                testTrouble = 0x01<<testRSCNo;
+	LD	A,(testRSCNo)
+	LD	B,A
+	LD	A,1
+	CALL	?C_LSH_L01
+	LD	(testTrouble),A
+; 509.	                                sendarea.trouble &= ~(testTrouble<<2);
+	ADD	A,A
+	ADD	A,A
+	CPL
+	LD	B,A
+	LD	A,(sendarea+4)
+	AND	B
+	LD	(sendarea+4),A
+?0092:
+; 510.	                        }
+; 511.	                        testRSCNo++;
+	LD	HL,testRSCNo
+	INC	(HL)
+?0089:
+; 512.	                }
+; 513.	}
+?0093:
+	POP	DE
+	POP	BC
+	RET
+paaExecuteINIT:
+; 514.	
+; 515.	/************************************************************************
+; 516.	
+; 517.	        Function name   << paaExecuteINIT >>
+; 518.	                                        初期設定
+; 519.	        Syntax                  paaExecuteINIT( void );
+; 520.	        Argument                none
+; 521.	        Author                  TOA Corporation  K.Honda
+; 522.	        Revision                a00 2000/06/27
+; 523.	
+; 524.	*************************************************************************/
+; 525.	void paaExecuteINIT( void )
+; 526.	{
+	PUSH	DE
+; 527.	                befOpeMode = 0;
+	XOR	A
+	LD	(befOpeMode),A
+; 528.	                io_output_on2( 0xC0 );                  /* AMP1, AMP2 on */
+	LD	E,192
+	CALL	io_output_on2
+; 529.	                io_output_on4( 0xC0 );
+	LD	E,192
+	CALL	io_output_on4
+; 530.	                io_output_on1( 0x1F );                  /* RSC Gate OFF */
+	LD	E,31
+	CALL	io_output_on1
+; 531.	                io_output_on2( 0x3F );                  /* All Speaker ON */
+	LD	E,63
+	CALL	io_output_on2
+; 532.	                io_output_on1( 0x20 );                  /* RSC Switch gate ON */
+	LD	E,32
+	CALL	io_output_on1
+; 533.	
+; 534.	                voice_bus_mode = 4;                             /* Initial Test Mode */
+	LD	A,4
+	LD	(voice_bus_mode),A
+; 535.	}
+	POP	DE
+	RET
+paaExecuteMode:
+; 536.	
+; 537.	/************************************************************************
+; 538.	
+; 539.	        Function name   << paaExecuteMode >>
+; 540.	                                        操作モードの別処理
+; 541.	        Syntax                  paaExecuteMode( void );
+; 542.	        Argument                none
+; 543.	        Author                  TOA Corporation  K.Honda
+; 544.	        Revision                a00 2000/06/27
+; 545.	
+; 546.	*************************************************************************/
+; 547.	void paaExecuteMode( void )
+; 548.	{
+	PUSH	DE
+; 549.	                switch( opeMode ){
+	LD	DE,(opeMode)
+	CALL	?C_S_SWITCH_L06
+	DEFB	0
+	DEFW	7
+	DEFW	?0094
+	DEFW	?0100
+	DEFW	?0097
+	DEFW	?0096
+	DEFW	?0098
+	DEFW	?0094
+	DEFW	?0095
+	DEFW	?0099
+?0095:
+; 550.	                case    OPE_AUTO:               /*車内放送中*/
+; 551.	                        paaExecuteAUTO();
+	CALL	paaExecuteAUTO
+; 552.	                        break;
+	JR	?0094
+?0096:
+; 553.	                case    OPE_MAN:                /* Manual */
+; 554.	                        paaExecuteMAN();
+	CALL	paaExecuteMAN
+; 555.	                        break;
+	JR	?0094
+?0097:
+; 556.	                case    OPE_CAB:                /*CAB/CAB Mode*/
+; 557.	                        paaExecuteCAB();
+	CALL	paaExecuteCAB
+; 558.	                        break;
+	JR	?0094
+?0098:
+; 559.	                case    OPE_EMG:                /*非常通報*/
+; 560.	                        paaExecuteEMG();        
+	CALL	paaExecuteEMG
+; 561.	                        break;
+	JR	?0094
+?0099:
+; 562.	                case    OPE_TEST:               /*自己診断中*/
+; 563.	                        paaExecuteTEST();
+	CALL	paaExecuteTEST
+; 564.	                        break;
+	JR	?0094
+?0100:
+; 565.	                case    OPE_INIT:
+; 566.	                        paaExecuteINIT();
+	CALL	paaExecuteINIT
+; 567.	                        break;
+	JR	?0094
+?0094:
+; 568.	                }
+; 569.	}
+	POP	DE
+	RET
+paaLEDOUT:
+; 570.	
+; 571.	/************************************************************************
+; 572.	
+; 573.	        Function name   << paaLEDOUT >>
+; 574.	                                        操作モードの取得
+; 575.	        Syntax                  paaLEDOUT( void );
+; 576.	        Argument                none
+; 577.	        Author                  TOA Corporation  K.Honda
+; 578.	        Revision                a00 2000/06/27
+; 579.	
+; 580.	*************************************************************************/
+; 581.	void paaLEDOUT( void )
+; 582.	{
+	PUSH	BC
+	PUSH	DE
+; 583.	                /* アンプ出力中のときは、ＡＭＰ出力をおこなう */
+; 584.	                if( nowReadIO & (AMPON1|AMPON2) ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	12
+	OR	B
+	JR	Z,?0102
+?0101:
+; 585.	                        io_output_on1( 0x80 );
+	LD	E,128
+	CALL	io_output_on1
+; 586.	#if 0
+; 587.	                        io_output_on4( 0x10 );
+; 588.	#endif
+; 589.	                }
+; 590.	                else {
+	JR	?0103
+?0102:
+; 591.	                        io_output_off1( 0x80 );
+	LD	E,128
+	CALL	io_output_off1
+?0103:
+; 592.	#if 0
+; 593.	                        io_output_off4( 0x10 );
+; 594.	#endif
+; 595.	                }
+; 596.	
+; 597.	                /* 非常通報時要求のときは、デバッグＬＥＤを点灯 */
+; 598.	                if( sendarea.rscsw ){
+	LD	A,(sendarea+3)
+	OR	A
+	JR	Z,?0105
+?0104:
+; 599.	                        io_output_on4( 0x08 );
+	LD	E,8
+	CALL	io_output_on4
+; 600.	                }
+; 601.	                else {
+	JR	?0106
+?0105:
+; 602.	                        io_output_off4( 0x08 );
+	LD	E,8
+	CALL	io_output_off4
+?0106:
+; 603.	                }
+; 604.	
+; 605.	                /* RUN LED の点滅 */
+; 606.	                if( ledCount==25 ){
+	LD	A,(ledCount)
+	CP	25
+	JR	NZ,?0108
+?0107:
+; 607.	                        io_output_on1( 0x40 );
+	LD	E,64
+	CALL	io_output_on1
+; 608.	                        io_output_on4( 0x20 );
+	LD	E,32
+	CALL	io_output_on4
+?0108:
+; 609.	                }
+; 610.	                if( ledCount==50 ){
+	LD	A,(ledCount)
+	CP	50
+	JR	NZ,?0110
+?0109:
+; 611.	                        io_output_off1( 0x40 );
+	LD	E,64
+	CALL	io_output_off1
+; 612.	                        io_output_off4( 0x20 );
+	LD	E,32
+	CALL	io_output_off4
+?0110:
+; 613.	                }
+; 614.	                if( ledCount>=50 ){
+	LD	A,(ledCount)
+	CP	50
+	JR	C,?0112
+?0111:
+; 615.	                        ledCount=0;
+	XOR	A
+	LD	(ledCount),A
+?0112:
+; 616.	                }
+; 617.	}
+	POP	DE
+	POP	BC
+	RET
+; 618.	
+	RSEG	UDATA0
+voice_bus_mode:
+	DEFS	1
+emg_rsc:
+	DEFS	1
+initial_voice_level:
+	DEFS	1
+noise_checkCount:
+	DEFS	2
+amp1Active:
+	DEFS	1
+amp2Active:
+	DEFS	1
+ampFailCount1:
+	DEFS	2
+ampFailCount2:
+	DEFS	2
+testCount:
+	DEFS	2
+ledCount:
+	DEFS	1
+checkAmp:
+	DEFS	2
+befNoiseLevel:
+	DEFS	1
+befOpeMode:
+	DEFS	1
+testRSCNo:
+	DEFS	1
+befTestRSCNo:
+	DEFS	1
+testTrouble:
+	DEFS	1
+ampok:
+	DEFS	1
+bef_emg_rsc:
+	DEFS	1
+testPhase:
+	DEFS	1
+opeMode:
+	DEFS	1
+	END

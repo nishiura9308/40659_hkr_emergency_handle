@@ -1,0 +1,9 @@
+DVAMENTE.C(1825): 			tms_sd_data.SD.passengerAlarm[i] = DUALPORT.tms_answer.passengerAlarm[i];
+DVATMS.C(120): 			tms_sd_data.SD.passengerAlarm[i] = DUALPORT.tms_answer.passengerAlarm[i];
+DVAPROC.C(724):  dvaStandby			DUALPORT.tms_answer.passengerAlarm[i] = DUALPORT.answerData.rscSW[i].BYTE;
+DVAPROC.C(1068): dvaIDLE 			DUALPORT.tms_answer.passengerAlarm[i] = DUALPORT.answerData.rscSW[i].BYTE;
+DVAPROC.C(1412): dvaAUTO 			DUALPORT.tms_answer.passengerAlarm[i] = DUALPORT.answerData.rscSW[i].BYTE;
+DVAPROC.C(2350): dvaEMGHL			DUALPORT.tms_answer.passengerAlarm[i] = DUALPORT.answerData.rscSW[i].BYTE;
+
+
+dvaEMGMA

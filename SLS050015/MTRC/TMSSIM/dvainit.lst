@@ -1,0 +1,375 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:14  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvainit.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    
+                    16:    /*@@@S*/
+                    17:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    18:            ƒOƒ[ƒoƒ‹•Ï”
+                    19:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    20:    
+                    21:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    22:            ’è”’è‹`
+                    23:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    24:    
+                    25:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    26:            \‘¢‘Ì’è‹`
+                    27:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    28:    
+                    29:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    30:            ƒe[ƒuƒ‹
+                    31:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    32:    
+                    33:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    34:                    ŠO•”ŽQÆ
+                    35:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    36:    
+                    37:    
+                    38:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    39:                    ƒ[ƒJƒ‹•Ï”
+                    40:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    41:    
+                    42:    /*@@@E*/
+                    43:    /************************************************************************
+                    44:    *                                                                                                                                               *
+                    45:    *       Function name   << HardwareSetup >>     
+                    46:    *                                       ‰ŠúÝ’è
+                    47:    *       Syntax                  HardwareSetup( void );
+                    48:    *       Argument                none                                                                                            *
+                    49:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    50:    *       Revision                a00 2000/06/27                                                                          *
+                    51:    *                                                                                                                                               *
+                    52:    *************************************************************************/
+                    53:    void HardwareSetup( void )
+    000000              _HardwareSetup:                  ; function: HardwareSetup
+                    54:    {
+                    55:                    WDT = 0xA500;           /* WatchDog Disable */
+    000000 7900A500               MOV.W       #-23296:16,R0
+    000004 6B80FFA8               MOV.W       R0,@16777128:16
+                    56:                    INTC.IER.BYTE = 0;      /* IRQ Use */
+    000008 1888                   SUB.B       R0L,R0L
+    00000A 38F5                   MOV.B       R0L,@16777205:8
+                    57:    
+                    58:            /*** CPU Mode3 ***/
+                    59:    
+                    60:                    BSC.BRCR.BIT.A21E=0;            // PA6 is A21
+    00000C 7FF37250               BCLR.B      #5,@16777203:8
+                    61:                    BSC.BRCR.BIT.A22E=0;            // PA5 is A22
+    000010 7FF37260               BCLR.B      #6,@16777203:8
+                    62:                    BSC.BRCR.BIT.A23E=0;            // PA4 is A23
+    000014 7FF37270               BCLR.B      #7,@16777203:8
+                    63:    
+                    64:            /**** ƒ|[ƒg•ûŒüÝ’è ****/
+                    65:                    P4.DDR = 0;                     /* P4 is Input( DIP-SW ) */
+    000018 38C5                   MOV.B       R0L,@16777157:8
+                    66:                    P4.PCR.BYTE = 0;        /* P4 pullup is External */
+    00001A 38DA                   MOV.B       R0L,@16777178:8
+                    67:    
+                    68:                    P6.DDR = 0x80;          /* P6 no use */
+    00001C F880                   MOV.B       #-128:8,R0L
+    00001E 38C9                   MOV.B       R0L,@16777161:8
+                    69:    
+                    70:                                                            /* P7 Input SCI0 status */
+                    71:    
+                    72:                    P8.DDR = 0xFE;          /* P8 b4-b1=CS0-CS3, b0=IRQ0 */
+    000020 F8FE                   MOV.B       #-2:8,R0L
+    000022 38CD                   MOV.B       R0L,@16777165:8
+                    73:    
+                    74:                    P9.DDR = 0xC0;          /* P9 b5=IRQ5, b4=IRQ4, b3=RxD1, b2=RxD0, b1=TxD1, b0=TxD0 */
+    000024 F8C0                   MOV.B       #-64:8,R0L
+    000026 38D0                   MOV.B       R0L,@16777168:8
+                    75:    
+                    76:                    PA.DR.BYTE = 0x00;
+    000028 1888                   SUB.B       R0L,R0L
+    00002A 38D3                   MOV.B       R0L,@16777171:8
+                    77:                    PA.DDR = 0xFF;          /* PA b7=A20, b6= , b5= , b4= , b3=DTR1, b2=RTS1, b1=DTR0, b0=RTS0 */
+    00002C F8FF                   MOV.B       #-1:8,R0L
+    00002E 38D1                   MOV.B       R0L,@16777169:8
+                    78:    
+                    79:                    PB.DR.BYTE = 0x40;
+    000030 F840                   MOV.B       #64:8,R0L
+    000032 38D6                   MOV.B       R0L,@16777174:8
+                    80:                    PB.DDR = 0xDF;          /* PB b7=CPU2 Reset, b6=Slot-CS, b5=Slot-WP, b4=Slot-IORDA, b3=Slot-IOERA, b2=Slot-REG, b1=Slot-RESA, b0=Slot-Reset */
+    000034 F8DF                   MOV.B       #-33:8,R0L
+    000036 38D4                   MOV.B       R0L,@16777172:8
+                    81:    
+                    82:                    SYSCR.BYTE = 0;
+    000038 1888                   SUB.B       R0L,R0L
+    00003A 38F2                   MOV.B       R0L,@16777202:8
+                    83:                    SYSCR.BIT.SSBY  = 1;            /* Sleep –½—ßŒãAƒ\ƒtƒgƒEƒFƒAƒXƒ^ƒ“ƒoƒC */
+    00003C 7FF27070               BSET.B      #7,@16777202:8
+                    84:                    SYSCR.BIT.STS   = 7;            /* Žg—p‹ÖŽ~ */
+    000040 28F2                   MOV.B       @16777202:8,R0L
+    000042 E88F                   AND.B       #-113:8,R0L
+    000044 C870                   OR.B        #112:8,R0L
+    000046 38F2                   MOV.B       R0L,@16777202:8
+                    85:                    SYSCR.BIT.UE    = 0;            /* —DæŠ„‚èž‚Ý‚ ‚è */
+    000048 7FF27230               BCLR.B      #3,@16777202:8
+                    86:                    SYSCR.BIT.NMIEG = 0;
+    00004C 7FF27220               BCLR.B      #2,@16777202:8
+                    87:                    SYSCR.BIT.RAME  = 1;            /*“à‘Ÿ‚q‚`‚l—LŒø */
+    000050 7FF27000               BSET.B      #0,@16777202:8
+                    88:    
+                    89:                    INTC.ISCR.BYTE = 0;
+    000054 1888                   SUB.B       R0L,R0L
+    000056 38F4                   MOV.B       R0L,@16777204:8
+                    90:                    INTC.ISCR.BIT.IRQ5SC = 0;       /* IRQ5 Level Int*/
+    000058 7FF47250               BCLR.B      #5,@16777204:8
+                    91:                    INTC.ISCR.BIT.IRQ4SC = 0;       /* IRQ4 Level Int*/
+    00005C 7FF47240               BCLR.B      #4,@16777204:8
+                    92:                    INTC.ISCR.BIT.IRQ0SC = 0;       /* IRQ0 Level Int*/
+    000060 7FF47200               BCLR.B      #0,@16777204:8
+                    93:                    INTC.IER.BYTE = 0;
+    000064 38F5                   MOV.B       R0L,@16777205:8
+                    94:    
+                    95:                    INTC.IPRA.BYTE = 0;
+    000066 38F8                   MOV.B       R0L,@16777208:8
+                    96:    //              INTC.IPRA.BIT.B1 = 1;   // TIMER1 Priority Level1
+                    97:                    INTC.IPRA.BIT.B3 = 1;  // Set WDT,RFSHC Priority Level 1
+    000068 7FF87030               BSET.B      #3,@16777208:8
+                    98:                    INTC.IPRA.BIT.B4 = 1;
+    00006C 7FF87040               BSET.B      #4,@16777208:8
+                    99:    
+                   100:                    INTC.IPRB.BYTE = 0;
+    000070 38F9                   MOV.B       R0L,@16777209:8
+                   101:    
+                   102:    
+                   103:                    /** Debug Port ‚Ì‚½‚ß‚Ì‰ŠúÝ’è **/
+                   104:                    SCI1.SMR.BYTE = 0;
+    000072 38B8                   MOV.B       R0L,@16777144:8
+                   105:                    SCI1.SMR.BIT.CA   = 0;  /* ’²•à“¯Šú */
+    000074 7FB87270               BCLR.B      #7,@16777144:8
+                   106:                    SCI1.SMR.BIT.CHR  = 0;  
+    000078 7FB87260               BCLR.B      #6,@16777144:8
+                   107:                    SCI1.SMR.BIT.PE   = 0;
+    00007C 7FB87250               BCLR.B      #5,@16777144:8
+                   108:                    SCI1.SMR.BIT.STOP = 0;
+    000080 7FB87230               BCLR.B      #3,@16777144:8
+                   109:                    SCI1.SMR.BIT.MP   = 0;
+    000084 7FB87220               BCLR.B      #2,@16777144:8
+                   110:                    SCI1.SMR.BIT.CKS  = 0;                                  /* 1/1 Clock */
+    000088 28B8                   MOV.B       @16777144:8,R0L
+    00008A E8FC                   AND.B       #-4:8,R0L
+    00008C 38B8                   MOV.B       R0L,@16777144:8
+                   111:    
+                   112:                    SCI1.BRR = 47;                                          /* 14.7456MHz -> 9600bps */
+    00008E F82F                   MOV.B       #47:8,R0L
+    000090 38B9                   MOV.B       R0L,@16777145:8
+                   113:    
+                   114:                    SCI1.SCR.BIT.TE   = 1;
+    000092 7FBA7050               BSET.B      #5,@16777146:8
+                   115:    }
+    000096 5470                   RTS
+                   116:    
+                   117:    void charput( char data )
+    000098              _charput:                        ; function: charput
+                   118:    {
+    000098 0C80                   MOV.B       R0L,R0H
+                   119:                    long    i;
+                   120:    
+                   121:                    for( i=0; i<10000; i++ ){
+    00009A 1A91                   SUB.L       ER1,ER1
+    00009C 400E                   BRA         L116:8
+    00009E              L115:                             
+                   122:                            if( SCI1.SSR.BIT.TDRE ){
+    00009E 28BC                   MOV.B       @16777148:8,R0L
+    0000A0 4A08                   BPL         L117:8
+                   123:                                    SCI1.TDR = data;                                /*‘—Mƒf[ƒ^ƒZƒbƒg*/
+    0000A2 30BB                   MOV.B       R0H,@16777147:8
+                   124:                                    SCI1.SSR.BIT.TDRE = 0;                  /*‘—Mƒf[ƒ^—L‚èƒZƒbƒg*/
+    0000A4 7FBC7270               BCLR.B      #7,@16777148:8
+                   125:                                    break;
+    0000A8 5470                   RTS
+    0000AA              L117:                             
+    0000AA 0B71                   INC.L       #1,ER1
+    0000AC              L116:                             
+    0000AC 7A21000027             CMP.L       #10000:32,ER1
+           10           
+    0000B2 4DEA                   BLT         L115:8
+                   126:                            }
+                   127:                    }
+                   128:    }
+    0000B4 5470                   RTS
+                   129:    
+                   130:    
+                   131:    #pragma section DataWatchDog
+                   132:    char    watchDogCount;
+                   133:    char    watchDogFlag;
+                   134:    char    watchDogON;
+                   135:    #pragma section
+                   136:    /************************************************************************
+                   137:    *                                                                                                                                               *
+                   138:    *       Function name   << WatchDogReset >>     
+                   139:    *                                       ‰ŠúÝ’è
+                   140:    *       Syntax                  WatchDogReset( void );
+                   141:    *       Argument                none                                                                                            *
+                   142:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   143:    *       Revision                a00 2000/06/27                                                                          *
+                   144:    *                                                                                                                                               *
+                   145:    *************************************************************************/
+                   146:    void WatchDogReset( void )
+    0000B6              _WatchDogReset:                  ; function: WatchDogReset
+                   147:    {
+                   148:                                                            /* 14.7456MHz -> ƒ³
+                   149:                                                                    ƒ³/4096 = 3600Hz
+                   150:                                                                    0xFF= 70mS Interval */
+                   151:                    WDT = 0x5A00;           /* TCNT Clear */
+    0000B6 79005A00               MOV.W       #23040:16,R0
+    0000BA 6B80FFA8               MOV.W       R0,@16777128:16
+                   152:                    WDT = 0xA53F;           /* TCSR Set (Interval Timer) */
+    0000BE 7900A53F               MOV.W       #-23233:16,R0
+    0000C2 6B80FFA8               MOV.W       R0,@16777128:16
+                   153:    /*              WDT = 0xA55F;           * TCSR Set (Watch Dog Reset) */
+                   154:    
+                   155:                    watchDogCount = 0;
+    0000C6 1888                   SUB.B       R0L,R0L
+    0000C8 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   156:    }
+    0000CE 5470                   RTS
+                   157:    
+                   158:    
+                   159:    /************************************************************************
+                   160:    *                                                                                                                                               *
+                   161:    *       Function name   << WatchDogDisable >>   
+                   162:    *                                       ƒEƒHƒbƒ`ƒhƒbƒO‚ð‹ÖŽ~‚·‚é
+                   163:    *       Syntax                  WatchDogDisable( void );
+                   164:    *       Argument                none                                                                                            *
+                   165:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   166:    *       Revision                a00 2000/06/27                                                                          *
+                   167:    *                                                                                                                                               *
+                   168:    *************************************************************************/
+                   169:    void WatchDogDisable( void )
+    0000D0              _WatchDogDisable:                ; function: WatchDogDisable
+                   170:    {
+                   171:                                                            /* 14.7456MHz -> ƒ³
+                   172:                                                                    ƒ³/4096 = 3600Hz
+                   173:                                                                    0xFF= 70mS Interval */
+                   174:                    WDT = 0x5A00;           /* TCNT Clear */
+    0000D0 79005A00               MOV.W       #23040:16,R0
+    0000D4 6B80FFA8               MOV.W       R0,@16777128:16
+                   175:                    WDT = 0xA500;           /* TCSR Reset */
+    0000D8 7900A500               MOV.W       #-23296:16,R0
+    0000DC 6B80FFA8               MOV.W       R0,@16777128:16
+                   176:    
+                   177:                    watchDogCount = 0;
+    0000E0 1888                   SUB.B       R0L,R0L
+    0000E2 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   178:    }
+    0000E8 5470                   RTS
+                   179:    
+                   180:    
+                   181:    #pragma section IntChgTable
+                   182:            void    (*IRQ5Jump)(void);
+                   183:            void    (*IRQ4Jump)(void);
+                   184:            void    (*IRQ0Jump)(void);
+                   185:    
+                   186:            void    (*IMIA0Jump)(void);
+                   187:            void    (*IMIA1Jump)(void);
+                   188:            void    (*IMIA2Jump)(void);
+                   189:            void    (*IMIA3Jump)(void);
+                   190:            void    (*IMIA4Jump)(void);
+                   191:    
+                   192:            void    (*ERI0Jump)(void);
+                   193:            void    (*RXI0Jump)(void);
+                   194:            void    (*TXI0Jump)(void);
+                   195:            void    (*TEI0Jump)(void);
+                   196:            void    (*ERI1Jump)(void);
+                   197:            void    (*RXI1Jump)(void);
+                   198:            void    (*TXI1Jump)(void);
+                   199:            void    (*TEI1Jump)(void);
+                   200:    
+  BDataWatchDog                                          ; section
+    000000              _watchDogCount:                  ; static: watchDogCount
+    000000 00000001               .RES.B      1
+    000001              _watchDogFlag:                   ; static: watchDogFlag
+    000001 00000001               .RES.B      1
+    000002              _watchDogON:                     ; static: watchDogON
+    000002 00000001               .RES.B      1
+  BIntChgTable                                           ; section
+    000000              _IRQ5Jump:                       ; static: IRQ5Jump
+    000000 00000004               .RES.L      1
+    000004              _IRQ4Jump:                       ; static: IRQ4Jump
+    000004 00000004               .RES.L      1
+    000008              _IRQ0Jump:                       ; static: IRQ0Jump
+    000008 00000004               .RES.L      1
+    00000C              _IMIA0Jump:                      ; static: IMIA0Jump
+    00000C 00000004               .RES.L      1
+    000010              _IMIA1Jump:                      ; static: IMIA1Jump
+    000010 00000004               .RES.L      1
+    000014              _IMIA2Jump:                      ; static: IMIA2Jump
+    000014 00000004               .RES.L      1
+    000018              _IMIA3Jump:                      ; static: IMIA3Jump
+    000018 00000004               .RES.L      1
+    00001C              _IMIA4Jump:                      ; static: IMIA4Jump
+    00001C 00000004               .RES.L      1
+    000020              _ERI0Jump:                       ; static: ERI0Jump
+    000020 00000004               .RES.L      1
+    000024              _RXI0Jump:                       ; static: RXI0Jump
+    000024 00000004               .RES.L      1
+    000028              _TXI0Jump:                       ; static: TXI0Jump
+    000028 00000004               .RES.L      1
+    00002C              _TEI0Jump:                       ; static: TEI0Jump
+    00002C 00000004               .RES.L      1
+    000030              _ERI1Jump:                       ; static: ERI1Jump
+    000030 00000004               .RES.L      1
+    000034              _RXI1Jump:                       ; static: RXI1Jump
+    000034 00000004               .RES.L      1
+    000038              _TXI1Jump:                       ; static: TXI1Jump
+    000038 00000004               .RES.L      1
+    00003C              _TEI1Jump:                       ; static: TEI1Jump
+    00003C 00000004               .RES.L      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:14  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000000EA Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+BSS      SECTION(BDataWatchDog):                    0x00000003 Byte(s)
+BSS      SECTION(BIntChgTable):                     0x00000040 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000000EA Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000043 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000012D Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        0 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       23 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         26 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,.\inc\,.\inc\ .\src\dvainit.c -object=.\obj\dvainit.obj
+CPU         : 300ha:24

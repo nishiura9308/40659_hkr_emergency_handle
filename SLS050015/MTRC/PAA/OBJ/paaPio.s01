@@ -1,0 +1,161 @@
+	NAME	paapio(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	PUBLIC	nowReadIO
+	PUBLIC	paaSignalIn
+	PUBLIC	paaSignalOut
+	EXTERN	sendarea
+	EXTERN	switch_read
+	EXTERN	?CL64180L_4_04_L00
+	RSEG	CODE
+paaSignalIn:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        Ｉ／Ｏ入力制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	
+; 10.	*********************************************************************/
+; 11.	
+; 12.	#include <stdio.h>
+; 13.	
+; 14.	#include "IOFUNC.h"
+; 15.	
+; 16.	#include "COMMDEF.h"
+; 17.	
+; 18.	/*@@@S*/
+; 19.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 20.	        グローバル変数
+; 21.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 22.	
+; 23.	/** スイッチデータ **/
+; 24.	short   nowReadIO;
+; 25.	
+; 26.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 27.	        ローカル定数定義
+; 28.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 29.	
+; 30.	
+; 31.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 32.	        ローカル構造体定義
+; 33.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 34.	
+; 35.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 36.	        ローカルテーブル
+; 37.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 38.	
+; 39.	
+; 40.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 41.	                外部参照
+; 42.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 43.	
+; 44.	/** 送信エリア **/
+; 45.	extern  struct PAASEND  sendarea;
+; 46.	
+; 47.	
+; 48.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 49.	                ローカル変数
+; 50.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 51.	static  char    readCount;
+; 52.	static  short   preReadIO;
+; 53.	
+; 54.	/*@@@E*/
+; 55.	/************************************************************************
+; 56.	
+; 57.	        Function name   << paaSignalIn >>
+; 58.	                                        信号状態入力処理
+; 59.	        Syntax                  paaSignalIn( void );
+; 60.	        Argument                none
+; 61.	        Author                  TOA Corporation  K.Honda
+; 62.	        Revision                a00 2000/06/27
+; 63.	
+; 64.	*************************************************************************/
+; 65.	void paaSignalIn( void )
+; 66.	{
+	PUSH	BC
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+; 67.	                short   readIO;
+; 68.	
+; 69.	                readIO = switch_read();
+	CALL	switch_read
+	LD	(IX-2),L
+	LD	(IX-1),H
+; 70.	
+; 71.	                if( readIO!=preReadIO ){
+	LD	BC,(preReadIO)
+	AND	A
+	SBC	HL,BC
+	JR	Z,?0009
+?0008:
+; 72.	                        readCount = 0;
+	XOR	A
+	LD	(readCount),A
+; 73.	                }
+; 74.	                else {
+	JR	?0010
+?0009:
+; 75.	                        readCount++;
+	LD	HL,readCount
+	INC	(HL)
+; 76.	                        if( readCount>=5 ){     /* 50mS 経過しても同一のとき */
+	LD	A,(readCount)
+	CP	5
+	JR	C,?0012
+?0011:
+; 77.	                                readCount = 0;
+	XOR	A
+	LD	(readCount),A
+; 78.	
+; 79.	                                nowReadIO = readIO;
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	(nowReadIO),HL
+; 80.	
+; 81.	                                sendarea.rscsw = nowReadIO & 0x1F;      /*非常通報スイッチを通信エリアへ設定*/
+	LD	A,L
+	AND	31
+	LD	(sendarea+3),A
+?0012:
+?0010:
+; 82.	                        }
+; 83.	                }
+; 84.	                preReadIO = readIO;
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	(preReadIO),HL
+; 85.	}
+	LD	SP,IX
+	POP	IX
+	POP	BC
+	RET
+paaSignalOut:
+; 86.	
+; 87.	/************************************************************************
+; 88.	
+; 89.	        Function name   << paaSignalOut >>
+; 90.	                                        Ｉ／Ｏ出力処理
+; 91.	        Syntax                  paaSignalOut( void );
+; 92.	        Argument                none
+; 93.	        Author                  TOA Corporation  K.Honda
+; 94.	        Revision                a00 2000/06/27
+; 95.	
+; 96.	*************************************************************************/
+; 97.	void paaSignalOut( void )
+; 98.	{
+; 99.	}
+	RET
+; 100.	
+	RSEG	UDATA0
+nowReadIO:
+	DEFS	2
+readCount:
+	DEFS	1
+preReadIO:
+	DEFS	2
+	END

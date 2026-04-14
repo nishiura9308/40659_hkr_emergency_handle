@@ -1,0 +1,70 @@
+=====ファイル src\CSTARTUP.S01 の行数 = 210
+src\MCPCOMM.C  6:  *	Author		TOA									*
+src\MCPCOMM.C  99:  *	Author			TOA  K.Honda							*
+src\MCPCOMM.C  119:  *	Author			TOA  K.Honda							*
+src\MCPCOMM.C  193:  *	Author			TOA  K.Honda							*
+src\MCPCOMM.C  261:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPCOMM.C の行数 = 333
+src\MCPCOMMA.MSA  6:  ;*    Author	TOA   K.Honda
+src\MCPCOMMA.MSA  24:  ;*	Author		TOA  T.takehisa			*
+src\MCPCOMMA.MSA  61:  ;*	Author		TOA  K.Honda								*
+src\MCPCOMMA.MSA  88:  ;*	Author		TOA  K.Honda								*
+src\MCPCOMMA.MSA  154:  ;*	Author		TOA  T.takehisa			*
+src\MCPCOMMA.MSA  174:  ;*	Author		TOA  T.takehisa			*
+=====ファイル src\MCPCOMMA.MSA の行数 = 253
+src\MCPDISP.C  6:  *	Author		TOA									*
+src\MCPDISP.C  1056:  *	Author			TOA  K.Honda							*
+src\MCPDISP.C  1142:  *	Author			TOA  K.Honda							*
+src\MCPDISP.C  1168:  *	Author			TOA  K.Honda							*
+src\MCPDISP.C  1193:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPDISP.C の行数 = 1203
+src\MCPINIT.C  6:  *	Author		TOA									*
+src\MCPINIT.C  51:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPINIT.C の行数 = 66
+src\MCPINITA.MSA  6:  ;*    Author	TOA   K.Honda
+src\MCPINITA.MSA  39:  ;.*	Author		TOA  h.nisiura			*
+src\MCPINITA.MSA  66:  ;.*	Author		TOA  h.nisiura			*
+src\MCPINITA.MSA  118:  ;*	Author		TOA  t.ehara			*
+src\MCPINITA.MSA  140:  ;*	Author		TOA  T.Takehisa			*
+src\MCPINITA.MSA  183:  ;*	Author		TOA  T.Takehisa			*
+src\MCPINITA.MSA  218:  ;*	Author		TOA  T.Takehisa			*
+src\MCPINITA.MSA  252:  ;*	Author		TOA  t.takehisa			*
+src\MCPINITA.MSA  321:  ;*	Author		TOA  h.nisiura			*
+src\MCPINITA.MSA  403:  ;*	Author		TOA  T.Takehisa			*
+src\MCPINITA.MSA  443:  ;*	Author		TOA  K.Honda
+src\MCPINITA.MSA  466:  ;*    Author	TOA   K.Honda
+src\MCPINITA.MSA  504:  ;*	Author		TOA  K.Honda
+src\MCPINITA.MSA  552:  ;*	Author		TOA  T.takehisa			*
+src\MCPINITA.MSA  570:  ;*	Author		TOA  T.takehisa			*
+src\MCPINITA.MSA  590:  ;*	Author		TOA  K.Honda
+src\MCPINITA.MSA  704:  ;*	Author		TOA  K.Honda
+src\MCPINITA.MSA  759:  ;*	Author		TOA  K.Honda
+=====ファイル src\MCPINITA.MSA の行数 = 771
+src\MCPMAIN.C  6:  *	Author		TOA									*
+src\MCPMAIN.C  82:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPMAIN.C の行数 = 156
+src\MCPPIO.C  6:  *	Author		TOA									*
+src\MCPPIO.C  202:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPPIO.C の行数 = 251
+src\MCPPIOA.MSA  6:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  50:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  84:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  116:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  149:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  174:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  212:  ;*    Author	TOA   K.Honda
+src\MCPPIOA.MSA  257:  ;*    Author	TOA   K.Honda
+=====ファイル src\MCPPIOA.MSA の行数 = 440
+src\MCPTIMEA.MSA  6:  ;*    Author	TOA   K.Honda
+src\MCPTIMEA.MSA  26:  ;*    Author	TOA   K.Honda
+src\MCPTIMEA.MSA  73:  ;*	Author		TOA  T.takehisa			*
+src\MCPTIMEA.MSA  138:  ;*    Author	TOA   K.Honda
+src\MCPTIMEA.MSA  185:  ;*	Author		TOA  T.takehisa			*
+=====ファイル src\MCPTIMEA.MSA の行数 = 256
+src\MCPTIMER.C  6:  *	Author		TOA									*
+src\MCPTIMER.C  58:  *	Author			TOA  K.Honda							*
+src\MCPTIMER.C  77:  *	Author			TOA  K.Honda							*
+=====ファイル src\MCPTIMER.C の行数 = 89
+=====ファイル src\MESSAGES.TXT の行数 = 8
+=====ファイル src\MIPROF.$_$ の行数 = 18
+=====該当ファイルの総行数 = 4054

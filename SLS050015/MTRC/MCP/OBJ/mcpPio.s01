@@ -1,0 +1,1086 @@
+	NAME	mcppio(16)
+	RSEG	CODE(0)
+	RSEG	CSTR(0)
+	RSEG	UDATA0(0)
+	PUBLIC	debug_Display
+	EXTERN	io_output_off
+	EXTERN	io_output_on
+	EXTERN	matrix_led
+	PUBLIC	mcpSwitchIn
+	EXTERN	mcp_sendactive
+	PUBLIC	nowReadIO
+	PUBLIC	offReadIO
+	PUBLIC	onReadIO
+	EXTERN	read_dipsw
+	EXTERN	sendarea
+	EXTERN	sprintf
+	EXTERN	sw_led
+	EXTERN	switch_read
+	EXTERN	?CL64180L_4_04_L00
+	RSEG	CODE
+debug_Display:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        Ｉ／Ｏ入力制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	        Revision        a00. 2000/11/07         K.Honda
+; 10.	
+; 11.	*********************************************************************/
+; 12.	
+; 13.	#include <stdio.h>
+; 14.	
+; 15.	#include "IOFUNC.h"
+; 16.	
+; 17.	#include "COMMDEF.h"
+; 18.	
+; 19.	/*@@@S*/
+; 20.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 21.	        グローバル変数
+; 22.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 23.	
+; 24.	/** スイッチデータ **/
+; 25.	short   onReadIO;
+; 26.	short   offReadIO;
+; 27.	short   nowReadIO;
+; 28.	
+; 29.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 30.	        ローカル定数定義
+; 31.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 32.	
+; 33.	
+; 34.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 35.	        ローカル構造体定義
+; 36.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 37.	
+; 38.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 39.	        ローカルテーブル
+; 40.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 41.	
+; 42.	
+; 43.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 44.	                外部参照
+; 45.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 46.	
+; 47.	extern  char    mcp_sendactive;
+; 48.	
+; 49.	/** 送信エリア **/
+; 50.	extern  struct MCPSEND  sendarea;
+; 51.	
+; 52.	/** 表示データ **/
+; 53.	extern  short   sw_led;                         /*スイッチＬＥＤ*/
+; 54.	
+; 55.	#define SW_EMGPRG       0x0001
+; 56.	#define SW_CABCAB       0x0002
+; 57.	#define SW_RBM          0x0004
+; 58.	#define SW_TEST         0x0008
+; 59.	#define SW_ATC          0x0010
+; 60.	#define SW_HL           0x0020
+; 61.	#define SW_EMG          0x0040
+; 62.	#define SW_SPC          0x0080
+; 63.	#define SW_REP          0x0100
+; 64.	#define SW_LEFT         0x0200
+; 65.	#define SW_RIGHT        0x0400
+; 66.	#define SW_SEL          0x0800
+; 67.	#define SW_RST          0x1000
+; 68.	#define SW_ENT          0x2000
+; 69.	#define SW_STN          0x4000
+; 70.	
+; 71.	#define SWLED_EMGPRG    0x0001
+; 72.	#define SWLED_CABCAB    0x0002
+; 73.	#define SWLED_RBM               0x0004
+; 74.	#define SWLED_TEST              0x0008
+; 75.	#define SWLED_ATC               0x0010
+; 76.	#define SWLED_HL                0x0020
+; 77.	#define SWLED_EMG               0x0040
+; 78.	#define SWLED_SPC               0x0080
+; 79.	#define SWLED_REP               0x0100
+; 80.	#define SWLED_LEFT              0x0200
+; 81.	#define SWLED_RIGHT             0x0400
+; 82.	#define SWLED_SEL               0x0800
+; 83.	#define SWLED_RST               0x1000
+; 84.	#define SWLED_ENT               0x2000
+; 85.	#define SWLED_STN               0x4000
+; 86.	#define SWLED_SPC2              0x8000  /* Same SWLED_SPC */
+; 87.	
+; 88.	extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+; 89.	
+; 90.	
+; 91.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 92.	                ローカル変数
+; 93.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 94.	static  char    readCount;
+; 95.	static  short   preReadIO;
+; 96.	
+; 97.	/*@@@E*/
+; 98.	void debug_Display( void )
+; 99.	{
+	PUSH	BC
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+; 100.	                        if( sw_led & SWLED_HL ){
+	LD	A,(sw_led)
+	AND	32
+	JP	Z,?0009
+?0008:
+; 101.	                                sw_led ^= onReadIO;
+	LD	HL,sw_led
+	LD	BC,(onReadIO)
+	LD	A,(HL)
+	XOR	C
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	XOR	B
+	LD	(HL),A
+; 102.	                        if( onReadIO & 0x01 ){
+	LD	A,(onReadIO)
+	AND	1
+	JP	Z,?0011
+?0010:
+; 103.	                                onReadIO &= ~0x01;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	254
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 104.	                                {
+; 105.	                                        int     i;
+; 106.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0013:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0012
+?0014:
+; 107.	                                                matrix_led[0][i] = 0x20+i;
+	LD	HL,matrix_led
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,32
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0121
+	INC	(IX-1)
+?0121:
+	JR	?0013
+?0012:
+; 108.	                                        }
+; 109.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0017:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0016
+?0018:
+; 110.	                                                matrix_led[1][i] = 0x26+i;
+	LD	HL,matrix_led+6
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,38
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0122
+	INC	(IX-1)
+?0122:
+	JR	?0017
+?0016:
+; 111.	                                        }
+; 112.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0021:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0020
+?0022:
+; 113.	                                                matrix_led[2][i] = 0x2C+i;
+	LD	HL,matrix_led+12
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,44
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0123
+	INC	(IX-1)
+?0123:
+	JR	?0021
+?0020:
+; 114.	                                        }
+; 115.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0025:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0024
+?0026:
+; 116.	                                                matrix_led[3][i] = 0x32+i;
+	LD	HL,matrix_led+18
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,50
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0124
+	INC	(IX-1)
+?0124:
+; 117.	                                        }
+; 118.	                                }
+	JR	?0025
+?0024:
+?0011:
+; 119.	                        }
+; 120.	                        if( onReadIO & 0x02 ){
+	LD	A,(onReadIO)
+	AND	2
+	JP	Z,?0029
+?0028:
+; 121.	                                onReadIO &= ~0x02;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	253
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 122.	                                {
+; 123.	                                        int     i;
+; 124.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0031:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0030
+?0032:
+; 125.	                                                matrix_led[0][i] = 0x30+i;
+	LD	HL,matrix_led
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,48
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0125
+	INC	(IX-1)
+?0125:
+	JR	?0031
+?0030:
+; 126.	                                        }
+; 127.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0035:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0034
+?0036:
+; 128.	                                                matrix_led[1][i] = 0x36+i;
+	LD	HL,matrix_led+6
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,54
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0126
+	INC	(IX-1)
+?0126:
+	JR	?0035
+?0034:
+; 129.	                                        }
+; 130.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0039:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0038
+?0040:
+; 131.	                                                matrix_led[2][i] = 0x3C+i;
+	LD	HL,matrix_led+12
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,60
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0127
+	INC	(IX-1)
+?0127:
+	JR	?0039
+?0038:
+; 132.	                                        }
+; 133.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0043:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0042
+?0044:
+; 134.	                                                matrix_led[3][i] = 0x42+i;
+	LD	HL,matrix_led+18
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,66
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0128
+	INC	(IX-1)
+?0128:
+; 135.	                                        }
+; 136.	                                }
+	JR	?0043
+?0042:
+?0029:
+; 137.	                        }
+; 138.	                        if( onReadIO & 0x04 ){
+	LD	A,(onReadIO)
+	AND	4
+	JP	Z,?0047
+?0046:
+; 139.	                                onReadIO &= ~0x04;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	251
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 140.	                                {
+; 141.	                                        int     i;
+; 142.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0049:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0048
+?0050:
+; 143.	                                                matrix_led[0][i] = 0x50+i;
+	LD	HL,matrix_led
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,80
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0129
+	INC	(IX-1)
+?0129:
+	JR	?0049
+?0048:
+; 144.	                                        }
+; 145.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0053:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0052
+?0054:
+; 146.	                                                matrix_led[1][i] = 0x56+i;
+	LD	HL,matrix_led+6
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,86
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0130
+	INC	(IX-1)
+?0130:
+	JR	?0053
+?0052:
+; 147.	                                        }
+; 148.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0057:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0056
+?0058:
+; 149.	                                                matrix_led[2][i] = 0x5C+i;
+	LD	HL,matrix_led+12
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,92
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0131
+	INC	(IX-1)
+?0131:
+	JR	?0057
+?0056:
+; 150.	                                        }
+; 151.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0061:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0060
+?0062:
+; 152.	                                                matrix_led[3][i] = 0x62+i;
+	LD	HL,matrix_led+18
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,98
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0132
+	INC	(IX-1)
+?0132:
+; 153.	                                        }
+; 154.	                                }
+	JR	?0061
+?0060:
+?0047:
+; 155.	                        }
+; 156.	                        if( onReadIO & 0x08 ){
+	LD	A,(onReadIO)
+	AND	8
+	JP	Z,?0065
+?0064:
+; 157.	                                onReadIO &= ~0x08;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	247
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 158.	                                {
+; 159.	                                        int     i;
+; 160.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0067:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0066
+?0068:
+; 161.	                                                matrix_led[0][i] = 0x60+i;
+	LD	HL,matrix_led
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,96
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0133
+	INC	(IX-1)
+?0133:
+	JR	?0067
+?0066:
+; 162.	                                        }
+; 163.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0071:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0070
+?0072:
+; 164.	                                                matrix_led[1][i] = 0x66+i;
+	LD	HL,matrix_led+6
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,102
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0134
+	INC	(IX-1)
+?0134:
+	JR	?0071
+?0070:
+; 165.	                                        }
+; 166.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0075:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0074
+?0076:
+; 167.	                                                matrix_led[2][i] = 0x6C+i;
+	LD	HL,matrix_led+12
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,108
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0135
+	INC	(IX-1)
+?0135:
+	JR	?0075
+?0074:
+; 168.	                                        }
+; 169.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0079:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0078
+?0080:
+; 170.	                                                matrix_led[3][i] = 0x72+i;
+	LD	HL,matrix_led+18
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,114
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0136
+	INC	(IX-1)
+?0136:
+; 171.	                                        }
+; 172.	                                }
+	JR	?0079
+?0078:
+?0065:
+; 173.	                        }
+; 174.	                        if( onReadIO & 0x10 ){
+	LD	A,(onReadIO)
+	AND	16
+	JP	Z,?0083
+?0082:
+; 175.	                                onReadIO &= ~0x10;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	239
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 176.	                                {
+; 177.	                                        int     i;
+; 178.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0085:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0084
+?0086:
+; 179.	                                                matrix_led[0][i] = 0x70+i;
+	LD	HL,matrix_led
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,112
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0137
+	INC	(IX-1)
+?0137:
+	JR	?0085
+?0084:
+; 180.	                                        }
+; 181.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0089:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0088
+?0090:
+; 182.	                                                matrix_led[1][i] = 0x76+i;
+	LD	HL,matrix_led+6
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,118
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0138
+	INC	(IX-1)
+?0138:
+	JR	?0089
+?0088:
+; 183.	                                        }
+; 184.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0093:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0092
+?0094:
+; 185.	                                                matrix_led[2][i] = 0x7C+i;
+	LD	HL,matrix_led+12
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,124
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0139
+	INC	(IX-1)
+?0139:
+	JR	?0093
+?0092:
+; 186.	                                        }
+; 187.	                                        for( i=0; i<6; i++ ){
+	XOR	A
+	LD	(IX-2),A
+	LD	(IX-1),A
+?0097:
+	LD	BC,32774
+	LD	L,(IX-2)
+	LD	H,(IX-1)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0096
+?0098:
+; 188.	                                                matrix_led[3][i] = 0x02+i;
+	LD	HL,matrix_led+18
+	LD	C,(IX-2)
+	LD	B,(IX-1)
+	ADD	HL,BC
+	LD	A,C
+	ADD	A,2
+	LD	(HL),A
+	INC	(IX-2)
+	JR	NZ,?0140
+	INC	(IX-1)
+?0140:
+; 189.	                                        }
+; 190.	                                }
+	JR	?0097
+?0096:
+?0083:
+	JR	?0100
+?0009:
+; 191.	                        }
+; 192.	                        }
+; 193.	                        else if( onReadIO ){
+	LD	HL,(onReadIO)
+	LD	A,L
+	OR	H
+	JR	Z,?0102
+?0101:
+; 194.	                                sprintf( matrix_led[0], "%02X", onReadIO );
+	LD	HL,(onReadIO)
+	PUSH	HL
+	LD	HL,?0103
+	PUSH	HL
+	LD	HL,matrix_led
+	PUSH	HL
+	CALL	sprintf
+	POP	AF
+	POP	AF
+	POP	AF
+; 195.	                                onReadIO = 0;
+	LD	HL,0
+	LD	(onReadIO),HL
+?0102:
+?0100:
+; 196.	                        }
+; 197.	}
+	LD	SP,IX
+	POP	IX
+	POP	BC
+	RET
+mcpSwitchIn:
+; 198.	
+; 199.	/************************************************************************
+; 200.	
+; 201.	        Function name   << mcpSwitchIn >>
+; 202.	                                        スイッチ状態入力処理
+; 203.	        Syntax                  mcpSwitchIn( void );
+; 204.	        Argument                none
+; 205.	        Author                  TOA Corporation  K.Honda
+; 206.	        Revision                a00 2000/06/27
+; 207.	                                a01 2000/11/07 スイッチ押下状態をＤＶＡＵへ送信するまで蓄積する
+; 208.	
+; 209.	*************************************************************************/
+; 210.	void mcpSwitchIn( void )
+; 211.	{
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+; 212.	                short   readIO;
+; 213.	                union {
+; 214.	                        short   ddata;
+; 215.	                        char    bdata[2];
+; 216.	                } data;
+; 217.	
+; 218.	                readIO = switch_read();
+	CALL	switch_read
+	LD	(IX-4),L
+	LD	(IX-3),H
+; 219.	
+; 220.	                if( mcp_sendactive ){
+	LD	A,(mcp_sendactive)
+	OR	A
+	JR	Z,?0105
+?0104:
+; 221.	                        mcp_sendactive = 0;
+	XOR	A
+	LD	(mcp_sendactive),A
+; 222.	                        sendarea.mcpsw[0] = 0;
+	XOR	A
+	LD	(sendarea+3),A
+; 223.	                        sendarea.mcpsw[1] = 0;
+	XOR	A
+	LD	(sendarea+4),A
+?0105:
+; 224.	                }
+; 225.	
+; 226.	                if( readIO!=preReadIO ){
+	LD	HL,(preReadIO)
+	LD	C,(IX-4)
+	LD	B,(IX-3)
+	AND	A
+	SBC	HL,BC
+	JR	Z,?0107
+?0106:
+; 227.	                        readCount = 0;
+	XOR	A
+	LD	(readCount),A
+	JP	?0108
+?0107:
+; 228.	                }
+; 229.	                else if( readCount>=2 ){        /* 50mS 経過しても同一のとき */
+	LD	A,(readCount)
+	CP	2
+	JP	C,?0110
+?0109:
+; 230.	                        onReadIO = (nowReadIO ^ readIO) & readIO;
+	LD	HL,(nowReadIO)
+	LD	A,L
+	XOR	(IX-4)
+	LD	C,A
+	LD	A,H
+	XOR	(IX-3)
+	LD	B,A
+	LD	A,C
+	AND	(IX-4)
+	LD	E,A
+	LD	A,B
+	AND	(IX-3)
+	LD	D,A
+	LD	(onReadIO),DE
+; 231.	                        offReadIO = (nowReadIO ^ readIO) & nowReadIO;
+	LD	A,L
+	XOR	(IX-4)
+	LD	C,A
+	LD	A,H
+	XOR	(IX-3)
+	LD	B,A
+	LD	A,C
+	AND	L
+	LD	E,A
+	LD	A,B
+	AND	H
+	LD	D,A
+	LD	(offReadIO),DE
+; 232.	                        nowReadIO = readIO;
+	LD	C,(IX-4)
+	LD	B,(IX-3)
+	LD	(nowReadIO),BC
+; 233.	
+; 234.	                        if( readCount<30 ){
+	LD	A,(readCount)
+	CP	30
+	JR	NC,?0112
+?0111:
+; 235.	                                readCount++;
+	LD	HL,readCount
+	INC	(HL)
+; 236.	                                nowReadIO &= ~SW_ENT;           /* ENT キーのみ 300mS 経過時に有効 */
+	LD	HL,nowReadIO
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	223
+	LD	(HL),A
+?0112:
+; 237.	                        }
+; 238.	
+; 239.	                        data.ddata = nowReadIO;
+	LD	HL,(nowReadIO)
+	LD	(IX-2),L
+	LD	(IX-1),H
+; 240.	                        sendarea.mcpsw[0] |= data.bdata[0];
+	LD	A,(sendarea+3)
+	OR	(IX-2)
+	LD	(sendarea+3),A
+; 241.	                        sendarea.mcpsw[1] |= data.bdata[1];
+	LD	A,(sendarea+4)
+	OR	(IX-1)
+	LD	(sendarea+4),A
+; 242.	
+; 243.	                        if( onReadIO & SW_HL ){
+	LD	A,(onReadIO)
+	AND	32
+	JR	Z,?0114
+?0113:
+; 244.	                                onReadIO &= ~SW_HL;
+	LD	HL,onReadIO
+	LD	A,(HL)
+	AND	223
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+; 245.	                                sw_led ^= SWLED_HL;
+	LD	HL,sw_led
+	LD	A,(HL)
+	XOR	32
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	XOR	0
+	LD	(HL),A
+; 246.	                                if( sw_led & SWLED_HL ){
+	LD	A,(sw_led)
+	AND	32
+	JR	Z,?0116
+?0115:
+; 247.	                                        io_output_off( 0x00, 0x08 ); /* 高輝度設定 */
+	LD	C,8
+	LD	E,0
+	CALL	io_output_off
+; 248.	                                        io_output_on( 0x00, 0x02 ); /* 高輝度設定 */
+	LD	C,2
+	LD	E,0
+	CALL	io_output_on
+; 249.	                                }
+; 250.	                                else {
+	JR	?0117
+?0116:
+; 251.	                                        io_output_off( 0x00, 0x02 ); /* 低輝度設定 */
+	LD	C,2
+	LD	E,0
+	CALL	io_output_off
+; 252.	                                        io_output_on( 0x00, 0x08 ); /* 低輝度設定 */
+	LD	C,8
+	LD	E,0
+	CALL	io_output_on
+?0117:
+?0114:
+; 253.	                                }
+; 254.	                        }
+; 255.	
+; 256.	                        if( (read_dipsw() & 0x01)==0 ){
+	CALL	read_dipsw
+	LD	A,L
+	AND	1
+	LD	B,A
+	LD	A,H
+	AND	0
+	OR	B
+	JR	NZ,?0119
+?0118:
+; 257.	                                debug_Display();
+	CALL	debug_Display
+?0119:
+; 258.	                        }
+; 259.	                }
+; 260.	                else {
+	JR	?0120
+?0110:
+; 261.	                        readCount++;
+	LD	HL,readCount
+	INC	(HL)
+?0120:
+?0108:
+; 262.	                }
+; 263.	                preReadIO = readIO;
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	LD	(preReadIO),HL
+; 264.	}
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+; 265.	
+	RSEG	CSTR
+?0103:
+	DEFB	'%02X'
+	DEFB	0
+	RSEG	UDATA0
+onReadIO:
+	DEFS	2
+offReadIO:
+	DEFS	2
+nowReadIO:
+	DEFS	2
+readCount:
+	DEFS	1
+preReadIO:
+	DEFS	2
+	END

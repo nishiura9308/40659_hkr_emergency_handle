@@ -1,0 +1,144 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     19-Feb-2001  21:28:34  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvaumain.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    
+                    16:    #include    "table.h"
+                    17:    
+                    18:    /*@@@S*/
+                    19:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    20:            ƒOƒ[ƒoƒ‹•Ï”
+                    21:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    22:    
+                    23:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    24:            ƒ[ƒJƒ‹’è”’è‹`
+                    25:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    26:    
+                    27:    
+                    28:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    29:            ƒ[ƒJƒ‹\‘¢‘Ì’è‹`
+                    30:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    31:    
+                    32:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    33:            ƒ[ƒJƒ‹ƒe[ƒuƒ‹
+                    34:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    35:    
+                    36:    
+                    37:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    38:                    ŠO•”ŽQÆ
+                    39:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    40:    
+                    41:    
+                    42:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    43:                    ƒ[ƒJƒ‹•Ï”
+                    44:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    45:    
+                    46:    /*@@@E*/
+                    47:    /************************************************************************
+                    48:    *                                                                                                                                               *
+                    49:    *       Function name   << main >>                                                                                      *
+                    50:    *                                       ƒƒCƒ“ŠÖ”                                                                                      *
+                    51:    *       Syntax                  main( void );                                                                           *
+                    52:    *       Argument                none                                                                                            *
+                    53:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    54:    *       Revision                a00 2000/06/27                                                                          *
+                    55:    *                                                                                                                                               *
+                    56:    *************************************************************************/
+                    57:    void main( void )
+    000000              _main:                           ; function: main
+                    58:    {
+                    59:                    set_imask_ccr(1);
+    000000 0480                   ORC.B       #-128:8,CCR
+                    60:    
+                    61:                    DUALBOOT2.ack = 0x00;           /* Booting */
+    000002 1888                   SUB.B       R0L,R0L
+    000004 6AA8000C07             MOV.B       R0L,@788478:24
+           FE           
+                    62:    
+                    63:    //              if( RAMCheck() ){
+                    64:    //                      Halt();
+                    65:    //              }
+                    66:    
+                    67:    //              if( ROMCheck() ){
+                    68:    //                      Halt();
+                    69:    //              }
+                    70:    
+                    71:                    set_imask_ccr(0);
+    00000A 067F                   ANDC.B      #127:8,CCR
+                    72:    
+                    73:                    boot();
+    00000C 5E                     JSR         @_boot:24
+           <000000>     
+                    74:    
+                    75:                    memset( (char *)DUALBOOT2.data, 0, sizeof(DUALBOOT2.data) );
+    000010 7A00000007             MOV.L       #2030:32,ER0
+           EE           
+    000016 01006DF0               PUSH.L      ER0
+    00001A 7A00000C00             MOV.L       #786440:32,ER0
+           08           
+    000020 1911                   SUB.W       R1,R1
+    000022 5E                     JSR         @_memset:24
+           <000000>     
+    000026 0B97                   ADDS.L      #4,SP
+                    76:    
+                    77:                    WatchDogReset();
+    000028 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+                    78:    
+                    79:                    jump_app();
+    00002C 5E                     JSR         @_jump_app:24
+           <000000>     
+                    80:    }
+    000030 5470                   RTS
+                    81:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     19-Feb-2001  21:28:34  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000032 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000032 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000032 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        4 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        1 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:          5 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\ .\src\dvaumain.c -object=.\obj\dvaumain.obj
+CPU         : 300ha:24

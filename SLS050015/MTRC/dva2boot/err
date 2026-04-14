@@ -1,0 +1,42 @@
+	ch38.exe -cpu=300ha:24 -debug -list -show=object -chgincpath -lang=c -include=.\INC,..\COMMINC .\src\dvainit.c -object=.\obj\dvainit.obj
+.\src\dvainit.c:
+	optlnk38.exe -SubCommand=LINK.CMD
+H8S,H8/300 SERIES INTER-MODULE OPTIMIZER Ver. 2.0B
+Copyright (C) 1996 Hitachi, Ltd.
+Licensed Material of Hitachi, Ltd.
+: debug
+: rom (D,R)
+: print .\DVA2BOOT.map
+: nooptimize
+: start DVECTTBL,DINTTBL(00),PResetPRG,PIntPRG(0400),P,C,D,C$DSEC,C$BSEC(0800),B,R(009E000),BDataWatchDog,BBootCheck(009E800),S(009F000),BIntChgTable(0FFFD10)
+: output .\DVA2BOOT.abs
+: input .\obj\dbsct.obj
+: input .\obj\lowlvl.obj
+: input .\obj\sbrk.obj
+: input .\obj\vecttbl.obj
+: input .\obj\resetprg.obj
+: input .\obj\DVAUMAIN.obj
+: input .\obj\jump.obj
+: input .\obj\DVAINIT.obj
+: input .\obj\boot.obj
+: library V:\lib\c38has.lib
+: library V:\lib\ec2has.lib
+: EXIT
+** 1210 CANNOT FIND SECTION(C)
+
+INTER-MODULE OPTIMIZER COMPLETED
+H SERIES LINKAGE EDITOR Ver. 6.0E
+Copyright (C) Hitachi, Ltd.1989,1996
+Copyright (C) Hitachi ULSI Systems Co., Ltd. 1990,1996
+Licensed Material of Hitachi, Ltd.
+
+
+LINKAGE EDITOR COMPLETED
+	cnvs.exe ".\DVA2BOOT.abs" ".\DVA2BOOT.mot"
+H SERIES SYSROF STYPE OBJECT CONVERTER Ver. 2.0A
+Copyright (C) Hitachi, Ltd. 1988,1997
+Copyright (C) HITACHI MICROCOMPUTER SYSTEM LTD. 1988,1997
+Licensed Material of Hitachi, Ltd.
+
+
+OBJECT CONVERTER COMPLETED

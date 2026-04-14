@@ -1,0 +1,80 @@
+=====ファイル src\MIPROF.$_$ の行数 = 7
+src\PAACOMM.C  6:  *	Author		TOA									*
+src\PAACOMM.C  85:  *	Author			TOA  K.Honda							*
+src\PAACOMM.C  105:  *	Author			TOA  K.Honda							*
+src\PAACOMM.C  174:  *	Author			TOA  K.Honda							*
+src\PAACOMM.C  208:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAACOMM.C の行数 = 273
+src\PAACOMMA.MSA  6:  ;*    Author	TOA   K.Honda
+src\PAACOMMA.MSA  24:  ;*	Author		TOA  T.takehisa			*
+src\PAACOMMA.MSA  61:  ;*	Author		TOA  K.Honda								*
+src\PAACOMMA.MSA  88:  ;*	Author		TOA  K.Honda								*
+src\PAACOMMA.MSA  116:  ;*	Author		TOA  T.takehisa			*
+src\PAACOMMA.MSA  136:  ;*	Author		TOA  T.takehisa			*
+=====ファイル src\PAACOMMA.MSA の行数 = 210
+src\PAAEXEC.C  6:  *	Author		TOA									*
+src\PAAEXEC.C  94:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  137:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  216:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  248:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  276:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  305:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  329:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  376:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  476:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  498:  *	Author			TOA  K.Honda							*
+src\PAAEXEC.C  532:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAAEXEC.C の行数 = 570
+src\PAAINIT.C  6:  *	Author		TOA									*
+src\PAAINIT.C  51:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAAINIT.C の行数 = 68
+src\PAAINITA.MSA  6:  ;*    Author	TOA   K.Honda
+src\PAAINITA.MSA  39:  ;.*	Author		TOA  h.nisiura			*
+src\PAAINITA.MSA  66:  ;.*	Author		TOA  h.nisiura			*
+src\PAAINITA.MSA  116:  ;*	Author		TOA  t.ehara			*
+src\PAAINITA.MSA  138:  ;*	Author		TOA  T.Takehisa			*
+src\PAAINITA.MSA  181:  ;*	Author		TOA  T.Takehisa			*
+src\PAAINITA.MSA  216:  ;*	Author		TOA  T.Takehisa			*
+src\PAAINITA.MSA  250:  ;*	Author		TOA  t.takehisa			*
+src\PAAINITA.MSA  319:  ;*	Author		TOA  h.nisiura			*
+src\PAAINITA.MSA  401:  ;*	Author		TOA  T.Takehisa			*
+src\PAAINITA.MSA  441:  ;*	Author		TOA  K.Honda
+src\PAAINITA.MSA  464:  ;*    Author	TOA   K.Honda
+src\PAAINITA.MSA  502:  ;*	Author		TOA  K.Honda
+src\PAAINITA.MSA  550:  ;*	Author		TOA  T.takehisa			*
+src\PAAINITA.MSA  568:  ;*	Author		TOA  T.takehisa			*
+src\PAAINITA.MSA  588:  ;*	Author		TOA  K.Honda
+src\PAAINITA.MSA  702:  ;*	Author		TOA  K.Honda
+src\PAAINITA.MSA  757:  ;*	Author		TOA  K.Honda
+=====ファイル src\PAAINITA.MSA の行数 = 769
+src\PAAMAIN.C  6:  *	Author		TOA									*
+src\PAAMAIN.C  80:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAAMAIN.C の行数 = 147
+src\PAAPIO.C  6:  *	Author		TOA									*
+src\PAAPIO.C  61:  *	Author			TOA  K.Honda							*
+src\PAAPIO.C  93:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAAPIO.C の行数 = 101
+src\PAAPIOA.MSA  6:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  37:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  67:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  135:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  160:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  188:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  215:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  242:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  268:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  299:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  329:  ;*    Author	TOA   K.Honda
+src\PAAPIOA.MSA  359:  ;*    Author	TOA   K.Honda
+=====ファイル src\PAAPIOA.MSA の行数 = 386
+src\PAATIMEA.MSA  6:  ;*    Author	TOA   K.Honda
+src\PAATIMEA.MSA  26:  ;*    Author	TOA   K.Honda
+src\PAATIMEA.MSA  73:  ;*	Author		TOA  T.takehisa			*
+src\PAATIMEA.MSA  137:  ;*    Author	TOA   K.Honda
+src\PAATIMEA.MSA  184:  ;*	Author		TOA  T.takehisa			*
+=====ファイル src\PAATIMEA.MSA の行数 = 255
+src\PAATIMER.C  6:  *	Author		TOA									*
+src\PAATIMER.C  65:  *	Author			TOA  K.Honda							*
+src\PAATIMER.C  107:  *	Author			TOA  K.Honda							*
+=====ファイル src\PAATIMER.C の行数 = 116
+=====該当ファイルの総行数 = 2902

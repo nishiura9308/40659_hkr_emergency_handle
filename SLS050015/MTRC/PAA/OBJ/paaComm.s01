@@ -1,0 +1,993 @@
+	NAME	paacomm(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	PUBLIC	address
+	PUBLIC	address2
+	PUBLIC	asci_0_recv_ir
+	PUBLIC	asci_0_send_ir
+	EXTERN	asci_0_transmit
+	EXTERN	asci_0_tx_disable
+	EXTERN	asci_0_tx_enable
+	EXTERN	emg_rsc
+	EXTERN	initial_voice_level
+	PUBLIC	paaReceive
+	PUBLIC	paaSend
+	PUBLIC	sendarea
+	EXTERN	voice_bus_mode
+	EXTERN	?CL64180L_4_04_L00
+	EXTERN	?US_RSH_L02
+	RSEG	CODE
+asci_0_send_ir:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        編成間通信制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	                                a02. 2002/04/08         h.nisiura sendbuff 16->128サイズ変更
+; 10.	                                                                                          recvbuff 64->128サイズ変更
+; 11.	*********************************************************************/
+; 12.	
+; 13.	#include <string.h>
+; 14.	
+; 15.	#include "IOFUNC.h"
+; 16.	
+; 17.	#include "COMMDEF.h"
+; 18.	
+; 19.	/*@@@S*/
+; 20.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 21.	        グローバル変数
+; 22.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 23.	
+; 24.	/** 自アドレス **/
+; 25.	unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+; 26.	                                                                   下位４ビット＝ＤＩＰＳＷアドレス */
+; 27.	
+; 28.	unsigned short  address2;                       /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+; 29.	                                                                   下位４ビット＝ＤＩＰＳＷアドレス */
+; 30.	
+; 31.	/** 送信エリア **/
+; 32.	struct PAASEND  sendarea;
+; 33.	
+; 34.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 35.	        定数定義
+; 36.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 37.	#define         STX                     (0x02)                          /* テキスト開始                 */
+; 38.	#define         ETX                     (0x03)                          /* テキスト終了                 */
+; 39.	#define         DLE                     (0x10)                          /* ＤＬＥ拡張                   */
+; 40.	
+; 41.	#define COMM_WAIT_STX           0               /* ＳＴＸ待ち */
+; 42.	#define COMM_WAIT_ETX           1               /* ＥＴＸ待ち */
+; 43.	#define COMM_WAIT_BCC           2               /* ＢＣＣ待ち */
+; 44.	
+; 45.	
+; 46.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 47.	        構造体定義
+; 48.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 49.	
+; 50.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 51.	        テーブル
+; 52.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 53.	
+; 54.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 55.	                外部参照
+; 56.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 57.	
+; 58.	/** 音声バスモード **/
+; 59.	extern  char    voice_bus_mode;
+; 60.	
+; 61.	extern  char    emg_rsc;                                /*非常通報器番号フラグ*/
+; 62.	
+; 63.	extern  char    initial_voice_level;    /*基本音量データ
+; 64.	                                                                        下位６ビットのみ使用
+; 65.	                                                                */
+; 66.	
+; 67.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 68.	                ローカル変数
+; 69.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 70.	static  unsigned char   recvbuff[128];          /*受信バッファー*/              /* 2002/04/08 h.nisiura 64->128サイズ変更 */
+; 71.	static  unsigned char   recvlen;                        /*受信バイト数*/
+; 72.	static  unsigned char   recvphase;                      /*受信フェーズ*/
+; 73.	static  unsigned char   recvdle;                        /*受信ＤＬＥフラグ*/
+; 74.	static  unsigned char   recvbcc;                        /*受信ＢＣＣ計算エリア*/
+; 75.	static  unsigned char   sendbuff[128];          /*送信バッファー*/              /* 2002/04/08 h.nisiura 16->128サイズ変更 */
+; 76.	static  unsigned char   sendlen;                        /*送信バイト数*/
+; 77.	static  unsigned char   sendcnt;                        /*送信カウンター*/
+; 78.	
+; 79.	/*@@@E*/
+; 80.	/************************************************************************
+; 81.	
+; 82.	        Function name   << asci_0_send_ir >>
+; 83.	                                        送信割り込み処理
+; 84.	        Syntax                  asci_0_send_ir( void );
+; 85.	        Argument                none
+; 86.	        Author                  TOA Corporation  K.Honda
+; 87.	        Revision                a00 2000/06/27
+; 88.	
+; 89.	*************************************************************************/
+; 90.	void asci_0_send_ir( void )
+; 91.	{
+	PUSH	BC
+	PUSH	DE
+; 92.	                if( sendcnt==sendlen ){ /*すべて送信したとき*/
+	LD	A,(sendlen)
+	LD	B,A
+	LD	A,(sendcnt)
+	CP	B
+	JR	NZ,?0001
+?0000:
+; 93.	                        asci_0_tx_disable();            /*受信へ切り替え*/
+	CALL	asci_0_tx_disable
+; 94.	                        return;
+; 95.	                }
+	JR	?0002
+?0001:
+; 96.	
+; 97.	                asci_0_transmit( sendbuff[sendcnt++] ); /*１バイトの送信*/
+	LD	HL,sendcnt
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	E,(HL)
+	CALL	asci_0_transmit
+; 98.	}
+?0002:
+	POP	DE
+	POP	BC
+	RET
+paaSend:
+; 99.	
+; 100.	/************************************************************************
+; 101.	
+; 102.	        Function name   << paaSend >>
+; 103.	                                        送信準備処理
+; 104.	        Syntax                  paaSend( void );
+; 105.	        Argument                none
+; 106.	        Author                  TOA Corporation  K.Honda
+; 107.	        Revision                a00 2000/06/27
+; 108.	
+; 109.	*************************************************************************/
+; 110.	void paaSend( void )
+; 111.	{
+	PUSH	BC
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+; 112.	                unsigned char   *p;                     /*送信データポインター*/
+; 113.	                unsigned char   sendbcc;        /*送信ＢＣＣ計算エリア*/
+; 114.	                int             i;
+; 115.	                unsigned char   len;
+; 116.	
+; 117.	                sendarea.adr = address;
+	LD	HL,(address)
+	LD	(sendarea),HL
+; 118.	
+; 119.	                asci_0_tx_enable();             /*送信開始  RTS=ON*/
+	CALL	asci_0_tx_enable
+; 120.	
+; 121.	                sendcnt = 0;                                    /* 送信ポインター０クリア */
+	XOR	A
+	LD	(sendcnt),A
+; 122.	                sendlen = 0;                                    /* 送信バイト数０クリア*/
+	XOR	A
+	LD	(sendlen),A
+; 123.	
+; 124.	                        /* DLE+STX を設定*/
+; 125.	                sendbuff[sendlen++] = DLE;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 126.	                sendbuff[sendlen++] = STX;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),2
+; 127.	
+; 128.	                sendbcc = 0;                                    /* 送信ＢＣＣの計算クリア */
+	LD	(IX-4),0
+; 129.	                p = (unsigned char *)&sendarea;                 /* 送信エリアの内容をそのまま送信 */
+	LD	(IX-6),LOW(sendarea)
+	LD	(IX-5),HIGH(sendarea)
+; 130.	
+; 131.	                len = sizeof(sendarea);
+	LD	(IX-1),7
+; 132.	                sendbcc ^= len;                                         /* 送信ＢＣＣの計算 */
+	LD	A,(IX-4)
+	XOR	(IX-1)
+	LD	(IX-4),A
+; 133.	                if( len==STX || len==ETX || len==DLE ){
+	LD	B,(IX-1)
+	DEC	B
+	DEC	B
+	JR	Z,?0003
+	LD	A,(IX-1)
+	CP	3
+	JR	Z,?0003
+	LD	A,(IX-1)
+	CP	16
+	JR	NZ,?0004
+?0005:
+?0006:
+?0003:
+; 134.	                        sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 135.	                        sendbuff[sendlen++] = len + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	A,(IX-1)
+	ADD	A,64
+	LD	(HL),A
+; 136.	                }
+; 137.	                else {
+	JR	?0007
+?0004:
+; 138.	                        sendbuff[sendlen++] = len;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	B,(IX-1)
+	LD	(HL),B
+?0007:
+; 139.	                }
+; 140.	
+; 141.	                for( i=0; i<sizeof(sendarea); i++, p++ ){
+	XOR	A
+	LD	(IX-3),A
+	LD	(IX-2),A
+?0009:
+	LD	BC,32775
+	LD	L,(IX-3)
+	LD	H,(IX-2)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0008
+?0010:
+; 142.	                        sendbcc ^= *p;                          /* 送信ＢＣＣの計算 */
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(IX-4)
+	XOR	(HL)
+	LD	(IX-4),A
+; 143.	                        if( *p==STX || *p==ETX || *p==DLE ){
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	B,(HL)
+	DEC	B
+	DEC	B
+	JR	Z,?0012
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	CP	3
+	JR	Z,?0012
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	CP	16
+	JR	NZ,?0013
+?0014:
+?0015:
+?0012:
+; 144.	                                sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 145.	                                sendbuff[sendlen++] = *p + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	PUSH	HL
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	ADD	A,64
+	POP	HL
+	LD	(HL),A
+; 146.	                        }
+; 147.	                        else {
+	JR	?0016
+?0013:
+; 148.	                                sendbuff[sendlen++] = *p;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	PUSH	HL
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	B,(HL)
+	POP	HL
+	LD	(HL),B
+?0016:
+	INC	(IX-3)
+	JR	NZ,?0061
+	INC	(IX-2)
+?0061:
+	INC	(IX-6)
+	JR	NZ,?0062
+	INC	(IX-5)
+?0062:
+	JP	?0009
+?0008:
+; 149.	                        }
+; 150.	                }
+; 151.	                        /* DLE+ETX を設定*/
+; 152.	                sendbuff[sendlen++] = DLE;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 153.	                sendbuff[sendlen++] = ETX;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),3
+; 154.	                sendbcc ^= ETX;                 /* 送信ＢＣＣの計算*/
+	LD	A,(IX-4)
+	XOR	3
+	LD	(IX-4),A
+; 155.	
+; 156.	                if( sendbcc==STX || sendbcc==ETX || sendbcc==DLE ){
+	DEC	A
+	DEC	A
+	JR	Z,?0017
+	LD	A,(IX-4)
+	CP	3
+	JR	Z,?0017
+	LD	A,(IX-4)
+	CP	16
+	JR	NZ,?0018
+?0019:
+?0020:
+?0017:
+; 157.	                        sendbuff[sendlen++] = DLE;                      /* ＢＣＣのＤＬＥ拡張 */
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 158.	                        sendbuff[sendlen++] = sendbcc + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	A,(IX-4)
+	ADD	A,64
+	LD	(HL),A
+; 159.	                }
+; 160.	                else {
+	JR	?0021
+?0018:
+; 161.	                        sendbuff[sendlen++] = sendbcc;          /* ＢＣＣの設定 */
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	B,(IX-4)
+	LD	(HL),B
+?0021:
+; 162.	                }
+; 163.	
+; 164.	                sendbuff[sendlen++] = 0;                /*ＲＴＳ切り替えタイミング用ダミー*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),0
+; 165.	
+; 166.	                asci_0_send_ir();               /*最初の１バイトを送信*/
+	CALL	asci_0_send_ir
+; 167.	}
+	LD	SP,IX
+	POP	IX
+	POP	BC
+	RET
+paaReceive:
+; 168.	
+; 169.	/************************************************************************
+; 170.	
+; 171.	        Function name   << paaReceive >>
+; 172.	                                        受信処理
+; 173.	        Syntax                  paaReceive( unsigned char *data, char len );
+; 174.	        Argument                none
+; 175.	        Author                  TOA Corporation  K.Honda
+; 176.	        Revision                a00 2000/06/27
+; 177.	                                a01 2001/04/17  １６両編成時は自分宛のデータのみ取り込む
+; 178.	
+; 179.	*************************************************************************/
+; 180.	char paaReceive( unsigned char *data, char len )
+; 181.	{
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	PUSH	AF
+; 182.	                struct POLLING  *p;
+; 183.	
+; 184.	                p = (struct POLLING *)data;
+	LD	(IX-6),E
+	LD	(IX-5),D
+; 185.	
+; 186.	                if( len!=sizeof(*p) ){
+	LD	A,C
+	CP	59
+	JR	Z,?0023
+?0022:
+; 187.	                        /*受信バイト数が異常のときは処理しない*/
+; 188.	                        return 0;
+	XOR	A
+; 189.	                }
+	JP	?0034
+?0023:
+; 190.	
+; 191.	                if( p->kind=='S' ){             /* 車両番号の登録 */
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	INC	HL
+	INC	HL
+	LD	A,(HL)
+	CP	83
+	JP	NZ,?0025
+?0024:
+; 192.	                        /*
+; 193.	                                address
+; 194.	                                        -------------- +1 -------------  ------------- +0 -------------
+; 195.	                 64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+; 196.	                        H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+; 197.	                                        -- Car No.--    ----- AD -----   -----Car No.--  -- Car No.----
+; 198.	                                            3210                             BA98             7654
+; 199.	
+; 200.	                                carNo
+; 201.	                                        -------------- +1 -------------  ------------- +0 -------------
+; 202.	                 64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+; 203.	                        H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+; 204.	                                        -- Car No.--    -- Car No.  --                  -- Car No.----
+; 205.	                                            7654           3210                              BA98
+; 206.	                        */
+; 207.	                        address &= 0x0F00;
+	LD	HL,address
+	LD	A,(HL)
+	AND	0
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	15
+	LD	(HL),A
+; 208.	                        address |= ((p->carno & 0x00F00)<<4)  & 0x0F000;        /* car No. 3210 */
+	LD	HL,4
+	LD	C,(IX-6)
+	LD	B,(IX-5)
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	0
+	LD	E,A
+	INC	HL
+	LD	A,(HL)
+	AND	15
+	LD	D,A
+	EX	DE,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	A,L
+	AND	0
+	LD	E,A
+	LD	A,H
+	AND	240
+	LD	D,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	E
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	D
+	LD	(HL),A
+; 209.	                        address |= ((p->carno & 0x0F000)>>12) & 0x0000F;        /* car No. 7654 */
+	LD	HL,4
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	0
+	LD	E,A
+	INC	HL
+	LD	A,(HL)
+	AND	240
+	LD	D,A
+	LD	B,12
+	CALL	?US_RSH_L02
+	LD	A,E
+	AND	15
+	LD	C,A
+	LD	A,D
+	AND	0
+	LD	B,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	C
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	B
+	LD	(HL),A
+; 210.	                        address |= ((p->carno & 0x0000F)<<4)  & 0x000F0;        /* car No. BA98 */
+	LD	HL,4
+	LD	C,(IX-6)
+	LD	B,(IX-5)
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	15
+	LD	C,A
+	INC	HL
+	LD	A,(HL)
+	AND	0
+	LD	B,A
+	LD	L,C
+	LD	H,B
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	A,L
+	AND	240
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	C
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	B
+	LD	(HL),A
+?0025:
+; 211.	                }
+; 212.	
+; 213.	                /** 必要なデータをコピーする **/
+; 214.	                voice_bus_mode = p->voicebus[0];                                /*音声バスモード*/
+	LD	HL,10
+	LD	C,(IX-6)
+	LD	B,(IX-5)
+	ADD	HL,BC
+	LD	D,(HL)
+	LD	A,D
+	LD	(voice_bus_mode),A
+; 215.	
+; 216.	                if( p->kind=='N' ){             /* 一時的処置 */
+	LD	L,C
+	LD	H,B
+	INC	HL
+	INC	HL
+	LD	A,(HL)
+	CP	78
+	JR	NZ,?0027
+?0026:
+; 217.	                        if( (address & 0x0F00) == p->adr ){
+	LD	HL,(address)
+	LD	A,L
+	AND	0
+	LD	C,A
+	LD	A,H
+	AND	15
+	LD	B,A
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	D,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,D
+	AND	A
+	SBC	HL,BC
+	JR	NZ,?0029
+?0028:
+; 218.	                                emg_rsc = p->voicebus[(address2 & 0x0F)];                       /*非常通報器番号*/
+	LD	HL,(address2)
+	LD	A,L
+	AND	15
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	ADD	HL,BC
+	LD	BC,10
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	A,B
+	LD	(emg_rsc),A
+; 219.	                                initial_voice_level = p->vlevel[(address2 & 0x0F)-1];   /* 自アドレスの基本音量データ */
+	LD	HL,(address2)
+	LD	A,L
+	AND	15
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	ADD	HL,BC
+	LD	BC,50
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	A,B
+	LD	(initial_voice_level),A
+; 220.	                                return 1;
+	LD	A,1
+; 221.	                        }
+	JR	?0034
+?0029:
+?0027:
+; 222.	                }
+; 223.	
+; 224.	                if( (address & 0x0F0FF) == (p->adr & 0x0F0FF) ){
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	AND	255
+	LD	C,A
+	INC	HL
+	LD	A,(HL)
+	AND	240
+	LD	B,A
+	LD	HL,(address)
+	LD	A,L
+	AND	255
+	LD	E,A
+	LD	A,H
+	AND	240
+	LD	D,A
+	LD	L,C
+	LD	H,B
+	AND	A
+	SBC	HL,DE
+	JR	NZ,?0031
+?0030:
+; 225.	                        /* １６両編成時のときは、自分の車両番号のみデータを受け取る */
+; 226.	                        emg_rsc = p->voicebus[(address2 & 0x0F)];                       /*非常通報器番号*/
+	LD	HL,(address2)
+	LD	A,L
+	AND	15
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	ADD	HL,BC
+	LD	BC,10
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	A,B
+	LD	(emg_rsc),A
+; 227.	                        initial_voice_level = p->vlevel[(address2 & 0x0F)-1];   /* 自アドレスの基本音量データ */
+	LD	HL,(address2)
+	LD	A,L
+	AND	15
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	ADD	HL,BC
+	LD	BC,50
+	ADD	HL,BC
+	LD	B,(HL)
+	LD	A,B
+	LD	(initial_voice_level),A
+?0031:
+; 228.	                }
+; 229.	
+; 230.	                /** 応答が必要な場合、送信をおこなう */
+; 231.	                if( address == p->adr ){
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	B,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,B
+	LD	BC,(address)
+	AND	A
+	SBC	HL,BC
+	JR	NZ,?0033
+?0032:
+; 232.	                        return 1;
+	LD	A,1
+; 233.	                }
+	JR	?0034
+?0033:
+; 234.	                return 0;
+	XOR	A
+; 235.	}
+?0034:
+	LD	SP,IX
+	POP	IX
+	RET
+asci_0_recv_ir:
+; 236.	
+; 237.	
+; 238.	/************************************************************************
+; 239.	
+; 240.	        Function name   << asci_0_recv_ir >>
+; 241.	                                        受信割り込み処理
+; 242.	        Syntax                  asci_0_recv_ir( char data, char status );
+; 243.	        Argument                none
+; 244.	        Author                  TOA Corporation  K.Honda
+; 245.	        Revision                a00 2000/06/27
+; 246.	
+; 247.	*************************************************************************/
+; 248.	void asci_0_recv_ir( char data, char status )
+; 249.	{
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+; 250.	/*.     ---------------------　処理詳細説明  ----------------------------       */
+; 251.	/*  フェーズ毎に受信データを取り込む                                                                    */
+; 252.	/*. ------------------------------------------------------------------  */
+; 253.	status=0;
+	LD	(IX-2),0
+; 254.	                if( data == DLE ){              /* ＤＬＥ受信 */
+	LD	A,E
+	CP	16
+	JR	NZ,?0036
+?0035:
+; 255.	                        recvdle = 1;
+	LD	A,1
+	LD	(recvdle),A
+; 256.	                        return;
+; 257.	                }
+	JP	?0060
+?0036:
+; 258.	                if( data == STX ){              /* ＳＴＸ受信 */
+	LD	B,(IX-4)
+	DEC	B
+	DEC	B
+	JR	NZ,?0038
+?0037:
+; 259.	                        if( recvdle ){          /*  DLE+STX */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0040
+?0039:
+; 260.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 261.	                                recvphase = COMM_WAIT_ETX;
+	LD	A,1
+	LD	(recvphase),A
+; 262.	                                recvlen = 0;
+	XOR	A
+	LD	(recvlen),A
+; 263.	                                recvbcc = 0;
+	XOR	A
+	LD	(recvbcc),A
+?0040:
+; 264.	                        }
+; 265.	                        return;
+; 266.	                }
+	JP	?0060
+?0038:
+; 267.	        
+; 268.	                switch( recvphase ){
+	LD	A,(recvphase)
+	CP	0
+	JR	NZ,?0043
+?0042:
+; 269.	                case COMM_WAIT_STX:             /* ＳＴＸ待ち */
+; 270.	                        break;
+	JP	?0041
+?0043:
+	CP	1
+	JR	NZ,?0051
+; 271.	        
+; 272.	                case COMM_WAIT_ETX:
+; 273.	                        if( recvdle ){          /* ＤＬＥ処理 */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0045
+?0044:
+; 274.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 275.	                                if( data == ETX ){              /* ＥＴＸの受信 ( DLE+ETX ) */
+	LD	A,(IX-4)
+	CP	3
+	JR	NZ,?0047
+?0046:
+; 276.	                                        recvbcc ^= data;
+	LD	A,(recvbcc)
+	XOR	(IX-4)
+	LD	(recvbcc),A
+; 277.	                                        recvphase = COMM_WAIT_BCC;
+	LD	A,2
+	LD	(recvphase),A
+; 278.	                                        break;
+	JR	?0041
+?0047:
+; 279.	                                }
+; 280.	                                data = data - 0x40;     /* データのＤＬＥ拡張 */
+	LD	A,(IX-4)
+	ADD	A,192
+	LD	(IX-4),A
+?0045:
+; 281.	                        }
+; 282.	        
+; 283.	                        if( recvlen<sizeof(recvbuff) ){
+	LD	A,(recvlen)
+	CP	128
+	JR	NC,?0049
+?0048:
+; 284.	                                recvbcc ^= data;
+	LD	A,(recvbcc)
+	XOR	(IX-4)
+	LD	(recvbcc),A
+; 285.	                                recvbuff[recvlen++] = data;
+	LD	HL,recvlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,recvbuff
+	ADD	HL,BC
+	LD	B,(IX-4)
+	LD	(HL),B
+; 286.	                        }
+; 287.	                        else {
+	JR	?0050
+?0049:
+; 288.	                                recvphase = COMM_WAIT_STX;
+	XOR	A
+	LD	(recvphase),A
+?0050:
+; 289.	                        }
+; 290.	                        break;
+	JR	?0041
+?0051:
+	CP	2
+	JR	NZ,?0041
+; 291.	        
+; 292.	                case COMM_WAIT_BCC:
+; 293.	                        if( recvdle ){          /* ＤＬＥ処理 */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0053
+?0052:
+; 294.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 295.	                                data = data - 0x40;     /* データのＤＬＥ拡張 */
+	LD	A,(IX-4)
+	ADD	A,192
+	LD	(IX-4),A
+?0053:
+; 296.	                        }
+; 297.	                        if( data == recvbcc ){
+	LD	A,(recvbcc)
+	LD	B,A
+	LD	A,(IX-4)
+	CP	B
+	JR	NZ,?0055
+?0054:
+; 298.	                                if( recvlen==recvbuff[0]+1 ){
+	LD	BC,(recvbuff)
+	LD	B,0
+	INC	BC
+	LD	DE,(recvlen)
+	LD	D,0
+	LD	L,C
+	LD	H,B
+	AND	A
+	SBC	HL,DE
+	JR	NZ,?0057
+?0056:
+; 299.	                                        if( paaReceive( &recvbuff[1], recvlen-1 ) ){
+	LD	A,(recvlen)
+	ADD	A,255
+	LD	C,A
+	LD	DE,recvbuff+1
+	CALL	paaReceive
+	OR	A
+	JR	Z,?0059
+?0058:
+; 300.	                                                paaSend();
+	CALL	paaSend
+?0059:
+?0057:
+?0055:
+; 301.	                                        }
+; 302.	                                }
+; 303.	                        }
+; 304.	                        recvphase = COMM_WAIT_STX;
+	XOR	A
+	LD	(recvphase),A
+; 305.	                        break;
+	JR	?0041
+?0041:
+; 306.	                }
+; 307.	}
+?0060:
+	LD	SP,IX
+	POP	IX
+	RET
+; 308.	
+	RSEG	UDATA0
+address:
+	DEFS	2
+address2:
+	DEFS	2
+sendarea:
+	DEFS	7
+recvbuff:
+	DEFS	128
+recvlen:
+	DEFS	1
+recvphase:
+	DEFS	1
+recvdle:
+	DEFS	1
+recvbcc:
+	DEFS	1
+sendbuff:
+	DEFS	128
+sendlen:
+	DEFS	1
+sendcnt:
+	DEFS	1
+	END

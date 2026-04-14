@@ -1,0 +1,1687 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:58  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\cluster.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       【香港地下鉄向け自動列車放送制御装置】                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       通信制御モジュール                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include "dosaccs.h"
+                    13:    #include "fcntl.h"
+                    14:    
+                    15:    /***************************************************************
+                    16:                    ＦＡＴおよび、クラスター情報の初期設定
+                    17:                            更新情報をクリアする
+                    18:    ***************************************************************/
+                    19:    void purge_cluster( void )
+    000000              _purge_cluster:                  ; function: purge_cluster
+                    20:    {
+                    21:                    rootdir_buffer.bpb = NULL;
+    000000 1A91                   SUB.L       ER1,ER1
+    000002 0F90                   MOV.L       ER1,ER0
+    000004 6AA000                 MOV.B       R0H,@_rootdir_buffer+2:24
+           <000000>     
+    00000A 6AA800                 MOV.B       R0L,@_rootdir_buffer+3:24
+           <000000>     
+    000010 0D80                   MOV.W       E0,R0
+    000012 6AA000                 MOV.B       R0H,@_rootdir_buffer:24
+           <000000>     
+    000018 6AA800                 MOV.B       R0L,@_rootdir_buffer+1:24
+           <000000>     
+                    22:                    rootdir_buffer.update = 0;
+    00001E 79000000               MOV.W       #0:16,R0
+    000022 6AA000                 MOV.B       R0H,@_rootdir_buffer+4:24
+           <000000>     
+    000028 6AA800                 MOV.B       R0L,@_rootdir_buffer+5:24
+           <000000>     
+                    23:                    fat_buffer.bpb = NULL;
+    00002E 0F90                   MOV.L       ER1,ER0
+    000030 6AA000                 MOV.B       R0H,@_fat_buffer+2:24
+           <000000>     
+    000036 6AA800                 MOV.B       R0L,@_fat_buffer+3:24
+           <000000>     
+    00003C 0D80                   MOV.W       E0,R0
+    00003E 6AA000                 MOV.B       R0H,@_fat_buffer:24
+           <000000>     
+    000044 6AA800                 MOV.B       R0L,@_fat_buffer+1:24
+           <000000>     
+                    24:                    fat_buffer.update = 0;
+    00004A 79000000               MOV.W       #0:16,R0
+    00004E 6AA000                 MOV.B       R0H,@_fat_buffer+4:24
+           <000000>     
+    000054 6AA800                 MOV.B       R0L,@_fat_buffer+5:24
+           <000000>     
+                    25:                    cluster_buffer.bpb = NULL;
+    00005A 6AA100                 MOV.B       R1H,@_cluster_buffer+2:24
+           <000000>     
+    000060 6AA900                 MOV.B       R1L,@_cluster_buffer+3:24
+           <000000>     
+    000066 0D91                   MOV.W       E1,R1
+    000068 6AA100                 MOV.B       R1H,@_cluster_buffer:24
+           <000000>     
+    00006E 6AA900                 MOV.B       R1L,@_cluster_buffer+1:24
+           <000000>     
+                    26:                    cluster_buffer.update = 0;
+    000074 6AA000                 MOV.B       R0H,@_cluster_buffer+4:24
+           <000000>     
+    00007A 6AA800                 MOV.B       R0L,@_cluster_buffer+5:24
+           <000000>     
+                    27:    }
+    000080 5470                   RTS
+                    28:    
+                    29:    /***************************************************************
+                    30:            ルートディレクトリー情報計算
+                    31:                    エントリー番号からセクター番号を求める
+                    32:    
+                    33:            INPUT:
+                    34:                    bpb = デバイス情報
+                    35:                    entry = ルートディレクトリーエントリー番号
+                    36:    
+                    37:            OUTPUT:
+                    38:                    sector = セクター番号
+                    39:                    offset = バッファー上の位置
+                    40:    
+                    41:            RETURN:
+                    42:                    0 = クラスター正常
+                    43:                    other = 読み込みエラーステータス
+                    44:    ***************************************************************/
+                    45:    static  int     root_dir_calc( BPB *bpb, unsigned short entry, long *sector, short *offset )
+    000082              _$root_dir_calc:                 ; function: root_dir_calc
+    000082 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    46:    {
+    000086 0F85                   MOV.L       ER0,ER5
+    000088 0D19                   MOV.W       R1,E1
+    00008A 01006F7400             MOV.L       @(24:16,SP),ER4
+           18           
+    000090 01006F7600             MOV.L       @(28:16,SP),ER6
+           1C           
+                    47:                    if( bpb==NULL )
+    000096 0FD5                   MOV.L       ER5,ER5
+    000098 475C                   BEQ         L222:8
+                    48:                            return( -1 );                   /*デバイス情報無し*/
+                    49:    
+                    50:                    if( entry>=bpb->root_entry )
+    00009A 6E50000C               MOV.B       @(12:16,ER5),R0H
+    00009E 6E58000D               MOV.B       @(13:16,ER5),R0L
+    0000A2 1D09                   CMP.W       R0,E1
+    0000A4 4450                   BCC         L222:8
+                    51:                            return( -1 );                   /*エントリー番号オーバー*/
+                    52:    
+                    53:                    *sector = 0;
+    0000A6 1A80                   SUB.L       ER0,ER0
+    0000A8 010069C0               MOV.L       ER0,@ER4
+                    54:                    *offset = 0;
+    0000AC 69E0                   MOV.W       R0,@ER6
+                    55:                    while( entry-- ){
+    0000AE 4024                   BRA         L144:8
+    0000B0              L143:                             
+                    56:                            *offset += 32;
+    0000B0 6960                   MOV.W       @ER6,R0
+    0000B2 79100020               ADD.W       #32:16,R0
+    0000B6 69E0                   MOV.W       R0,@ER6
+                    57:                            if( *offset>=(short)bpb->bytes_sector ){
+    0000B8 6E500004               MOV.B       @(4:16,ER5),R0H
+    0000BC 6E580005               MOV.B       @(5:16,ER5),R0L
+    0000C0 6961                   MOV.W       @ER6,R1
+    0000C2 1D01                   CMP.W       R0,R1
+    0000C4 4D0E                   BLT         L145:8
+                    58:                                    *offset = 0;
+    0000C6 1900                   SUB.W       R0,R0
+    0000C8 69E0                   MOV.W       R0,@ER6
+                    59:                                    *sector = *sector + 1;
+    0000CA 01006940               MOV.L       @ER4,ER0
+    0000CE 0B70                   INC.L       #1,ER0
+    0000D0 010069C0               MOV.L       ER0,@ER4
+    0000D4              L145:                             
+    0000D4              L144:                             
+    0000D4 0D90                   MOV.W       E1,R0
+    0000D6 1B59                   DEC.W       #1,E1
+    0000D8 0D00                   MOV.W       R0,R0
+    0000DA 46D4                   BNE         L143:8
+                    60:                            }
+                    61:                    }
+                    62:                    if( *sector>bpb->DATA_sector_l )
+    0000DC 6E500038               MOV.B       @(56:16,ER5),R0H
+    0000E0 6E580039               MOV.B       @(57:16,ER5),R0L
+    0000E4 0D08                   MOV.W       R0,E0
+    0000E6 6E50003A               MOV.B       @(58:16,ER5),R0H
+    0000EA 6E58003B               MOV.B       @(59:16,ER5),R0L
+    0000EE 01006941               MOV.L       @ER4,ER1
+    0000F2 1F81                   CMP.L       ER0,ER1
+    0000F4 4F06                   BLE         L146:8
+                    63:                            return( -1 );                   /*エントリー番号エラー*/
+    0000F6              L222:                             
+    0000F6 7900FFFF               MOV.W       #-1:16,R0
+    0000FA 401E                   BRA         L141:8
+    0000FC              L146:                             
+                    64:    
+                    65:                    *sector += bpb->DIR_sector_s;
+    0000FC 6E50002C               MOV.B       @(44:16,ER5),R0H
+    000100 6E58002D               MOV.B       @(45:16,ER5),R0L
+    000104 0D08                   MOV.W       R0,E0
+    000106 6E50002E               MOV.B       @(46:16,ER5),R0H
+    00010A 6E58002F               MOV.B       @(47:16,ER5),R0L
+    00010E 01006941               MOV.L       @ER4,ER1
+    000112 0A81                   ADD.L       ER0,ER1
+    000114 010069C1               MOV.L       ER1,@ER4
+                    66:    
+                    67:                    return( 0 );
+    000118 1900                   SUB.W       R0,R0
+                    68:    }
+    00011A              L141:                             
+    00011A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                    69:    
+                    70:    /***************************************************************
+                    71:            ＦＡＴ情報計算（クラスター番号でのＦＡＴ上の位置）
+                    72:    
+                    73:            INPUT:
+                    74:                    bpb = デバイス情報
+                    75:                    cluster = 2...  クラスター番号
+                    76:    
+                    77:            OUTPUT:
+                    78:                    sector = セクター番号
+                    79:                    sector_l = 読込みセクター数
+                    80:                    offset = バッファー上の位置
+                    81:    
+                    82:            RETURN:
+                    83:                    0 = クラスター正常
+                    84:                    other = 読み込みエラーステータス
+                    85:    ***************************************************************/
+                    86:    static  int     fat_calc( BPB *bpb, unsigned short cluster, long *sector, short *sector_l, short *offset )
+    00011E              _$fat_calc:                      ; function: fat_calc
+    00011E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    87:    {
+    000122 0F86                   MOV.L       ER0,ER6
+    000124 0D15                   MOV.W       R1,R5
+    000126 01006F7300             MOV.L       @(24:16,SP),ER3
+           18           
+                    88:                    long    entry;
+                    89:    
+                    90:                    if( bpb==NULL )
+    00012C 0FE6                   MOV.L       ER6,ER6
+    00012E 471C                   BEQ         L224:8
+                    91:                            return( -1 );                   /*デバイス情報無し*/
+                    92:                    if( cluster<2 || cluster==0xFFFF )
+    000130 79250002               CMP.W       #2:16,R5
+    000134 4506                   BCS         L150:8
+    000136 7925FFFF               CMP.W       #-1:16,R5
+    00013A 4602                   BNE         L149:8
+    00013C              L150:                             
+                    93:                            return( -1 );                   /*クラスター番号エラー*/
+    00013C 400E                   BRA         L224:8
+    00013E              L149:                             
+                    94:    
+                    95:                    if( cluster>bpb->DATA_cluster_l+1 )
+    00013E 6E60003C               MOV.B       @(60:16,ER6),R0H
+    000142 6E68003D               MOV.B       @(61:16,ER6),R0L
+    000146 0B50                   INC.W       #1,R0
+    000148 1D05                   CMP.W       R0,R5
+    00014A 4308                   BLS         L151:8
+                    96:                            return( -1 );                   /*クラスター番号エラー*/
+    00014C              L224:                             
+    00014C 7900FFFF               MOV.W       #-1:16,R0
+    000150 5A                     JMP         @L148:24
+           <000000>     
+    000154              L151:                             
+                    97:    
+                    98:                    if( bpb->FAT_type & FAT16 ){
+    000154 0D51                   MOV.W       R5,R1
+    000156 1771                   EXTU.L      ER1
+    000158 6E60001E               MOV.B       @(30:16,ER6),R0H
+    00015C 6E68001F               MOV.B       @(31:16,ER6),R0L
+    000160 7328                   BTST.B      #2,R0L
+    000162 4742                   BEQ         L152:8
+                    99:                            entry = (long)cluster * 2L;
+    000164 1031                   SHLL.L      ER1
+    000166 0F95                   MOV.L       ER1,ER5
+                   100:                            *sector = entry / bpb->bytes_sector;
+    000168 6E600004               MOV.B       @(4:16,ER6),R0H
+    00016C 6E680005               MOV.B       @(5:16,ER6),R0L
+    000170 1770                   EXTU.L      ER0
+    000172 0F81                   MOV.L       ER0,ER1
+    000174 0FD0                   MOV.L       ER5,ER0
+    000176 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    00017A 010069B0               MOV.L       ER0,@ER3
+                   101:                            *offset = (short)(entry % bpb->bytes_sector);
+    00017E 6E600004               MOV.B       @(4:16,ER6),R0H
+    000182 6E680005               MOV.B       @(5:16,ER6),R0L
+    000186 1770                   EXTU.L      ER0
+    000188 0F81                   MOV.L       ER0,ER1
+    00018A 0FD0                   MOV.L       ER5,ER0
+    00018C 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    000190 01006F7000             MOV.L       @(32:16,SP),ER0
+           20           
+    000196 6981                   MOV.W       R1,@ER0
+                   102:                            *sector_l = 1;
+    000198 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    00019E 79010001               MOV.W       #1:16,R1
+    0001A2 6981                   MOV.W       R1,@ER0
+    0001A4 4068                   BRA         L153:8
+    0001A6              L152:                             
+                   103:                    }
+                   104:                    else {
+                   105:                            entry = (long)cluster + (long)(cluster>>1);
+    0001A6 1115                   SHLR.W      R5
+    0001A8 0D50                   MOV.W       R5,R0
+    0001AA 1770                   EXTU.L      ER0
+    0001AC 0A81                   ADD.L       ER0,ER1
+    0001AE 0F95                   MOV.L       ER1,ER5
+                   106:                            *sector = entry / bpb->bytes_sector;
+    0001B0 6E600004               MOV.B       @(4:16,ER6),R0H
+    0001B4 6E680005               MOV.B       @(5:16,ER6),R0L
+    0001B8 1770                   EXTU.L      ER0
+    0001BA 0F81                   MOV.L       ER0,ER1
+    0001BC 0FD0                   MOV.L       ER5,ER0
+    0001BE 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    0001C2 010069B0               MOV.L       ER0,@ER3
+                   107:                            *offset = (short)(entry % bpb->bytes_sector);
+    0001C6 6E600004               MOV.B       @(4:16,ER6),R0H
+    0001CA 6E680005               MOV.B       @(5:16,ER6),R0L
+    0001CE 1770                   EXTU.L      ER0
+    0001D0 0F81                   MOV.L       ER0,ER1
+    0001D2 0FD0                   MOV.L       ER5,ER0
+    0001D4 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    0001D8 01006F7000             MOV.L       @(32:16,SP),ER0
+           20           
+    0001DE 6981                   MOV.W       R1,@ER0
+                   108:                            if( *offset==(short)bpb->bytes_sector-1 )
+    0001E0 6E600004               MOV.B       @(4:16,ER6),R0H
+    0001E4 6E680005               MOV.B       @(5:16,ER6),R0L
+    0001E8 1B50                   DEC.W       #1,R0
+    0001EA 01006F7100             MOV.L       @(32:16,SP),ER1
+           20           
+    0001F0 6911                   MOV.W       @ER1,R1
+    0001F2 1D01                   CMP.W       R0,R1
+    0001F4 460C                   BNE         L154:8
+                   109:                                    *sector_l = 2;
+    0001F6 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    0001FC 79010002               MOV.W       #2:16,R1
+    000200 400A                   BRA         L225:8
+    000202              L154:                             
+                   110:                            else
+                   111:                                    *sector_l = 1;
+    000202 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    000208 79010001               MOV.W       #1:16,R1
+    00020C              L225:                             
+    00020C 6981                   MOV.W       R1,@ER0
+    00020E              L153:                             
+                   112:                    }
+                   113:    
+                   114:                    *sector += bpb->FAT_sector_s;
+    00020E 6E600024               MOV.B       @(36:16,ER6),R0H
+    000212 6E680025               MOV.B       @(37:16,ER6),R0L
+    000216 0D08                   MOV.W       R0,E0
+    000218 6E600026               MOV.B       @(38:16,ER6),R0H
+    00021C 6E680027               MOV.B       @(39:16,ER6),R0L
+    000220 01006931               MOV.L       @ER3,ER1
+    000224 0A81                   ADD.L       ER0,ER1
+    000226 010069B1               MOV.L       ER1,@ER3
+                   115:    
+                   116:                    return( 0 );
+    00022A 1900                   SUB.W       R0,R0
+                   117:    }
+    00022C              L148:                             
+    00022C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   118:    
+                   119:    
+                   120:    /***************************************************************
+                   121:            論理クラスターからセクター番号を計算する
+                   122:    
+                   123:            INPUT:
+                   124:                    bpb = デバイス情報
+                   125:                    cluster = 2...  クラスター番号
+                   126:    
+                   127:            OUTPUT:
+                   128:                    sector = セクター番号
+                   129:    
+                   130:            RETURN:
+                   131:                    0 = 読み込み正常
+                   132:                    other = 読み込みエラーステータス
+                   133:    
+                   134:    ***************************************************************/
+                   135:    static  int     cluster_calc( BPB *bpb, unsigned short cluster, long *sector )
+    000230              _$cluster_calc:                  ; function: cluster_calc
+    000230 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   136:    {
+    000234 0F86                   MOV.L       ER0,ER6
+    000236 0D15                   MOV.W       R1,R5
+                   137:                    if( bpb==NULL )
+    000238 0FE6                   MOV.L       ER6,ER6
+    00023A 471A                   BEQ         L227:8
+                   138:                            return( -1 );                   /*デバイス情報無し*/
+                   139:                    if( cluster<2 || cluster==0xFFFF )
+    00023C 79250002               CMP.W       #2:16,R5
+    000240 4506                   BCS         L159:8
+    000242 7925FFFF               CMP.W       #-1:16,R5
+    000246 4602                   BNE         L158:8
+    000248              L159:                             
+                   140:                            return( -1 );                   /*クラスター番号エラー*/
+    000248 400C                   BRA         L227:8
+    00024A              L158:                             
+                   141:    
+                   142:                    if( cluster>bpb->DATA_cluster_l )
+    00024A 6E60003C               MOV.B       @(60:16,ER6),R0H
+    00024E 6E68003D               MOV.B       @(61:16,ER6),R0L
+    000252 1D05                   CMP.W       R0,R5
+    000254 4306                   BLS         L160:8
+                   143:                            return( -1 );                   /*クラスター番号エラー*/
+    000256              L227:                             
+    000256 7900FFFF               MOV.W       #-1:16,R0
+    00025A 403C                   BRA         L157:8
+    00025C              L160:                             
+                   144:    
+                   145:                    *sector = bpb->sector_cluster * ( cluster - 2 );
+    00025C 1BD5                   DEC.W       #2,R5
+    00025E 6E600006               MOV.B       @(6:16,ER6),R0H
+    000262 6E680007               MOV.B       @(7:16,ER6),R0L
+    000266 5250                   MULXU.W     R5,ER0
+    000268 1770                   EXTU.L      ER0
+    00026A 01006F7100             MOV.L       @(24:16,SP),ER1
+           18           
+    000270 01006990               MOV.L       ER0,@ER1
+                   146:    
+                   147:                    *sector += bpb->DATA_sector_s;
+    000274 01006F7000             MOV.L       @(24:16,SP),ER0
+           18           
+    00027A 6E610034               MOV.B       @(52:16,ER6),R1H
+    00027E 6E690035               MOV.B       @(53:16,ER6),R1L
+    000282 0D19                   MOV.W       R1,E1
+    000284 6E610036               MOV.B       @(54:16,ER6),R1H
+    000288 6E690037               MOV.B       @(55:16,ER6),R1L
+    00028C 01006902               MOV.L       @ER0,ER2
+    000290 0A92                   ADD.L       ER1,ER2
+    000292 01006982               MOV.L       ER2,@ER0
+                   148:    
+                   149:                    return( 0 );
+    000296 1900                   SUB.W       R0,R0
+                   150:    }
+    000298              L157:                             
+    000298 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   151:    
+                   152:    /**************************************************************************
+                   153:            ルートディレクトリーの更新情報を実際に更新する
+                   154:    ***************************************************************************/
+                   155:    int flush_dir( void )
+    00029C              _flush_dir:                      ; function: flush_dir
+    00029C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   156:    {
+                   157:                    int             ret;
+                   158:    
+                   159:                    if( rootdir_buffer.bpb!=NULL && rootdir_buffer.update ){
+    0002A0 6A2000                 MOV.B       @_rootdir_buffer:24,R0H
+           <000000>     
+    0002A6 6A2800                 MOV.B       @_rootdir_buffer+1:24,R0L
+           <000000>     
+    0002AC 0D08                   MOV.W       R0,E0
+    0002AE 6A2000                 MOV.B       @_rootdir_buffer+2:24,R0H
+           <000000>     
+    0002B4 6A2800                 MOV.B       @_rootdir_buffer+3:24,R0L
+           <000000>     
+    0002BA 0F80                   MOV.L       ER0,ER0
+    0002BC 4760                   BEQ         L161:8
+    0002BE 6A2000                 MOV.B       @_rootdir_buffer+4:24,R0H
+           <000000>     
+    0002C4 6A2800                 MOV.B       @_rootdir_buffer+5:24,R0L
+           <000000>     
+    0002CA 0D00                   MOV.W       R0,R0
+    0002CC 4750                   BEQ         L161:8
+                   160:    
+                   161:                            ret = sector_write( rootdir_buffer.bpb, rootdir_buffer.sector_no, 1, rootdir_buffer.buffer );
+    0002CE 7A06                   MOV.L       #_rootdir_buffer:32,ER6
+           <00000000>   
+    0002D4 1A80                   SUB.L       ER0,ER0
+    0002D6 F80A                   MOV.B       #10:8,R0L
+    0002D8 0AE0                   ADD.L       ER6,ER0
+    0002DA 01006DF0               PUSH.L      ER0
+    0002DE 79000001               MOV.W       #1:16,R0
+    0002E2 6DF0                   PUSH.W      R0
+    0002E4 6E600006               MOV.B       @(6:16,ER6),R0H
+    0002E8 6E680007               MOV.B       @(7:16,ER6),R0L
+    0002EC 0D08                   MOV.W       R0,E0
+    0002EE 6E600008               MOV.B       @(8:16,ER6),R0H
+    0002F2 6E680009               MOV.B       @(9:16,ER6),R0L
+    0002F6 6861                   MOV.B       @ER6,R1H
+    0002F8 6E690001               MOV.B       @(1:16,ER6),R1L
+    0002FC 0D19                   MOV.W       R1,E1
+    0002FE 6E610002               MOV.B       @(2:16,ER6),R1H
+    000302 6E690003               MOV.B       @(3:16,ER6),R1L
+    000306 0F92                   MOV.L       ER1,ER2
+    000308 0F81                   MOV.L       ER0,ER1
+    00030A 0FA0                   MOV.L       ER2,ER0
+    00030C 5E                     JSR         @_sector_write:24
+           <000000>     
+    000310 0B97                   ADDS.L      #4,SP
+    000312 0B87                   ADDS.L      #2,SP
+                   162:                            if( ret )
+    000314 0D00                   MOV.W       R0,R0
+    000316 4706                   BEQ         L162:8
+                   163:                                    return( -2 );
+    000318 7900FFFE               MOV.W       #-2:16,R0
+    00031C 4012                   BRA         L163:8
+    00031E              L162:                             
+    00031E              L161:                             
+                   164:    
+                   165:                    }
+                   166:    
+                   167:                    rootdir_buffer.update = 0;
+    00031E 79000000               MOV.W       #0:16,R0
+    000322 6AA000                 MOV.B       R0H,@_rootdir_buffer+4:24
+           <000000>     
+    000328 6AA800                 MOV.B       R0L,@_rootdir_buffer+5:24
+           <000000>     
+                   168:    
+                   169:                    return( 0 );
+    00032E 1900                   SUB.W       R0,R0
+                   170:    }
+    000330              L163:                             
+    000330 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   171:    
+                   172:    /**************************************************************************
+                   173:            ＦＡＴの更新情報を実際に更新する
+                   174:    ***************************************************************************/
+                   175:    int flush_fat( void )
+    000334              _flush_fat:                      ; function: flush_fat
+    000334 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   176:    {
+    000338 7A06                   MOV.L       #_fat_buffer:32,ER6
+           <00000000>   
+                   177:                    long    li;
+                   178:                    int             ret;
+                   179:    
+                   180:                    if( fat_buffer.bpb!=NULL && fat_buffer.update ){
+    00033E 6A2000                 MOV.B       @_fat_buffer:24,R0H
+           <000000>     
+    000344 6A2800                 MOV.B       @_fat_buffer+1:24,R0L
+           <000000>     
+    00034A 0D08                   MOV.W       R0,E0
+    00034C 6A2000                 MOV.B       @_fat_buffer+2:24,R0H
+           <000000>     
+    000352 6A2800                 MOV.B       @_fat_buffer+3:24,R0L
+           <000000>     
+    000358 0F80                   MOV.L       ER0,ER0
+    00035A 587000BA               BEQ         L164:16
+    00035E 6A2000                 MOV.B       @_fat_buffer+4:24,R0H
+           <000000>     
+    000364 6A2800                 MOV.B       @_fat_buffer+5:24,R0L
+           <000000>     
+    00036A 0D00                   MOV.W       R0,R0
+    00036C 587000A8               BEQ         L164:16
+                   181:                            for( li=0; li<(long)fat_buffer.bpb->FAT_number; li++ ){
+    000370 1AD5                   SUB.L       ER5,ER5
+    000372 4070                   BRA         L166:8
+    000374              L165:                             
+                   182:                                    ret = sector_write( fat_buffer.bpb, fat_buffer.sector_no+fat_buffer.bpb->FAT_sector_l*li, fat_buffer.sector_len, fat_buffer.buffer );
+    000374 1A80                   SUB.L       ER0,ER0
+    000376 F80C                   MOV.B       #12:8,R0L
+    000378 0AE0                   ADD.L       ER6,ER0
+    00037A 01006DF0               PUSH.L      ER0
+    00037E 6E60000A               MOV.B       @(10:16,ER6),R0H
+    000382 6E68000B               MOV.B       @(11:16,ER6),R0L
+    000386 6DF0                   PUSH.W      R0
+    000388 6861                   MOV.B       @ER6,R1H
+    00038A 6E690001               MOV.B       @(1:16,ER6),R1L
+    00038E 0D19                   MOV.W       R1,E1
+    000390 6E610002               MOV.B       @(2:16,ER6),R1H
+    000394 6E690003               MOV.B       @(3:16,ER6),R1L
+    000398 6E100028               MOV.B       @(40:16,ER1),R0H
+    00039C 6E180029               MOV.B       @(41:16,ER1),R0L
+    0003A0 0D08                   MOV.W       R0,E0
+    0003A2 6E10002A               MOV.B       @(42:16,ER1),R0H
+    0003A6 6E18002B               MOV.B       @(43:16,ER1),R0L
+    0003AA 0FD1                   MOV.L       ER5,ER1
+    0003AC 5E                     JSR         @$MULL$3:24
+           <000000>     
+    0003B0 6E620006               MOV.B       @(6:16,ER6),R2H
+    0003B4 6E6A0007               MOV.B       @(7:16,ER6),R2L
+    0003B8 0D2A                   MOV.W       R2,E2
+    0003BA 6E620008               MOV.B       @(8:16,ER6),R2H
+    0003BE 6E6A0009               MOV.B       @(9:16,ER6),R2L
+    0003C2 0A82                   ADD.L       ER0,ER2
+    0003C4 6860                   MOV.B       @ER6,R0H
+    0003C6 6E680001               MOV.B       @(1:16,ER6),R0L
+    0003CA 0D08                   MOV.W       R0,E0
+    0003CC 6E600002               MOV.B       @(2:16,ER6),R0H
+    0003D0 6E680003               MOV.B       @(3:16,ER6),R0L
+    0003D4 0FA1                   MOV.L       ER2,ER1
+    0003D6 5E                     JSR         @_sector_write:24
+           <000000>     
+    0003DA 0B97                   ADDS.L      #4,SP
+    0003DC 0B87                   ADDS.L      #2,SP
+    0003DE 0D04                   MOV.W       R0,R4
+                   183:                                    if( ret )
+    0003E0 462C                   BNE         L168:8
+                   184:                                            break;
+    0003E2 0B75                   INC.L       #1,ER5
+    0003E4              L166:                             
+    0003E4 6A2000                 MOV.B       @_fat_buffer:24,R0H
+           <000000>     
+    0003EA 6A2800                 MOV.B       @_fat_buffer+1:24,R0L
+           <000000>     
+    0003F0 0D08                   MOV.W       R0,E0
+    0003F2 6A2000                 MOV.B       @_fat_buffer+2:24,R0H
+           <000000>     
+    0003F8 6A2800                 MOV.B       @_fat_buffer+3:24,R0L
+           <000000>     
+    0003FE 6E01000A               MOV.B       @(10:16,ER0),R1H
+    000402 6E09000B               MOV.B       @(11:16,ER0),R1L
+    000406 1771                   EXTU.L      ER1
+    000408 1F95                   CMP.L       ER1,ER5
+    00040A 58D0FF66               BLT         L165:16
+    00040E              L168:                             
+                   185:                            }
+                   186:                            if( ret )
+    00040E 0D44                   MOV.W       R4,R4
+    000410 4706                   BEQ         L169:8
+                   187:                                    return( -2 );
+    000412 7900FFFE               MOV.W       #-2:16,R0
+    000416 4012                   BRA         L170:8
+    000418              L169:                             
+    000418              L164:                             
+                   188:                    }
+                   189:    
+                   190:                    fat_buffer.update = 0;
+    000418 79000000               MOV.W       #0:16,R0
+    00041C 6AA000                 MOV.B       R0H,@_fat_buffer+4:24
+           <000000>     
+    000422 6AA800                 MOV.B       R0L,@_fat_buffer+5:24
+           <000000>     
+                   191:    
+                   192:                    return( 0 );
+    000428 1900                   SUB.W       R0,R0
+                   193:    }
+    00042A              L170:                             
+    00042A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   194:    
+                   195:    /**************************************************************************
+                   196:            クラスターの更新情報を実際に更新する
+                   197:    ***************************************************************************/
+                   198:    int flush_cluster( void )
+    00042E              _flush_cluster:                  ; function: flush_cluster
+    00042E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   199:    {
+                   200:                    int             ret;
+                   201:    
+                   202:                    if( cluster_buffer.bpb!=NULL && cluster_buffer.update ){
+    000432 6A2000                 MOV.B       @_cluster_buffer:24,R0H
+           <000000>     
+    000438 6A2800                 MOV.B       @_cluster_buffer+1:24,R0L
+           <000000>     
+    00043E 0D08                   MOV.W       R0,E0
+    000440 6A2000                 MOV.B       @_cluster_buffer+2:24,R0H
+           <000000>     
+    000446 6A2800                 MOV.B       @_cluster_buffer+3:24,R0L
+           <000000>     
+    00044C 0F80                   MOV.L       ER0,ER0
+    00044E 4774                   BEQ         L171:8
+    000450 6A2000                 MOV.B       @_cluster_buffer+4:24,R0H
+           <000000>     
+    000456 6A2800                 MOV.B       @_cluster_buffer+5:24,R0L
+           <000000>     
+    00045C 0D00                   MOV.W       R0,R0
+    00045E 4764                   BEQ         L171:8
+                   203:                            ret = sector_write( cluster_buffer.bpb, cluster_buffer.sector_no, cluster_buffer.bpb->sector_cluster, cluster_buffer.buffer );
+    000460 7A06                   MOV.L       #_cluster_buffer:32,ER6
+           <00000000>   
+    000466 1A80                   SUB.L       ER0,ER0
+    000468 F80E                   MOV.B       #14:8,R0L
+    00046A 0AE0                   ADD.L       ER6,ER0
+    00046C 01006DF0               PUSH.L      ER0
+    000470 6860                   MOV.B       @ER6,R0H
+    000472 6E680001               MOV.B       @(1:16,ER6),R0L
+    000476 0D08                   MOV.W       R0,E0
+    000478 6E600002               MOV.B       @(2:16,ER6),R0H
+    00047C 6E680003               MOV.B       @(3:16,ER6),R0L
+    000480 6E010006               MOV.B       @(6:16,ER0),R1H
+    000484 6E090007               MOV.B       @(7:16,ER0),R1L
+    000488 6DF1                   PUSH.W      R1
+    00048A 6E60000A               MOV.B       @(10:16,ER6),R0H
+    00048E 6E68000B               MOV.B       @(11:16,ER6),R0L
+    000492 0D08                   MOV.W       R0,E0
+    000494 6E60000C               MOV.B       @(12:16,ER6),R0H
+    000498 6E68000D               MOV.B       @(13:16,ER6),R0L
+    00049C 6861                   MOV.B       @ER6,R1H
+    00049E 6E690001               MOV.B       @(1:16,ER6),R1L
+    0004A2 0D19                   MOV.W       R1,E1
+    0004A4 6E610002               MOV.B       @(2:16,ER6),R1H
+    0004A8 6E690003               MOV.B       @(3:16,ER6),R1L
+    0004AC 0F92                   MOV.L       ER1,ER2
+    0004AE 0F81                   MOV.L       ER0,ER1
+    0004B0 0FA0                   MOV.L       ER2,ER0
+    0004B2 5E                     JSR         @_sector_write:24
+           <000000>     
+    0004B6 0B97                   ADDS.L      #4,SP
+    0004B8 0B87                   ADDS.L      #2,SP
+                   204:                            if( ret )
+    0004BA 0D00                   MOV.W       R0,R0
+    0004BC 4706                   BEQ         L172:8
+                   205:                                    return( -2 );
+    0004BE 7900FFFE               MOV.W       #-2:16,R0
+    0004C2 4012                   BRA         L173:8
+    0004C4              L172:                             
+    0004C4              L171:                             
+                   206:                    }
+                   207:    
+                   208:                    cluster_buffer.update = 0;
+    0004C4 79000000               MOV.W       #0:16,R0
+    0004C8 6AA000                 MOV.B       R0H,@_cluster_buffer+4:24
+           <000000>     
+    0004CE 6AA800                 MOV.B       R0L,@_cluster_buffer+5:24
+           <000000>     
+                   209:    
+                   210:                    return( 0 );
+    0004D4 1900                   SUB.W       R0,R0
+                   211:    }
+    0004D6              L173:                             
+    0004D6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   212:    
+                   213:    /***************************************************************
+                   214:            ルートディレクトリー情報読み込み
+                   215:                    エントリー番号指定で、１セクターずつ読み込む
+                   216:    
+                   217:            INPUT:
+                   218:                    bpb = デバイス情報
+                   219:                    entry = ルートディレクトリーエントリー番号
+                   220:    
+                   221:            OUTPUT:
+                   222:                    offset = バッファー上の開始位置
+                   223:                    cluster_buffer[] = ディレクトリー情報
+                   224:    
+                   225:            RETURN:
+                   226:                    0 = 読み込み正常
+                   227:                    other = 読み込みエラーステータス
+                   228:    
+                   229:    ***************************************************************/
+                   230:    int     root_dir_read( BPB *bpb, unsigned short entry, short *offset )
+    0004DA              _root_dir_read:                  ; function: root_dir_read
+    0004DA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0004DE 1B97                   SUBS.L      #4,SP
+                   231:    {
+    0004E0 0F86                   MOV.L       ER0,ER6
+                   232:                    long    sector;
+                   233:    
+                   234:                    if( root_dir_calc( bpb, entry, &sector, offset ) )
+    0004E2 01006F7200             MOV.L       @(28:16,SP),ER2
+           1C           
+    0004E8 01006DF2               PUSH.L      ER2
+    0004EC 0FF2                   MOV.L       SP,ER2
+    0004EE 0B92                   ADDS.L      #4,ER2
+    0004F0 01006DF2               PUSH.L      ER2
+    0004F4 5E                     JSR         @_$root_dir_calc:24
+           <000000>     
+    0004F8 0B97                   ADDS.L      #4,SP
+    0004FA 0B97                   ADDS.L      #4,SP
+    0004FC 0D00                   MOV.W       R0,R0
+    0004FE 4672                   BNE         L228:8
+                   235:                            return( -1 );
+                   236:    
+                   237:                    if( rootdir_buffer.bpb!=bpb || rootdir_buffer.sector_no!=sector ){
+    000500 6A2000                 MOV.B       @_rootdir_buffer:24,R0H
+           <000000>     
+    000506 6A2800                 MOV.B       @_rootdir_buffer+1:24,R0L
+           <000000>     
+    00050C 0D08                   MOV.W       R0,E0
+    00050E 6A2000                 MOV.B       @_rootdir_buffer+2:24,R0H
+           <000000>     
+    000514 6A2800                 MOV.B       @_rootdir_buffer+3:24,R0L
+           <000000>     
+    00051A 1FE0                   CMP.L       ER6,ER0
+    00051C 4622                   BNE         L177:8
+    00051E 6A2000                 MOV.B       @_rootdir_buffer+6:24,R0H
+           <000000>     
+    000524 6A2800                 MOV.B       @_rootdir_buffer+7:24,R0L
+           <000000>     
+    00052A 0D08                   MOV.W       R0,E0
+    00052C 6A2000                 MOV.B       @_rootdir_buffer+8:24,R0H
+           <000000>     
+    000532 6A2800                 MOV.B       @_rootdir_buffer+9:24,R0L
+           <000000>     
+    000538 01006971               MOV.L       @SP,ER1
+    00053C 1F90                   CMP.L       ER1,ER0
+    00053E 4770                   BEQ         L176:8
+    000540              L177:                             
+                   238:                            /** 前回読み込んだ情報が更新されているとき **/
+                   239:                            if( flush_dir() )
+    000540 5E                     JSR         @_flush_dir:24
+           <000000>     
+    000544 0D00                   MOV.W       R0,R0
+    000546 4706                   BEQ         L178:8
+                   240:                                    return( -2 );           /*書き込みエラー*/
+    000548 7900FFFE               MOV.W       #-2:16,R0
+    00054C 4064                   BRA         L175:8
+    00054E              L178:                             
+                   241:    
+                   242:                            if( sector_read( bpb, sector, 1, rootdir_buffer.buffer ) )
+    00054E 7A00                   MOV.L       #_rootdir_buffer+10:32,ER0
+           <00000000>   
+    000554 01006DF0               PUSH.L      ER0
+    000558 79000001               MOV.W       #1:16,R0
+    00055C 6DF0                   PUSH.W      R0
+    00055E 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    000564 0FE0                   MOV.L       ER6,ER0
+    000566 5E                     JSR         @_sector_read:24
+           <000000>     
+    00056A 0B97                   ADDS.L      #4,SP
+    00056C 0B87                   ADDS.L      #2,SP
+    00056E 0D00                   MOV.W       R0,R0
+    000570 4706                   BEQ         L179:8
+                   243:                                    return( -1 );                   /*読込み不可*/
+    000572              L228:                             
+    000572 7900FFFF               MOV.W       #-1:16,R0
+    000576 403A                   BRA         L175:8
+    000578              L179:                             
+                   244:    
+                   245:                            rootdir_buffer.bpb = bpb;
+    000578 6AA600                 MOV.B       R6H,@_rootdir_buffer+2:24
+           <000000>     
+    00057E 6AAE00                 MOV.B       R6L,@_rootdir_buffer+3:24
+           <000000>     
+    000584 0DE6                   MOV.W       E6,R6
+    000586 6AA600                 MOV.B       R6H,@_rootdir_buffer:24
+           <000000>     
+    00058C 6AAE00                 MOV.B       R6L,@_rootdir_buffer+1:24
+           <000000>     
+                   246:                            rootdir_buffer.sector_no = sector;
+    000592 01006970               MOV.L       @SP,ER0
+    000596 6AA000                 MOV.B       R0H,@_rootdir_buffer+8:24
+           <000000>     
+    00059C 6AA800                 MOV.B       R0L,@_rootdir_buffer+9:24
+           <000000>     
+    0005A2 0D80                   MOV.W       E0,R0
+    0005A4 6AA000                 MOV.B       R0H,@_rootdir_buffer+6:24
+           <000000>     
+    0005AA 6AA800                 MOV.B       R0L,@_rootdir_buffer+7:24
+           <000000>     
+    0005B0              L176:                             
+                   247:                    }
+                   248:    
+                   249:                    return( 0 );
+    0005B0 1900                   SUB.W       R0,R0
+                   250:    }
+    0005B2              L175:                             
+    0005B2 0B97                   ADDS.L      #4,SP
+    0005B4 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   251:    
+                   252:    /***************************************************************
+                   253:            ディレクトリー情報書き込み
+                   254:                    ディレクトリー情報を書き換えたとき呼び出す
+                   255:                    実際に書込むのは別のエリアを読み込んだとき
+                   256:    
+                   257:    ***************************************************************/
+                   258:    void    root_dir_write( void )
+    0005B8              _root_dir_write:                 ; function: root_dir_write
+                   259:    {
+                   260:                    rootdir_buffer.update = 1;
+    0005B8 79000001               MOV.W       #1:16,R0
+    0005BC 6AA000                 MOV.B       R0H,@_rootdir_buffer+4:24
+           <000000>     
+    0005C2 6AA800                 MOV.B       R0L,@_rootdir_buffer+5:24
+           <000000>     
+                   261:    }
+    0005C8 5470                   RTS
+                   262:    
+                   263:    /***************************************************************
+                   264:            ＦＡＴ情報読み込み（クラスター番号で読み込む）
+                   265:                    クラスター番号に相当するＦＡＴ情報エリアを読込み
+                   266:                    バッファー上の開始位置を返す
+                   267:    
+                   268:    
+                   269:            INPUT:
+                   270:                    bpb = デバイス情報
+                   271:                    cluster = 2...  クラスター番号
+                   272:    
+                   273:            OUTPUT:
+                   274:                    offset = バッファー上の開始位置
+                   275:                    cluster_buffer[] = ＦＡＴ情報
+                   276:    
+                   277:            RETURN:
+                   278:                    0 = 読み込み正常
+                   279:                    other = 読み込みエラーステータス
+                   280:    
+                   281:    ***************************************************************/
+                   282:    int     fat_read( BPB *bpb, unsigned short cluster, short *offset )
+    0005CA              _fat_read:                       ; function: fat_read
+    0005CA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0005CE 1B97                   SUBS.L      #4,SP
+    0005D0 1B87                   SUBS.L      #2,SP
+                   283:    {
+    0005D2 0F86                   MOV.L       ER0,ER6
+                   284:                    long    sector;
+                   285:                    short   sector_l;
+                   286:    
+                   287:                    if( fat_calc( bpb, cluster, &sector, &sector_l, offset ) )
+    0005D4 01006F7200             MOV.L       @(30:16,SP),ER2
+           1E           
+    0005DA 01006DF2               PUSH.L      ER2
+    0005DE 7A02000000             MOV.L       #8:32,ER2
+           08           
+    0005E4 0AF2                   ADD.L       SP,ER2
+    0005E6 01006DF2               PUSH.L      ER2
+    0005EA 7A02000000             MOV.L       #8:32,ER2
+           08           
+    0005F0 0AF2                   ADD.L       SP,ER2
+    0005F2 01006DF2               PUSH.L      ER2
+    0005F6 5E                     JSR         @_$fat_calc:24
+           <000000>     
+    0005FA 7A17000000             ADD.L       #12:32,SP
+           0C           
+    000600 0D00                   MOV.W       R0,R0
+    000602 58600088               BNE         L229:16
+                   288:                            return( -1 );
+                   289:    
+                   290:                    if( fat_buffer.bpb!=bpb || fat_buffer.sector_no!=sector || fat_buffer.sector_len!=sector_l ){
+    000606 6A2000                 MOV.B       @_fat_buffer:24,R0H
+           <000000>     
+    00060C 6A2800                 MOV.B       @_fat_buffer+1:24,R0L
+           <000000>     
+    000612 0D08                   MOV.W       R0,E0
+    000614 6A2000                 MOV.B       @_fat_buffer+2:24,R0H
+           <000000>     
+    00061A 6A2800                 MOV.B       @_fat_buffer+3:24,R0L
+           <000000>     
+    000620 1FE0                   CMP.L       ER6,ER0
+    000622 4638                   BNE         L183:8
+    000624 6A2000                 MOV.B       @_fat_buffer+6:24,R0H
+           <000000>     
+    00062A 6A2800                 MOV.B       @_fat_buffer+7:24,R0L
+           <000000>     
+    000630 0D08                   MOV.W       R0,E0
+    000632 6A2000                 MOV.B       @_fat_buffer+8:24,R0H
+           <000000>     
+    000638 6A2800                 MOV.B       @_fat_buffer+9:24,R0L
+           <000000>     
+    00063E 01006971               MOV.L       @SP,ER1
+    000642 1F90                   CMP.L       ER1,ER0
+    000644 4616                   BNE         L183:8
+    000646 6A2000                 MOV.B       @_fat_buffer+10:24,R0H
+           <000000>     
+    00064C 6A2800                 MOV.B       @_fat_buffer+11:24,R0L
+           <000000>     
+    000652 6F710004               MOV.W       @(4:16,SP),R1
+    000656 1D10                   CMP.W       R1,R0
+    000658 58700080               BEQ         L182:16
+    00065C              L183:                             
+                   291:                            /** 前回読み込んだ情報が更新されているとき **/
+                   292:                            if( flush_fat() )
+    00065C 5E                     JSR         @_flush_fat:24
+           <000000>     
+    000660 0D00                   MOV.W       R0,R0
+    000662 4706                   BEQ         L184:8
+                   293:                                    return( -2 );           /*書き込みエラー*/
+    000664 7900FFFE               MOV.W       #-2:16,R0
+    000668 4074                   BRA         L181:8
+    00066A              L184:                             
+                   294:    
+                   295:                            if( sector_read( bpb, sector, sector_l, fat_buffer.buffer ) )
+    00066A 7A00                   MOV.L       #_fat_buffer+12:32,ER0
+           <00000000>   
+    000670 01006DF0               PUSH.L      ER0
+    000674 6F700008               MOV.W       @(8:16,SP),R0
+    000678 6DF0                   PUSH.W      R0
+    00067A 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    000680 0FE0                   MOV.L       ER6,ER0
+    000682 5E                     JSR         @_sector_read:24
+           <000000>     
+    000686 0B97                   ADDS.L      #4,SP
+    000688 0B87                   ADDS.L      #2,SP
+    00068A 0D00                   MOV.W       R0,R0
+    00068C 4706                   BEQ         L185:8
+                   296:                                    return( -1 );                   /*読込み不可*/
+    00068E              L229:                             
+    00068E 7900FFFF               MOV.W       #-1:16,R0
+    000692 404A                   BRA         L181:8
+    000694              L185:                             
+                   297:    
+                   298:                            fat_buffer.bpb = bpb;
+    000694 6AA600                 MOV.B       R6H,@_fat_buffer+2:24
+           <000000>     
+    00069A 6AAE00                 MOV.B       R6L,@_fat_buffer+3:24
+           <000000>     
+    0006A0 0DE6                   MOV.W       E6,R6
+    0006A2 6AA600                 MOV.B       R6H,@_fat_buffer:24
+           <000000>     
+    0006A8 6AAE00                 MOV.B       R6L,@_fat_buffer+1:24
+           <000000>     
+                   299:                            fat_buffer.sector_no = sector;
+    0006AE 01006970               MOV.L       @SP,ER0
+    0006B2 6AA000                 MOV.B       R0H,@_fat_buffer+8:24
+           <000000>     
+    0006B8 6AA800                 MOV.B       R0L,@_fat_buffer+9:24
+           <000000>     
+    0006BE 0D80                   MOV.W       E0,R0
+    0006C0 6AA000                 MOV.B       R0H,@_fat_buffer+6:24
+           <000000>     
+    0006C6 6AA800                 MOV.B       R0L,@_fat_buffer+7:24
+           <000000>     
+                   300:                            fat_buffer.sector_len = sector_l;
+    0006CC 6F700004               MOV.W       @(4:16,SP),R0
+    0006D0 6AA000                 MOV.B       R0H,@_fat_buffer+10:24
+           <000000>     
+    0006D6 6AA800                 MOV.B       R0L,@_fat_buffer+11:24
+           <000000>     
+    0006DC              L182:                             
+                   301:                    }
+                   302:    
+                   303:                    return( 0 );
+    0006DC 1900                   SUB.W       R0,R0
+                   304:    }
+    0006DE              L181:                             
+    0006DE 0B87                   ADDS.L      #2,SP
+    0006E0 0B97                   ADDS.L      #4,SP
+    0006E2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   305:    
+                   306:    /***************************************************************
+                   307:            ＦＡＴ情報書き込み
+                   308:                    ＦＡＴ情報を書き換えたとき呼び出す
+                   309:                    実際に書込むのは別のエリアを読み込んだとき
+                   310:    
+                   311:    ***************************************************************/
+                   312:    void    fat_write( void )
+    0006E6              _fat_write:                      ; function: fat_write
+                   313:    {
+                   314:                    fat_buffer.update = 1;
+    0006E6 79000001               MOV.W       #1:16,R0
+    0006EA 6AA000                 MOV.B       R0H,@_fat_buffer+4:24
+           <000000>     
+    0006F0 6AA800                 MOV.B       R0L,@_fat_buffer+5:24
+           <000000>     
+                   315:    }
+    0006F6 5470                   RTS
+                   316:    
+                   317:    /***************************************************************
+                   318:            論理クラスター読み込み（クラスター番号で読み込む）
+                   319:    
+                   320:            INPUT:
+                   321:                    bpb = デバイス情報
+                   322:                    cluster = 2...  クラスター番号
+                   323:    
+                   324:            OUTPUT:
+                   325:                    cluster_buffer[] = クラスター情報
+                   326:    
+                   327:            RETURN:
+                   328:                    0 = 読み込み正常
+                   329:                    other = 読み込みエラーステータス
+                   330:    
+                   331:    ***************************************************************/
+                   332:    int     cluster_read( BPB *bpb, unsigned short cluster, unsigned short subdir )
+    0006F8              _cluster_read:                   ; function: cluster_read
+    0006F8 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0006FC 1B97                   SUBS.L      #4,SP
+                   333:    {
+    0006FE 0F86                   MOV.L       ER0,ER6
+    000700 0F95                   MOV.L       ER1,ER5
+                   334:                    long    sector;
+                   335:    
+                   336:                    if( cluster_buffer.bpb!=bpb || cluster_buffer.cluster_no!=cluster ){
+    000702 6A2200                 MOV.B       @_cluster_buffer:24,R2H
+           <000000>     
+    000708 6A2A00                 MOV.B       @_cluster_buffer+1:24,R2L
+           <000000>     
+    00070E 0D2A                   MOV.W       R2,E2
+    000710 6A2200                 MOV.B       @_cluster_buffer+2:24,R2H
+           <000000>     
+    000716 6A2A00                 MOV.B       @_cluster_buffer+3:24,R2L
+           <000000>     
+    00071C 1FE2                   CMP.L       ER6,ER2
+    00071E 4612                   BNE         L187:8
+    000720 6A2200                 MOV.B       @_cluster_buffer+8:24,R2H
+           <000000>     
+    000726 6A2A00                 MOV.B       @_cluster_buffer+9:24,R2L
+           <000000>     
+    00072C 1D52                   CMP.W       R5,R2
+    00072E 587000A4               BEQ         L186:16
+    000732              L187:                             
+                   337:                            /** 前回読み込んだ情報が更新されているとき **/
+                   338:                            if( flush_cluster() )
+    000732 5E                     JSR         @_flush_cluster:24
+           <000000>     
+    000736 0D00                   MOV.W       R0,R0
+    000738 4708                   BEQ         L188:8
+                   339:                                    return( -2 );           /*書き込みエラー*/
+    00073A 7900FFFE               MOV.W       #-2:16,R0
+    00073E 5A                     JMP         @L189:24
+           <000000>     
+    000742              L188:                             
+                   340:    
+                   341:                            if( cluster_calc( bpb, cluster, &sector ) )
+    000742 0FF0                   MOV.L       SP,ER0
+    000744 01006DF0               PUSH.L      ER0
+    000748 0D51                   MOV.W       R5,R1
+    00074A 0FE0                   MOV.L       ER6,ER0
+    00074C 5E                     JSR         @_$cluster_calc:24
+           <000000>     
+    000750 0B97                   ADDS.L      #4,SP
+    000752 0D00                   MOV.W       R0,R0
+    000754 4628                   BNE         L230:8
+                   342:                                    return( -1 );
+                   343:    
+                   344:                            if( sector_read( bpb, sector, bpb->sector_cluster, cluster_buffer.buffer ) ){
+    000756 7A00                   MOV.L       #_cluster_buffer+14:32,ER0
+           <00000000>   
+    00075C 01006DF0               PUSH.L      ER0
+    000760 6E600006               MOV.B       @(6:16,ER6),R0H
+    000764 6E680007               MOV.B       @(7:16,ER6),R0L
+    000768 6DF0                   PUSH.W      R0
+    00076A 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    000770 0FE0                   MOV.L       ER6,ER0
+    000772 5E                     JSR         @_sector_read:24
+           <000000>     
+    000776 0B97                   ADDS.L      #4,SP
+    000778 0B87                   ADDS.L      #2,SP
+    00077A 0D00                   MOV.W       R0,R0
+    00077C 4706                   BEQ         L191:8
+                   345:                                    return( -1 );
+    00077E              L230:                             
+    00077E 7900FFFF               MOV.W       #-1:16,R0
+    000782 4054                   BRA         L189:8
+    000784              L191:                             
+                   346:                            }
+                   347:    
+                   348:                            cluster_buffer.bpb = bpb;
+    000784 6AA600                 MOV.B       R6H,@_cluster_buffer+2:24
+           <000000>     
+    00078A 6AAE00                 MOV.B       R6L,@_cluster_buffer+3:24
+           <000000>     
+    000790 0DE6                   MOV.W       E6,R6
+    000792 6AA600                 MOV.B       R6H,@_cluster_buffer:24
+           <000000>     
+    000798 6AAE00                 MOV.B       R6L,@_cluster_buffer+1:24
+           <000000>     
+                   349:                            cluster_buffer.cluster_no = cluster;
+    00079E 6AA500                 MOV.B       R5H,@_cluster_buffer+8:24
+           <000000>     
+    0007A4 6AAD00                 MOV.B       R5L,@_cluster_buffer+9:24
+           <000000>     
+                   350:                            cluster_buffer.sector_no = sector;
+    0007AA 01006970               MOV.L       @SP,ER0
+    0007AE 6AA000                 MOV.B       R0H,@_cluster_buffer+12:24
+           <000000>     
+    0007B4 6AA800                 MOV.B       R0L,@_cluster_buffer+13:24
+           <000000>     
+    0007BA 0D80                   MOV.W       E0,R0
+    0007BC 6AA000                 MOV.B       R0H,@_cluster_buffer+10:24
+           <000000>     
+    0007C2 6AA800                 MOV.B       R0L,@_cluster_buffer+11:24
+           <000000>     
+                   351:                            cluster_buffer.subdir = subdir;
+    0007C8 0DD0                   MOV.W       E5,R0
+    0007CA 6AA000                 MOV.B       R0H,@_cluster_buffer+6:24
+           <000000>     
+    0007D0 6AA800                 MOV.B       R0L,@_cluster_buffer+7:24
+           <000000>     
+    0007D6              L186:                             
+                   352:                    }
+                   353:                    return( 0 );
+    0007D6 1900                   SUB.W       R0,R0
+                   354:    }
+    0007D8              L189:                             
+    0007D8 0B97                   ADDS.L      #4,SP
+    0007DA 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   355:    
+                   356:    /***************************************************************
+                   357:            新規論理クラスター読み込み（物理的に読み込まない）
+                   358:    
+                   359:            INPUT:
+                   360:                    bpb = デバイス情報
+                   361:                    cluster = 2...  クラスター番号
+                   362:    
+                   363:            OUTPUT:
+                   364:                    cluster_buffer[] = クラスター情報
+                   365:    
+                   366:            RETURN:
+                   367:                    0 = 読み込み正常
+                   368:                    other = 読み込みエラーステータス
+                   369:    
+                   370:    ***************************************************************/
+                   371:    int     new_cluster_read( BPB *bpb, unsigned short cluster, unsigned short subdir )
+    0007DE              _new_cluster_read:               ; function: new_cluster_read
+    0007DE 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0007E2 1B97                   SUBS.L      #4,SP
+                   372:    {
+    0007E4 0F86                   MOV.L       ER0,ER6
+    0007E6 0F95                   MOV.L       ER1,ER5
+                   373:                    long    sector;
+                   374:    
+                   375:                    if( cluster_buffer.bpb!=bpb || cluster_buffer.cluster_no!=cluster ){
+    0007E8 6A2200                 MOV.B       @_cluster_buffer:24,R2H
+           <000000>     
+    0007EE 6A2A00                 MOV.B       @_cluster_buffer+1:24,R2L
+           <000000>     
+    0007F4 0D2A                   MOV.W       R2,E2
+    0007F6 6A2200                 MOV.B       @_cluster_buffer+2:24,R2H
+           <000000>     
+    0007FC 6A2A00                 MOV.B       @_cluster_buffer+3:24,R2L
+           <000000>     
+    000802 1FE2                   CMP.L       ER6,ER2
+    000804 4610                   BNE         L193:8
+    000806 6A2200                 MOV.B       @_cluster_buffer+8:24,R2H
+           <000000>     
+    00080C 6A2A00                 MOV.B       @_cluster_buffer+9:24,R2L
+           <000000>     
+    000812 1D52                   CMP.W       R5,R2
+    000814 477A                   BEQ         L192:8
+    000816              L193:                             
+                   376:                            /** 前回読み込んだ情報が更新されているとき **/
+                   377:                            if( flush_cluster() )
+    000816 5E                     JSR         @_flush_cluster:24
+           <000000>     
+    00081A 0D00                   MOV.W       R0,R0
+    00081C 4706                   BEQ         L194:8
+                   378:                                    return( -2 );           /*書き込みエラー*/
+    00081E 7900FFFE               MOV.W       #-2:16,R0
+    000822 406E                   BRA         L195:8
+    000824              L194:                             
+                   379:    
+                   380:                            if( cluster_calc( bpb, cluster, &sector ) )
+    000824 0FF0                   MOV.L       SP,ER0
+    000826 01006DF0               PUSH.L      ER0
+    00082A 0D51                   MOV.W       R5,R1
+    00082C 0FE0                   MOV.L       ER6,ER0
+    00082E 5E                     JSR         @_$cluster_calc:24
+           <000000>     
+    000832 0B97                   ADDS.L      #4,SP
+    000834 0D00                   MOV.W       R0,R0
+    000836 4706                   BEQ         L196:8
+                   381:                                    return( -1 );
+    000838 7900FFFF               MOV.W       #-1:16,R0
+    00083C 4054                   BRA         L195:8
+    00083E              L196:                             
+                   382:    
+                   383:                            cluster_buffer.bpb = bpb;
+    00083E 6AA600                 MOV.B       R6H,@_cluster_buffer+2:24
+           <000000>     
+    000844 6AAE00                 MOV.B       R6L,@_cluster_buffer+3:24
+           <000000>     
+    00084A 0DE6                   MOV.W       E6,R6
+    00084C 6AA600                 MOV.B       R6H,@_cluster_buffer:24
+           <000000>     
+    000852 6AAE00                 MOV.B       R6L,@_cluster_buffer+1:24
+           <000000>     
+                   384:                            cluster_buffer.cluster_no = cluster;
+    000858 6AA500                 MOV.B       R5H,@_cluster_buffer+8:24
+           <000000>     
+    00085E 6AAD00                 MOV.B       R5L,@_cluster_buffer+9:24
+           <000000>     
+                   385:                            cluster_buffer.sector_no = sector;
+    000864 01006970               MOV.L       @SP,ER0
+    000868 6AA000                 MOV.B       R0H,@_cluster_buffer+12:24
+           <000000>     
+    00086E 6AA800                 MOV.B       R0L,@_cluster_buffer+13:24
+           <000000>     
+    000874 0D80                   MOV.W       E0,R0
+    000876 6AA000                 MOV.B       R0H,@_cluster_buffer+10:24
+           <000000>     
+    00087C 6AA800                 MOV.B       R0L,@_cluster_buffer+11:24
+           <000000>     
+                   386:                            cluster_buffer.subdir = subdir;
+    000882 0DD0                   MOV.W       E5,R0
+    000884 6AA000                 MOV.B       R0H,@_cluster_buffer+6:24
+           <000000>     
+    00088A 6AA800                 MOV.B       R0L,@_cluster_buffer+7:24
+           <000000>     
+    000890              L192:                             
+                   387:                    }
+                   388:                    return( 0 );
+    000890 1900                   SUB.W       R0,R0
+                   389:    }
+    000892              L195:                             
+    000892 0B97                   ADDS.L      #4,SP
+    000894 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   390:    
+                   391:    /***************************************************************
+                   392:            論理クラスター書き込み
+                   393:                    クラスターを書き換えたとき呼び出す
+                   394:                    実際に書込むのは別のエリアを読み込んだとき
+                   395:    ***************************************************************/
+                   396:    void    cluster_write( void )
+    000898              _cluster_write:                  ; function: cluster_write
+                   397:    {
+                   398:                    cluster_buffer.update = 1;
+    000898 79000001               MOV.W       #1:16,R0
+    00089C 6AA000                 MOV.B       R0H,@_cluster_buffer+4:24
+           <000000>     
+    0008A2 6AA800                 MOV.B       R0L,@_cluster_buffer+5:24
+           <000000>     
+                   399:    }
+    0008A8 5470                   RTS
+                   400:    
+                   401:    
+                   402:    
+                   403:    /***************************************************************
+                   404:            次のクラスター番号検索
+                   405:    
+                   406:            INPUT:
+                   407:                    bpb = デバイス情報
+                   408:                    cluster = 2...  検索開始クラスター番号
+                   409:    
+                   410:            RETURN:
+                   411:                    クラスター番号
+                   412:    ***************************************************************/
+                   413:    unsigned short  next_cluster( BPB *bpb, unsigned short cluster )
+    0008AA              _next_cluster:                   ; function: next_cluster
+    0008AA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0008AE 1B97                   SUBS.L      #4,SP
+    0008B0 1B87                   SUBS.L      #2,SP
+                   414:    {
+    0008B2 01006FF000             MOV.L       ER0,@(2:16,SP)
+           02           
+    0008B8 0D1E                   MOV.W       R1,E6
+                   415:                    short                   offset;
+                   416:                    unsigned short  next_data;
+                   417:    
+                   418:                    next_data = cluster;            // Ｈ８のコンパイラー不具合
+    0008BA 0DE6                   MOV.W       E6,R6
+                   419:                    /*ＦＡＴ情報読込み*/
+                   420:                    if( fat_read( bpb, cluster, &offset ) ){
+    0008BC 0FF2                   MOV.L       SP,ER2
+    0008BE 01006DF2               PUSH.L      ER2
+    0008C2 5E                     JSR         @_fat_read:24
+           <000000>     
+    0008C6 0B97                   ADDS.L      #4,SP
+    0008C8 0D00                   MOV.W       R0,R0
+    0008CA 4708                   BEQ         L197:8
+                   421:                            return( 0xFFFF );                       /*クラスター番号エラー*/
+    0008CC 7900FFFF               MOV.W       #-1:16,R0
+    0008D0 5A                     JMP         @L198:24
+           <000000>     
+    0008D4              L197:                             
+                   422:                    }
+                   423:    
+                   424:                    if( bpb->FAT_type & FAT16 ){
+    0008D4 7A03                   MOV.L       #_fat_buffer:32,ER3
+           <00000000>   
+    0008DA 6974                   MOV.W       @SP,R4
+    0008DC 17F4                   EXTS.L      ER4
+    0008DE 6975                   MOV.W       @SP,R5
+    0008E0 0B55                   INC.W       #1,R5
+    0008E2 17F5                   EXTS.L      ER5
+    0008E4 01006F7000             MOV.L       @(2:16,SP),ER0
+           02           
+    0008EA 6E01001E               MOV.B       @(30:16,ER0),R1H
+    0008EE 6E09001F               MOV.B       @(31:16,ER0),R1L
+    0008F2 7329                   BTST.B      #2,R1L
+    0008F4 471C                   BEQ         L199:8
+                   425:                            next_data = ((unsigned short)fat_buffer.buffer[offset] & 0xFF)
+                   426:                                            | ((unsigned short)(fat_buffer.buffer[offset+1]<<8)&0xFF00);
+    0008F6 1AE6                   SUB.L       ER6,ER6
+    0008F8 FE0C                   MOV.B       #12:8,R6L
+    0008FA 0AB6                   ADD.L       ER3,ER6
+    0008FC 0AE4                   ADD.L       ER6,ER4
+    0008FE 684C                   MOV.B       @ER4,R4L
+    000900 1754                   EXTU.W      R4
+    000902 0AE5                   ADD.L       ER6,ER5
+    000904 685D                   MOV.B       @ER5,R5L
+    000906 1755                   EXTU.W      R5
+    000908 0CD5                   MOV.B       R5L,R5H
+    00090A 18DD                   SUB.B       R5L,R5L
+    00090C 6454                   OR.W        R5,R4
+    00090E 0D46                   MOV.W       R4,R6
+                   427:                            return( next_data );
+    000910 4064                   BRA         L232:8
+    000912              L199:                             
+                   428:                    }
+                   429:    
+                   430:                    if( (next_data % 2)==0 ){
+    000912 730E                   BTST.B      #0,R6L
+    000914 462A                   BNE         L200:8
+                   431:                            next_data = ((unsigned short)fat_buffer.buffer[offset] & 0xFF)
+                   432:                                            | ((unsigned short)(fat_buffer.buffer[offset+1]<<8) & 0xF00);
+    000916 1AE6                   SUB.L       ER6,ER6
+    000918 FE0C                   MOV.B       #12:8,R6L
+    00091A 0AB6                   ADD.L       ER3,ER6
+    00091C 0AE4                   ADD.L       ER6,ER4
+    00091E 684C                   MOV.B       @ER4,R4L
+    000920 1754                   EXTU.W      R4
+    000922 0AE5                   ADD.L       ER6,ER5
+    000924 685D                   MOV.B       @ER5,R5L
+    000926 1755                   EXTU.W      R5
+    000928 0CD5                   MOV.B       R5L,R5H
+    00092A 18DD                   SUB.B       R5L,R5L
+    00092C 79650F00               AND.W       #3840:16,R5
+    000930 6454                   OR.W        R5,R4
+    000932 0D46                   MOV.W       R4,R6
+                   433:                            if( next_data==0x0FFF )
+    000934 79260FFF               CMP.W       #4095:16,R6
+    000938 4604                   BNE         L201:8
+                   434:                                    next_data = 0xFFFF;
+    00093A 7906FFFF               MOV.W       #-1:16,R6
+    00093E              L201:                             
+                   435:                            return( next_data );
+    00093E 4036                   BRA         L232:8
+    000940              L200:                             
+                   436:                    }
+                   437:    
+                   438:                    next_data = (((unsigned short)fat_buffer.buffer[offset]>>4) & 0x0F)
+                   439:                                    | ((unsigned short)(fat_buffer.buffer[offset+1]<<4) & 0xFF0);
+    000940 1AE6                   SUB.L       ER6,ER6
+    000942 FE0C                   MOV.B       #12:8,R6L
+    000944 0AB6                   ADD.L       ER3,ER6
+    000946 0AE4                   ADD.L       ER6,ER4
+    000948 684C                   MOV.B       @ER4,R4L
+    00094A 1754                   EXTU.W      R4
+    00094C 1114                   SHLR.W      R4
+    00094E 1114                   SHLR.W      R4
+    000950 1114                   SHLR.W      R4
+    000952 1114                   SHLR.W      R4
+    000954 7964000F               AND.W       #15:16,R4
+    000958 0AE5                   ADD.L       ER6,ER5
+    00095A 685D                   MOV.B       @ER5,R5L
+    00095C 1755                   EXTU.W      R5
+    00095E 790D0010               MOV.W       #16:16,E5
+    000962 52D5                   MULXU.W     E5,ER5
+    000964 79650FF0               AND.W       #4080:16,R5
+    000968 6454                   OR.W        R5,R4
+    00096A 0D46                   MOV.W       R4,R6
+                   440:                    if( next_data==0x0FFF )
+    00096C 79260FFF               CMP.W       #4095:16,R6
+    000970 4604                   BNE         L202:8
+                   441:                            next_data = 0xFFFF;
+    000972 7906FFFF               MOV.W       #-1:16,R6
+    000976              L202:                             
+                   442:                    return( next_data );
+                   443:    }
+    000976              L232:                             
+    000976 0D60                   MOV.W       R6,R0
+    000978              L198:                             
+    000978 0B87                   ADDS.L      #2,SP
+    00097A 0B97                   ADDS.L      #4,SP
+    00097C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   444:    
+                   445:    /***************************************************************
+                   446:            空のクラスター番号検索
+                   447:    
+                   448:            INPUT:
+                   449:                    bpb = デバイス情報
+                   450:    
+                   451:            RETURN:
+                   452:                    クラスター番号
+                   453:                    -1 = 空クラスター番号無し
+                   454:    ***************************************************************/
+                   455:    unsigned short  empty_cluster( BPB *bpb, unsigned short now_cluster )
+    000980              _empty_cluster:                  ; function: empty_cluster
+    000980 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   456:    {
+    000984 0F86                   MOV.L       ER0,ER6
+                   457:                    unsigned short  cluster;
+                   458:    
+                   459:                    if( bpb==NULL )
+    000986 0FE6                   MOV.L       ER6,ER6
+    000988 4762                   BEQ         L233:8
+                   460:                            return( 0xFFFF );                       /*デバイス情報無し*/
+                   461:    
+                   462:                    for( cluster=now_cluster; cluster<bpb->DATA_cluster_l+2; cluster++ ){
+    00098A 0D15                   MOV.W       R1,R5
+    00098C 400E                   BRA         L206:8
+    00098E              L205:                             
+                   463:                            if( next_cluster( bpb, cluster )==0 )
+    00098E 0D51                   MOV.W       R5,R1
+    000990 0FE0                   MOV.L       ER6,ER0
+    000992 5E                     JSR         @_next_cluster:24
+           <000000>     
+    000996 0D00                   MOV.W       R0,R0
+    000998 4710                   BEQ         L208:8
+                   464:                                    break;
+    00099A 0B55                   INC.W       #1,R5
+    00099C              L206:                             
+    00099C 6E60003C               MOV.B       @(60:16,ER6),R0H
+    0009A0 6E68003D               MOV.B       @(61:16,ER6),R0L
+    0009A4 0BD0                   INC.W       #2,R0
+    0009A6 1D05                   CMP.W       R0,R5
+    0009A8 45E4                   BCS         L205:8
+    0009AA              L208:                             
+                   465:                    }
+                   466:                    if( cluster<bpb->DATA_cluster_l+2 )
+    0009AA 6E60003C               MOV.B       @(60:16,ER6),R0H
+    0009AE 6E68003D               MOV.B       @(61:16,ER6),R0L
+    0009B2 0BD0                   INC.W       #2,R0
+    0009B4 1D05                   CMP.W       R0,R5
+    0009B6 4530                   BCS         L234:8
+                   467:                            return( cluster );
+                   468:    
+                   469:                    for( cluster=2; cluster<bpb->DATA_cluster_l+2; cluster++ ){
+    0009B8 79050002               MOV.W       #2:16,R5
+    0009BC 400E                   BRA         L211:8
+    0009BE              L210:                             
+                   470:                            if( next_cluster( bpb, cluster )==0 )
+    0009BE 0D51                   MOV.W       R5,R1
+    0009C0 0FE0                   MOV.L       ER6,ER0
+    0009C2 5E                     JSR         @_next_cluster:24
+           <000000>     
+    0009C6 0D00                   MOV.W       R0,R0
+    0009C8 4710                   BEQ         L213:8
+                   471:                                    break;
+    0009CA 0B55                   INC.W       #1,R5
+    0009CC              L211:                             
+    0009CC 6E60003C               MOV.B       @(60:16,ER6),R0H
+    0009D0 6E68003D               MOV.B       @(61:16,ER6),R0L
+    0009D4 0BD0                   INC.W       #2,R0
+    0009D6 1D05                   CMP.W       R0,R5
+    0009D8 45E4                   BCS         L210:8
+    0009DA              L213:                             
+                   472:                    }
+                   473:                    if( cluster<bpb->DATA_cluster_l+2 )
+    0009DA 6E60003C               MOV.B       @(60:16,ER6),R0H
+    0009DE 6E68003D               MOV.B       @(61:16,ER6),R0L
+    0009E2 0BD0                   INC.W       #2,R0
+    0009E4 1D05                   CMP.W       R0,R5
+    0009E6 4404                   BCC         L214:8
+                   474:                            return( cluster );
+    0009E8              L234:                             
+    0009E8 0D50                   MOV.W       R5,R0
+    0009EA 4004                   BRA         L204:8
+    0009EC              L214:                             
+                   475:    
+                   476:                    return( 0xFFFF );
+                   477:    }
+    0009EC              L233:                             
+    0009EC 7900FFFF               MOV.W       #-1:16,R0
+    0009F0              L204:                             
+    0009F0 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   478:    
+                   479:    /***************************************************************
+                   480:            クラスター番号登録
+                   481:    
+                   482:            INPUT:
+                   483:                    bpb = デバイス情報
+                   484:                    cluster = 2...  登録するクラスター番号
+                   485:                    next_no = 2... 登録する内容
+                   486:    
+                   487:            RETURN:
+                   488:                    0 = 読み込み正常
+                   489:                    other = 読み込みエラーステータス
+                   490:    ***************************************************************/
+                   491:    int     update_cluster( BPB *bpb, unsigned short cluster, unsigned short next_no )
+    0009F4              _update_cluster:                 ; function: update_cluster
+    0009F4 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0009F8 1B87                   SUBS.L      #2,SP
+                   492:    {
+    0009FA 0F83                   MOV.L       ER0,ER3
+    0009FC 0D1E                   MOV.W       R1,E6
+    0009FE 0D96                   MOV.W       E1,R6
+                   493:                    short                   offset;
+                   494:    
+                   495:                    /*ＦＡＴ情報読込み*/
+                   496:                    if( fat_read( bpb, cluster, &offset ) ){
+    000A00 0FF2                   MOV.L       SP,ER2
+    000A02 01006DF2               PUSH.L      ER2
+    000A06 5E                     JSR         @_fat_read:24
+           <000000>     
+    000A0A 0B97                   ADDS.L      #4,SP
+    000A0C 0D00                   MOV.W       R0,R0
+    000A0E 4708                   BEQ         L215:8
+                   497:                            return( -1 );                   /*クラスター番号エラー*/
+    000A10 7900FFFF               MOV.W       #-1:16,R0
+    000A14 5A                     JMP         @L216:24
+           <000000>     
+    000A18              L215:                             
+                   498:                    }
+                   499:    
+                   500:                    if( bpb->FAT_type & FAT16 ){
+    000A18 7A04                   MOV.L       #_fat_buffer:32,ER4
+           <00000000>   
+    000A1E 6975                   MOV.W       @SP,R5
+    000A20 17F5                   EXTS.L      ER5
+    000A22 1A80                   SUB.L       ER0,ER0
+    000A24 F80C                   MOV.B       #12:8,R0L
+    000A26 0AC0                   ADD.L       ER4,ER0
+    000A28 0A85                   ADD.L       ER0,ER5
+    000A2A 6E30001E               MOV.B       @(30:16,ER3),R0H
+    000A2E 6E38001F               MOV.B       @(31:16,ER3),R0L
+    000A32 7328                   BTST.B      #2,R0L
+    000A34 4718                   BEQ         L217:8
+                   501:                            fat_buffer.buffer[offset] = ((unsigned char)next_no & 0xFF);
+    000A36 68DE                   MOV.B       R6L,@ER5
+                   502:                            fat_buffer.buffer[offset+1] = ((unsigned char)(next_no>>8) & 0xFF);
+    000A38 0C6E                   MOV.B       R6H,R6L
+    000A3A 1866                   SUB.B       R6H,R6H
+    000A3C 6970                   MOV.W       @SP,R0
+    000A3E 0B50                   INC.W       #1,R0
+    000A40 17F0                   EXTS.L      ER0
+    000A42 7A14000000             ADD.L       #12:32,ER4
+           0C           
+    000A48 0A84                   ADD.L       ER0,ER4
+    000A4A 68CE                   MOV.B       R6L,@ER4
+    000A4C 4050                   BRA         L218:8
+    000A4E              L217:                             
+                   503:                    }
+                   504:                    else if( cluster % 2 ){
+    000A4E 0DE0                   MOV.W       E6,R0
+    000A50 7308                   BTST.B      #0,R0L
+    000A52 472C                   BEQ         L219:8
+                   505:                            fat_buffer.buffer[offset] = ((unsigned char)(next_no<<4) & 0xF0)
+                   506:                                                                    | ((unsigned char)fat_buffer.buffer[offset] & 0x0F);
+    000A54 0D60                   MOV.W       R6,R0
+    000A56 79080010               MOV.W       #16:16,E0
+    000A5A 5280                   MULXU.W     E0,ER0
+    000A5C E8F0                   AND.B       #-16:8,R0L
+    000A5E 6859                   MOV.B       @ER5,R1L
+    000A60 E90F                   AND.B       #15:8,R1L
+    000A62 1498                   OR.B        R1L,R0L
+    000A64 68D8                   MOV.B       R0L,@ER5
+                   507:                            fat_buffer.buffer[offset+1] = (unsigned char)(next_no>>4) & 0xFF;
+    000A66 1116                   SHLR.W      R6
+    000A68 1116                   SHLR.W      R6
+    000A6A 1116                   SHLR.W      R6
+    000A6C 1116                   SHLR.W      R6
+    000A6E 6970                   MOV.W       @SP,R0
+    000A70 0B50                   INC.W       #1,R0
+    000A72 17F0                   EXTS.L      ER0
+    000A74 7A14000000             ADD.L       #12:32,ER4
+           0C           
+    000A7A 0A84                   ADD.L       ER0,ER4
+    000A7C 68CE                   MOV.B       R6L,@ER4
+    000A7E 401E                   BRA         L220:8
+    000A80              L219:                             
+                   508:                    }
+                   509:                    else {
+                   510:                            fat_buffer.buffer[offset] = ((unsigned char)next_no & 0xFF);
+    000A80 68DE                   MOV.B       R6L,@ER5
+                   511:                            fat_buffer.buffer[offset+1] = ((unsigned char)(next_no>>8) & 0x0F)
+                   512:                                                                    | ((unsigned char)fat_buffer.buffer[offset+1] & 0xF0);
+    000A82 6975                   MOV.W       @SP,R5
+    000A84 0B55                   INC.W       #1,R5
+    000A86 17F5                   EXTS.L      ER5
+    000A88 1A80                   SUB.L       ER0,ER0
+    000A8A F80C                   MOV.B       #12:8,R0L
+    000A8C 0AC0                   ADD.L       ER4,ER0
+    000A8E 0A85                   ADD.L       ER0,ER5
+    000A90 0C6E                   MOV.B       R6H,R6L
+    000A92 1866                   SUB.B       R6H,R6H
+    000A94 EE0F                   AND.B       #15:8,R6L
+    000A96 6858                   MOV.B       @ER5,R0L
+    000A98 E8F0                   AND.B       #-16:8,R0L
+    000A9A 148E                   OR.B        R0L,R6L
+    000A9C 68DE                   MOV.B       R6L,@ER5
+    000A9E              L220:                             
+    000A9E              L218:                             
+                   513:                    }
+                   514:    
+                   515:                    fat_write();
+    000A9E 5E                     JSR         @_fat_write:24
+           <000000>     
+                   516:    
+                   517:                    return( 0 );
+    000AA2 1900                   SUB.W       R0,R0
+                   518:    }
+    000AA4              L216:                             
+    000AA4 0B87                   ADDS.L      #2,SP
+    000AA6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:58  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000AAA Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000AAA Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000AAA Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        9 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       14 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        104 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\cluster.c -object=.\obj\cluster.obj
+CPU         : 300ha:24

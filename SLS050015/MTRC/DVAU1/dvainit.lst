@@ -1,0 +1,396 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     22-Nov-2000  12:43:28  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvainit.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            初期設定モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/07/27         K.Honda
+                     9:    
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    
+                    16:    /*@@@S*/
+                    17:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    18:            グローバル変数
+                    19:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    20:    #pragma section IntChgTable
+                    21:            void    (*IRQ5Jump)(void);
+                    22:            void    (*IRQ4Jump)(void);
+                    23:            void    (*IRQ0Jump)(void);
+                    24:    
+                    25:            void    (*IMIA0Jump)(void);
+                    26:            void    (*IMIA1Jump)(void);
+                    27:            void    (*IMIA2Jump)(void);
+                    28:            void    (*IMIA3Jump)(void);
+                    29:            void    (*IMIA4Jump)(void);
+                    30:    
+                    31:            void    (*ERI0Jump)(void);
+                    32:            void    (*RXI0Jump)(void);
+                    33:            void    (*TXI0Jump)(void);
+                    34:            void    (*TEI0Jump)(void);
+                    35:            void    (*ERI1Jump)(void);
+                    36:            void    (*RXI1Jump)(void);
+                    37:            void    (*TXI1Jump)(void);
+                    38:            void    (*TEI1Jump)(void);
+                    39:    
+                    40:    #pragma section
+                    41:    
+                    42:    #pragma section DataWatchDog
+                    43:    char    watchDogCount;
+                    44:    char    watchDogFlag;
+                    45:    char    watchDogON;
+                    46:    #pragma section
+                    47:    
+                    48:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    49:            定数定義
+                    50:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    51:    
+                    52:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    53:            構造体定義
+                    54:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    55:    
+                    56:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    57:            テーブル
+                    58:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    59:    
+                    60:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    61:                    外部参照
+                    62:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    63:    
+                    64:    
+                    65:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    66:                    ローカル変数
+                    67:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    68:    
+                    69:    /*@@@E*/
+                    70:    /************************************************************************
+                    71:    
+                    72:            Function name   << HardwareSetup >>
+                    73:                                            初期設定
+                    74:            Syntax                  HardwareSetup( void );
+                    75:            Argument                none
+                    76:            Author                  TOA Corporation  K.Honda
+                    77:            Revision                a00 2000/07/27
+                    78:    
+                    79:    *************************************************************************/
+                    80:    void HardwareSetup( void )
+    000000              _HardwareSetup:                  ; function: HardwareSetup
+                    81:    {
+                    82:            /*** CPU Mode3 ***/
+                    83:    
+                    84:            /**** ポート方向設定 ****/
+                    85:                    P4.DDR = 0;                     /* P4 is Input( DIP-SW ) */
+    000000 1888                   SUB.B       R0L,R0L
+    000002 38C5                   MOV.B       R0L,@16777157:8
+                    86:                    P4.PCR.BYTE = 0;        /* P4 pullup is External */
+    000004 38DA                   MOV.B       R0L,@16777178:8
+                    87:    
+                    88:                    P6.DDR = 0x80;          /* P6 no use */
+    000006 F880                   MOV.B       #-128:8,R0L
+    000008 38C9                   MOV.B       R0L,@16777161:8
+                    89:    
+                    90:                                                            /* P7 Input SCI0 status */
+                    91:    
+                    92:                    P8.DDR = 0xFE;          /* P8 b4-b1=CS0-CS3, b0=IRQ0 */
+    00000A F8FE                   MOV.B       #-2:8,R0L
+    00000C 38CD                   MOV.B       R0L,@16777165:8
+                    93:    
+                    94:                    P9.DDR = 0xC0;          /* P9 b5=IRQ5, b4=IRQ4, b3=RxD1, b2=RxD0, b1=TxD1, b0=TxD0 */
+    00000E F8C0                   MOV.B       #-64:8,R0L
+    000010 38D0                   MOV.B       R0L,@16777168:8
+                    95:    
+                    96:                    PA.DR.BYTE = 0x00;
+    000012 1888                   SUB.B       R0L,R0L
+    000014 38D3                   MOV.B       R0L,@16777171:8
+                    97:                    PA.DDR = 0xFF;          /* PA b7=A20, b6= , b5= , b4= , b3=DTR1, b2=RTS1, b1=DTR0, b0=RTS0 */
+    000016 F8FF                   MOV.B       #-1:8,R0L
+    000018 38D1                   MOV.B       R0L,@16777169:8
+                    98:    
+                    99:                    PB.DR.BYTE = 0x00;
+    00001A 1888                   SUB.B       R0L,R0L
+    00001C 38D6                   MOV.B       R0L,@16777174:8
+                   100:                    PB.DDR = 0xDF;          /* PB b7=CPU2 Reset, b6=Slot-CS, b5=Slot-WP, b4=Slot-IORDA, b3=Slot-IOERA, b2=Slot-REG, b1=Slot-RESA, b0=Slot-Reset */
+    00001E F8DF                   MOV.B       #-33:8,R0L
+    000020 38D4                   MOV.B       R0L,@16777172:8
+                   101:                    PB.DR.BYTE = 0x00;
+    000022 1888                   SUB.B       R0L,R0L
+    000024 38D6                   MOV.B       R0L,@16777174:8
+                   102:    
+                   103:                    SYSCR.BYTE = 0;
+    000026 38F2                   MOV.B       R0L,@16777202:8
+                   104:                    SYSCR.BIT.SSBY  = 1;            /* Sleep 命令後、ソフトウェアスタンバイ */
+    000028 7FF27070               BSET.B      #7,@16777202:8
+                   105:                    SYSCR.BIT.STS   = 7;            /* 使用禁止 */
+    00002C 28F2                   MOV.B       @16777202:8,R0L
+    00002E E88F                   AND.B       #-113:8,R0L
+    000030 C870                   OR.B        #112:8,R0L
+    000032 38F2                   MOV.B       R0L,@16777202:8
+                   106:                    SYSCR.BIT.UE    = 0;            /* 優先割り込みあり */
+    000034 7FF27230               BCLR.B      #3,@16777202:8
+                   107:                    SYSCR.BIT.NMIEG = 0;
+    000038 7FF27220               BCLR.B      #2,@16777202:8
+                   108:                    SYSCR.BIT.RAME  = 1;            /*内臓ＲＡＭ有効 */
+    00003C 7FF27000               BSET.B      #0,@16777202:8
+                   109:    
+                   110:                    ITU.TSTR.BYTE = 0;                      /* タイマー停止 */
+    000040 1888                   SUB.B       R0L,R0L
+    000042 3860                   MOV.B       R0L,@16777056:8
+                   111:    
+                   112:                    INTC.ISCR.BYTE = 0;
+    000044 38F4                   MOV.B       R0L,@16777204:8
+                   113:                    INTC.ISCR.BIT.IRQ5SC = 0;       /* IRQ5 Level Int*/
+    000046 7FF47250               BCLR.B      #5,@16777204:8
+                   114:                    INTC.ISCR.BIT.IRQ4SC = 0;       /* IRQ4 Level Int*/
+    00004A 7FF47240               BCLR.B      #4,@16777204:8
+                   115:                    INTC.ISCR.BIT.IRQ0SC = 0;       /* IRQ0 Level Int*/
+    00004E 7FF47200               BCLR.B      #0,@16777204:8
+                   116:                    INTC.IER.BYTE = 0;
+    000052 38F5                   MOV.B       R0L,@16777205:8
+                   117:    
+                   118:                    INTC.IPRA.BYTE = 0;
+    000054 38F8                   MOV.B       R0L,@16777208:8
+                   119:                    INTC.IPRA.BIT.B1 = 1;   // TIMER1 Priority Level1
+    000056 7FF87010               BSET.B      #1,@16777208:8
+                   120:                    INTC.IPRA.BIT.B3 = 1;  // Set WDT,RFSHC Priority Level 1
+    00005A 7FF87030               BSET.B      #3,@16777208:8
+                   121:                    INTC.IPRA.BIT.B4 = 1;   // IRQ5 Priority Level1
+    00005E 7FF87040               BSET.B      #4,@16777208:8
+                   122:    
+                   123:                    INTC.IPRB.BYTE = 0;
+    000062 38F9                   MOV.B       R0L,@16777209:8
+                   124:    
+                   125:    
+                   126:                    /** Debug Port のための初期設定 **/
+                   127:                    SCI1.SMR.BYTE = 0;
+    000064 38B8                   MOV.B       R0L,@16777144:8
+                   128:                    SCI1.SMR.BIT.CA   = 0;  /* 調歩同期 */
+    000066 7FB87270               BCLR.B      #7,@16777144:8
+                   129:                    SCI1.SMR.BIT.CHR  = 0;  
+    00006A 7FB87260               BCLR.B      #6,@16777144:8
+                   130:                    SCI1.SMR.BIT.PE   = 0;
+    00006E 7FB87250               BCLR.B      #5,@16777144:8
+                   131:                    SCI1.SMR.BIT.STOP = 0;
+    000072 7FB87230               BCLR.B      #3,@16777144:8
+                   132:                    SCI1.SMR.BIT.MP   = 0;
+    000076 7FB87220               BCLR.B      #2,@16777144:8
+                   133:                    SCI1.SMR.BIT.CKS  = 0;                                  /* 1/1 Clock */
+    00007A 28B8                   MOV.B       @16777144:8,R0L
+    00007C E8FC                   AND.B       #-4:8,R0L
+    00007E 38B8                   MOV.B       R0L,@16777144:8
+                   134:    
+                   135:                    SCI1.BRR = 47;                                          /* 14.7456MHz -> 9600bps */
+    000080 F82F                   MOV.B       #47:8,R0L
+    000082 38B9                   MOV.B       R0L,@16777145:8
+                   136:    
+                   137:                    SCI1.SCR.BIT.TE   = 1;
+    000084 7FBA7050               BSET.B      #5,@16777146:8
+                   138:    
+                   139:                    IOSIGNAL1.BYTE = 0;
+    000088 1888                   SUB.B       R0L,R0L
+    00008A 6AA8006002             MOV.B       R0L,@6291968:24
+           00           
+                   140:                    IOSIGNAL2.BYTE = 0;
+    000090 6AA8006003             MOV.B       R0L,@6292224:24
+           00           
+                   141:                    IOSIGNAL3.BYTE = 0;
+    000096 6AA8006004             MOV.B       R0L,@6292480:24
+           00           
+                   142:    
+                   143:                    dvaIOOut( 0, 0xFFFF );
+    00009C 7908FFFF               MOV.W       #-1:16,E0
+    0000A0 1900                   SUB.W       R0,R0
+    0000A2 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   144:    }
+    0000A6 5470                   RTS
+                   145:    
+                   146:    /************************************************************************
+                   147:    
+                   148:            Function name   << charput >>
+                   149:                                            標準出力
+                   150:            Syntax                  charput( data );
+                   151:            Argument                char data : i : 非同期　CH.1へ出力
+                   152:            Author                  TOA Corporation  K.Honda
+                   153:            Revision                a00 2000/07/27
+                   154:    
+                   155:    *************************************************************************/
+                   156:    void charput( char data )
+    0000A8              _charput:                        ; function: charput
+                   157:    {
+    0000A8 0C80                   MOV.B       R0L,R0H
+                   158:                    long    i;
+                   159:    
+                   160:                    for( i=0; i<100000; i++ ){
+    0000AA 1A91                   SUB.L       ER1,ER1
+    0000AC 400E                   BRA         L117:8
+    0000AE              L116:                             
+                   161:                            if( SCI1.SSR.BIT.TDRE ){
+    0000AE 28BC                   MOV.B       @16777148:8,R0L
+    0000B0 4A08                   BPL         L118:8
+                   162:                                    SCI1.TDR = data;                                /*送信データセット*/
+    0000B2 30BB                   MOV.B       R0H,@16777147:8
+                   163:                                    SCI1.SSR.BIT.TDRE = 0;                  /*送信データ有りセット*/
+    0000B4 7FBC7270               BCLR.B      #7,@16777148:8
+                   164:                                    break;
+    0000B8 5470                   RTS
+    0000BA              L118:                             
+    0000BA 0B71                   INC.L       #1,ER1
+    0000BC              L117:                             
+    0000BC 7A21000186             CMP.L       #100000:32,ER1
+           A0           
+    0000C2 4DEA                   BLT         L116:8
+                   165:                            }
+                   166:                    }
+                   167:    }
+    0000C4 5470                   RTS
+                   168:    
+                   169:    
+                   170:    /************************************************************************
+                   171:    
+                   172:            Function name   << WatchDogReset >>
+                   173:                                            初期設定
+                   174:            Syntax                  WatchDogReset( void );
+                   175:            Argument                none
+                   176:            Author                  TOA Corporation  K.Honda
+                   177:            Revision                a00 2000/07/27
+                   178:    
+                   179:    *************************************************************************/
+                   180:    void WatchDogReset( void )
+    0000C6              _WatchDogReset:                  ; function: WatchDogReset
+                   181:    {
+                   182:                                                            /* 14.7456MHz -> Φ
+                   183:                                                                    Φ/4096 = 3600Hz
+                   184:                                                                    0xFF= 70mS Interval */
+                   185:                    WDT = 0x5A00;           /* TCNT Clear */
+    0000C6 79005A00               MOV.W       #23040:16,R0
+    0000CA 6B80FFA8               MOV.W       R0,@16777128:16
+                   186:                    WDT = 0xA53F;           /* TCSR Set (Interval Timer) */
+    0000CE 7900A53F               MOV.W       #-23233:16,R0
+    0000D2 6B80FFA8               MOV.W       R0,@16777128:16
+                   187:    /*              WDT = 0xA55F;           * TCSR Set (Watch Dog Reset) */
+                   188:    
+                   189:                    watchDogCount = 0;
+    0000D6 1888                   SUB.B       R0L,R0L
+    0000D8 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   190:    }
+    0000DE 5470                   RTS
+                   191:    
+                   192:    /************************************************************************
+                   193:    
+                   194:            Function name   << WatchDogDisable >>
+                   195:                                            ウォッチドッグを禁止する
+                   196:            Syntax                  WatchDogDisable( void );
+                   197:            Argument                none
+                   198:            Author                  TOA Corporation  K.Honda
+                   199:            Revision                a00 2000/07/27
+                   200:                                                                                                                                                    *
+                   201:    *************************************************************************/
+                   202:    void WatchDogDisable( void )
+    0000E0              _WatchDogDisable:                ; function: WatchDogDisable
+                   203:    {
+                   204:                                                            /* 14.7456MHz -> Φ
+                   205:                                                                    Φ/4096 = 3600Hz
+                   206:                                                                    0xFF= 70mS Interval */
+                   207:                    WDT = 0x5A00;           /* TCNT Clear */
+    0000E0 79005A00               MOV.W       #23040:16,R0
+    0000E4 6B80FFA8               MOV.W       R0,@16777128:16
+                   208:                    WDT = 0xA500;           /* TCSR Reset */
+    0000E8 7900A500               MOV.W       #-23296:16,R0
+    0000EC 6B80FFA8               MOV.W       R0,@16777128:16
+                   209:    
+                   210:                    watchDogCount = 0;
+    0000F0 1888                   SUB.B       R0L,R0L
+    0000F2 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   211:    }
+    0000F8 5470                   RTS
+                   212:    
+                   213:    
+  BIntChgTable                                           ; section
+    000000              _IRQ5Jump:                       ; static: IRQ5Jump
+    000000 00000004               .RES.L      1
+    000004              _IRQ4Jump:                       ; static: IRQ4Jump
+    000004 00000004               .RES.L      1
+    000008              _IRQ0Jump:                       ; static: IRQ0Jump
+    000008 00000004               .RES.L      1
+    00000C              _IMIA0Jump:                      ; static: IMIA0Jump
+    00000C 00000004               .RES.L      1
+    000010              _IMIA1Jump:                      ; static: IMIA1Jump
+    000010 00000004               .RES.L      1
+    000014              _IMIA2Jump:                      ; static: IMIA2Jump
+    000014 00000004               .RES.L      1
+    000018              _IMIA3Jump:                      ; static: IMIA3Jump
+    000018 00000004               .RES.L      1
+    00001C              _IMIA4Jump:                      ; static: IMIA4Jump
+    00001C 00000004               .RES.L      1
+    000020              _ERI0Jump:                       ; static: ERI0Jump
+    000020 00000004               .RES.L      1
+    000024              _RXI0Jump:                       ; static: RXI0Jump
+    000024 00000004               .RES.L      1
+    000028              _TXI0Jump:                       ; static: TXI0Jump
+    000028 00000004               .RES.L      1
+    00002C              _TEI0Jump:                       ; static: TEI0Jump
+    00002C 00000004               .RES.L      1
+    000030              _ERI1Jump:                       ; static: ERI1Jump
+    000030 00000004               .RES.L      1
+    000034              _RXI1Jump:                       ; static: RXI1Jump
+    000034 00000004               .RES.L      1
+    000038              _TXI1Jump:                       ; static: TXI1Jump
+    000038 00000004               .RES.L      1
+    00003C              _TEI1Jump:                       ; static: TEI1Jump
+    00003C 00000004               .RES.L      1
+  BDataWatchDog                                          ; section
+    000000              _watchDogCount:                  ; static: watchDogCount
+    000000 00000001               .RES.B      1
+    000001              _watchDogFlag:                   ; static: watchDogFlag
+    000001 00000001               .RES.B      1
+    000002              _watchDogON:                     ; static: watchDogON
+    000002 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     22-Nov-2000  12:43:28  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000000FA Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+BSS      SECTION(BIntChgTable):                     0x00000040 Byte(s)
+BSS      SECTION(BDataWatchDog):                    0x00000003 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000000FA Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000043 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000013D Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        1 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       23 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         27 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\INC,..\COMMINC,..\DVA1BOOT\INC .\src\dvainit.c -object=.\obj\dvainit.obj
+CPU         : 300ha:24

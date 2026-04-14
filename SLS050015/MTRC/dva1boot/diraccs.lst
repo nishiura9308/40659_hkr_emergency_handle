@@ -1,0 +1,1333 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:58  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\diraccs.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       【香港地下鉄向け自動列車放送制御装置】                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       通信制御モジュール                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include <string.h>
+                    13:    
+                    14:    #include "dosaccs.h"
+                    15:    #include "fcntl.h"
+                    16:    
+                    17:    /***************************************************************
+                    18:            次のディレクトリー検索
+                    19:                            ルートディレクトリーの場合はルートセクターを順次検索
+                    20:                                    ＢＰＢのエントリー数分順次検索する
+                    21:                            サブディレクトリーの場合は　クラスターを順次検索
+                    22:                                    クラスターサイズまで検索し、次はチェインしている
+                    23:                                    クラスターを順次読み込んで検索する
+                    24:    
+                    25:                            検索はエントリーがなくなったとき
+                    26:                            ファイル名が一致したとき
+                    27:                            チェインしているクラスターがなくなったとき
+                    28:    
+                    29:            INPUT:
+                    30:                            fcb = ＦＣＢエリア
+                    31:                            fname = ファイル名＋エクステンド名
+                    32:                                    （８＋３文字　スペース埋め込み済み）
+                    33:                            attribute = ファイルアトリビュート
+                    34:    
+                    35:                            dir = ディレクトリーエントリー情報
+                    36:    
+                    37:            RETURN:
+                    38:                            0 = 正常終了
+                    39:                            other = 異常終了
+                    40:    
+                    41:                            fcb.dir_cluster = 0
+                    42:                            fcb.dir_entry = 検索ディレクトリーのエントリー番号
+                    43:    
+                    44:    ***************************************************************/
+                    45:    int     next_search_directory( FCB *fcb, char *fname, unsigned char attribute, DIR_ENTRY *dir )
+    000000              _next_search_directory:          ; function: next_search_directory
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000004 7A37000000             SUB.L       #10:32,SP
+           0A           
+                    46:    {
+    00000A 0F86                   MOV.L       ER0,ER6
+    00000C 01006FF100             MOV.L       ER1,@(2:16,SP)
+           02           
+                    47:                    BPB             *bpb;
+                    48:                    short   offset;
+                    49:                    int             i;
+                    50:                    unsigned char   *buffer;
+                    51:    
+                    52:                    if( fcb==NULL )
+    000012 0FE6                   MOV.L       ER6,ER6
+    000014 587000D8               BEQ         L208:16
+                    53:                            return( -1 );                           /*ファイルコントロールブロック情報無し*/
+                    54:                    bpb = fcb->bpb;
+    000018 6E600023               MOV.B       @(35:16,ER6),R0H
+    00001C 6E680024               MOV.B       @(36:16,ER6),R0L
+    000020 0D08                   MOV.W       R0,E0
+    000022 6E600025               MOV.B       @(37:16,ER6),R0H
+    000026 6E680026               MOV.B       @(38:16,ER6),R0L
+    00002A 0F83                   MOV.L       ER0,ER3
+                    55:                    if( bpb==NULL )
+    00002C 58600142               BNE         L130:16
+                    56:                            return( -1 );                           /*デバイス情報無し*/
+    000030 5A                     JMP         @L208:24
+           <000000>     
+                    57:    
+                    58:                    /*前回 root_search_directory() で使用した fcb->dir_cluster, fcb->dir_entry を引き継ぐ*/
+                    59:    
+                    60:                    for( ; fcb->dir_entry<1024; fcb->dir_entry++ ){
+    000034              L129:                             
+                    61:    
+                    62:                            if( fcb->dir_cluster==0 ){              /*ルートディレクトリーの場合*/
+    000034 6E60001B               MOV.B       @(27:16,ER6),R0H
+    000038 6E68001C               MOV.B       @(28:16,ER6),R0L
+    00003C 0D00                   MOV.W       R0,R0
+    00003E 463C                   BNE         L131:8
+                    63:                                    if( fcb->dir_entry>=bpb->root_entry )
+    000040 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000044 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000048 6E31000C               MOV.B       @(12:16,ER3),R1H
+    00004C 6E39000D               MOV.B       @(13:16,ER3),R1L
+    000050 1D10                   CMP.W       R1,R0
+    000052 5840009A               BCC         L208:16
+                    64:                                            return( -1 );                           /*エントリーオーバー*/
+                    65:                                    if( root_dir_read( bpb, fcb->dir_entry, &offset ) )
+    000056 0FF0                   MOV.L       SP,ER0
+    000058 01006DF0               PUSH.L      ER0
+    00005C 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000060 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000064 0D01                   MOV.W       R0,R1
+    000066 0FB0                   MOV.L       ER3,ER0
+    000068 5E                     JSR         @_root_dir_read:24
+           <000000>     
+    00006C 0B97                   ADDS.L      #4,SP
+    00006E 0D00                   MOV.W       R0,R0
+    000070 467E                   BNE         L208:8
+                    66:                                            return( -1 );                           /*ルートディレクトリー読込みエラー*/
+                    67:    
+                    68:                                    buffer = rootdir_buffer.buffer;
+    000072 7A05                   MOV.L       #_rootdir_buffer+10:32,ER5
+           <00000000>   
+    000078 5A                     JMP         @L134:24
+           <000000>     
+    00007C              L131:                             
+                    69:                            }
+                    70:                            else {                                                  /*サブディレクトリーの場合*/
+                    71:                                    offset = fcb->dir_entry * 32;                           /*エントリーのオフセットを設定*/
+    00007C 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000080 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000084 79080020               MOV.W       #32:16,E0
+    000088 5280                   MULXU.W     E0,ER0
+    00008A 69F0                   MOV.W       R0,@SP
+                    72:                                    if( offset>=(short)bpb->bytes_cluster ){        /*クラスターオーバーのときは次のクラスター*/
+    00008C 6E300020               MOV.B       @(32:16,ER3),R0H
+    000090 6E380021               MOV.B       @(33:16,ER3),R0L
+    000094 6971                   MOV.W       @SP,R1
+    000096 1D01                   CMP.W       R0,R1
+    000098 4D3E                   BLT         L135:8
+                    73:                                            fcb->dir_cluster = next_cluster( bpb, fcb->dir_cluster );
+    00009A 6E60001B               MOV.B       @(27:16,ER6),R0H
+    00009E 6E68001C               MOV.B       @(28:16,ER6),R0L
+    0000A2 0D01                   MOV.W       R0,R1
+    0000A4 0FB0                   MOV.L       ER3,ER0
+    0000A6 5E                     JSR         @_next_cluster:24
+           <000000>     
+    0000AA 6EE0001B               MOV.B       R0H,@(27:16,ER6)
+    0000AE 6EE8001C               MOV.B       R0L,@(28:16,ER6)
+                    74:                                            if( fcb->dir_cluster < 2 || fcb->dir_cluster==0xFFFF )
+    0000B2 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0000B6 79200002               CMP.W       #2:16,R0
+    0000BA 450A                   BCS         L137:8
+    0000BC 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0000C0 7920FFFF               CMP.W       #-1:16,R0
+    0000C4 4602                   BNE         L136:8
+    0000C6              L137:                             
+                    75:                                                    return( -1 );                   /*エントリーオーバー*/
+    0000C6 4028                   BRA         L208:8
+    0000C8              L136:                             
+                    76:                                            fcb->dir_entry = 0;
+    0000C8 79000000               MOV.W       #0:16,R0
+    0000CC 6EE0001D               MOV.B       R0H,@(29:16,ER6)
+    0000D0 6EE8001E               MOV.B       R0L,@(30:16,ER6)
+                    77:                                            offset = 0;
+    0000D4 1900                   SUB.W       R0,R0
+    0000D6 69F0                   MOV.W       R0,@SP
+    0000D8              L135:                             
+                    78:                                    }
+                    79:                                    if( cluster_read( bpb, fcb->dir_cluster, 1 ) )
+    0000D8 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0000DC 6E68001C               MOV.B       @(28:16,ER6),R0L
+    0000E0 79090001               MOV.W       #1:16,E1
+    0000E4 0D01                   MOV.W       R0,R1
+    0000E6 0FB0                   MOV.L       ER3,ER0
+    0000E8 5E                     JSR         @_cluster_read:24
+           <000000>     
+    0000EC 0D00                   MOV.W       R0,R0
+    0000EE 4708                   BEQ         L138:8
+                    80:                                            return( -1 );           /*サブディレクトリー読込みエラー*/
+    0000F0              L208:                             
+    0000F0 7900FFFF               MOV.W       #-1:16,R0
+    0000F4 5A                     JMP         @L127:24
+           <000000>     
+    0000F8              L138:                             
+                    81:    
+                    82:                                    buffer = cluster_buffer.buffer;
+    0000F8 7A05                   MOV.L       #_cluster_buffer+14:32,ER5
+           <00000000>   
+    0000FE              L134:                             
+                    83:                            }
+                    84:    
+                    85:                            if( buffer[offset+0]==0 )       /*エントリーの最後の場合*/
+    0000FE 6970                   MOV.W       @SP,R0
+    000100 17F0                   EXTS.L      ER0
+    000102 0AD0                   ADD.L       ER5,ER0
+    000104 6809                   MOV.B       @ER0,R1L
+    000106 4608                   BNE         L139:8
+                    86:                                    return( 1 );                    /*指定名なし*/
+    000108 79000001               MOV.W       #1:16,R0
+    00010C 5A                     JMP         @L127:24
+           <000000>     
+    000110              L139:                             
+                    87:    
+                    88:                            i=0;
+    000110 1944                   SUB.W       R4,R4
+                    89:                            if( buffer[offset+8+3] & attribute ){   /*属性が一致したとき*/
+    000112 6970                   MOV.W       @SP,R0
+    000114 7910000B               ADD.W       #11:16,R0
+    000118 17F0                   EXTS.L      ER0
+    00011A 0AD0                   ADD.L       ER5,ER0
+    00011C 6808                   MOV.B       @ER0,R0L
+    00011E 6E790023               MOV.B       @(35:16,SP),R1L
+    000122 1698                   AND.B       R1L,R0L
+    000124 4734                   BEQ         L140:8
+                    90:                                    for( i=0; i<8+3; i++ ){
+    000126 1944                   SUB.W       R4,R4
+    000128 402A                   BRA         L142:8
+    00012A              L141:                             
+                    91:                                            if( fname[i]=='?' ){            /*ワイルドカード*/
+    00012A 17F4                   EXTS.L      ER4
+    00012C 01006F7000             MOV.L       @(2:16,SP),ER0
+           02           
+    000132 0AC0                   ADD.L       ER4,ER0
+    000134 0F82                   MOV.L       ER0,ER2
+    000136 6808                   MOV.B       @ER0,R0L
+    000138 A83F                   CMP.B       #63:8,R0L
+    00013A 4716                   BEQ         L144:8
+                    92:                                                    continue;
+                    93:                                            }
+                    94:                                            else if( fname[i]==buffer[offset+i] ){  /*ファイル名が一致したとき*/
+    00013C 0FA0                   MOV.L       ER2,ER0
+    00013E 6808                   MOV.B       @ER0,R0L
+    000140 17D0                   EXTS.W      R0
+    000142 6971                   MOV.W       @SP,R1
+    000144 0941                   ADD.W       R4,R1
+    000146 17F1                   EXTS.L      ER1
+    000148 0AD1                   ADD.L       ER5,ER1
+    00014A 6819                   MOV.B       @ER1,R1L
+    00014C 1751                   EXTU.W      R1
+    00014E 1D10                   CMP.W       R1,R0
+    000150 4608                   BNE         L148:8
+                    95:                                                    continue;
+                    96:                                            }
+                    97:                                            else {
+                    98:                                                    break;
+    000152              L144:                             
+    000152 0B54                   INC.W       #1,R4
+    000154              L142:                             
+    000154 7924000B               CMP.W       #11:16,R4
+    000158 4DD0                   BLT         L141:8
+    00015A              L148:                             
+    00015A              L140:                             
+                    99:                                            }
+                   100:                                    }
+                   101:                            }
+                   102:                            if( i==8+3 )            /*属性とファイル名が一致したとき*/
+    00015A 7924000B               CMP.W       #11:16,R4
+    00015E 4722                   BEQ         L150:8
+                   103:                                    break;                  /*検索終了*/
+    000160 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000164 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000168 0B50                   INC.W       #1,R0
+    00016A 6EE0001D               MOV.B       R0H,@(29:16,ER6)
+    00016E 6EE8001E               MOV.B       R0L,@(30:16,ER6)
+    000172              L130:                             
+    000172 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000176 6E68001E               MOV.B       @(30:16,ER6),R0L
+    00017A 79200400               CMP.W       #1024:16,R0
+    00017E 5850FEB2               BCS         L129:16
+    000182              L150:                             
+                   104:                    }
+                   105:    
+                   106:                    memcpy( dir->filename, &buffer[offset+0], 8+3 );
+    000182 1A80                   SUB.L       ER0,ER0
+    000184 F80B                   MOV.B       #11:8,R0L
+    000186 01006DF0               PUSH.L      ER0
+    00018A 6F710004               MOV.W       @(4:16,SP),R1
+    00018E 17F1                   EXTS.L      ER1
+    000190 0AD1                   ADD.L       ER5,ER1
+    000192 01006F7000             MOV.L       @(40:16,SP),ER0
+           28           
+    000198 5E                     JSR         @_memcpy:24
+           <000000>     
+    00019C 0B97                   ADDS.L      #4,SP
+                   107:                    dir->attribute = buffer[offset+8+3];
+    00019E 6970                   MOV.W       @SP,R0
+    0001A0 7910000B               ADD.W       #11:16,R0
+    0001A4 17F0                   EXTS.L      ER0
+    0001A6 0AD0                   ADD.L       ER5,ER0
+    0001A8 01006F7100             MOV.L       @(36:16,SP),ER1
+           24           
+    0001AE 6808                   MOV.B       @ER0,R0L
+    0001B0 6E98000B               MOV.B       R0L,@(11:16,ER1)
+                   108:    
+                   109:                    dir->w_time = (unsigned short)buffer[offset+22] & 0x00FF
+                   110:                                            | ((unsigned short)buffer[offset+23]<<8) & 0xFF00;
+    0001B4 6976                   MOV.W       @SP,R6
+    0001B6 17F6                   EXTS.L      ER6
+    0001B8 0AD6                   ADD.L       ER5,ER6
+    0001BA 6E680017               MOV.B       @(23:16,ER6),R0L
+    0001BE 1750                   EXTU.W      R0
+    0001C0 0C80                   MOV.B       R0L,R0H
+    0001C2 1888                   SUB.B       R0L,R0L
+    0001C4 6E690016               MOV.B       @(22:16,ER6),R1L
+    0001C8 1751                   EXTU.W      R1
+    0001CA 6410                   OR.W        R1,R0
+    0001CC 01006F7100             MOV.L       @(36:16,SP),ER1
+           24           
+    0001D2 6E900016               MOV.B       R0H,@(22:16,ER1)
+    0001D6 6E980017               MOV.B       R0L,@(23:16,ER1)
+                   111:                    dir->w_date = (unsigned short)buffer[offset+24] & 0x00FF
+                   112:                                            | ((unsigned long)buffer[offset+25]<<8) & 0xFF00;
+    0001DA 6976                   MOV.W       @SP,R6
+    0001DC 17F6                   EXTS.L      ER6
+    0001DE 0AD6                   ADD.L       ER5,ER6
+    0001E0 1A80                   SUB.L       ER0,ER0
+    0001E2 6E680019               MOV.B       @(25:16,ER6),R0L
+    0001E6 F908                   MOV.B       #8:8,R1L
+    0001E8              L151:                             
+    0001E8 1030                   SHLL.L      ER0
+    0001EA 1A09                   DEC.B       R1L
+    0001EC 4EFA                   BGT         L151:8
+    0001EE 1888                   SUB.B       R0L,R0L
+    0001F0 6E690018               MOV.B       @(24:16,ER6),R1L
+    0001F4 1751                   EXTU.W      R1
+    0001F6 6410                   OR.W        R1,R0
+    0001F8 01006F7100             MOV.L       @(36:16,SP),ER1
+           24           
+    0001FE 6E900018               MOV.B       R0H,@(24:16,ER1)
+    000202 6E980019               MOV.B       R0L,@(25:16,ER1)
+                   113:    
+                   114:                    dir->start_cluster = (unsigned short)buffer[offset+26] & 0x00FF
+                   115:                                            | (unsigned short)(buffer[offset+27]<<8) & 0xFF00;
+    000206 6976                   MOV.W       @SP,R6
+    000208 17F6                   EXTS.L      ER6
+    00020A 0AD6                   ADD.L       ER5,ER6
+    00020C 6E68001B               MOV.B       @(27:16,ER6),R0L
+    000210 1750                   EXTU.W      R0
+    000212 0C80                   MOV.B       R0L,R0H
+    000214 1888                   SUB.B       R0L,R0L
+    000216 6E69001A               MOV.B       @(26:16,ER6),R1L
+    00021A 1751                   EXTU.W      R1
+    00021C 6410                   OR.W        R1,R0
+    00021E 01006F7100             MOV.L       @(36:16,SP),ER1
+           24           
+    000224 6E90001A               MOV.B       R0H,@(26:16,ER1)
+    000228 6E98001B               MOV.B       R0L,@(27:16,ER1)
+                   116:    
+                   117:                    dir->all_bytes = (long)buffer[offset+28] & 0x000000FFL
+                   118:                                            | ((long)buffer[offset+29]<<8) & 0x0000FF00L
+                   119:                                            | ((long)buffer[offset+30]<<16) & 0x00FF0000L
+                   120:                                            | ((long)buffer[offset+31]<<24) & 0xFF000000L;
+    00022C 6976                   MOV.W       @SP,R6
+    00022E 17F6                   EXTS.L      ER6
+    000230 0AD6                   ADD.L       ER5,ER6
+    000232 1A80                   SUB.L       ER0,ER0
+    000234 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000238 F908                   MOV.B       #8:8,R1L
+    00023A              L152:                             
+    00023A 1030                   SHLL.L      ER0
+    00023C 1A09                   DEC.B       R1L
+    00023E 4EFA                   BGT         L152:8
+    000240 1988                   SUB.W       E0,E0
+    000242 1888                   SUB.B       R0L,R0L
+    000244 1A91                   SUB.L       ER1,ER1
+    000246 6E69001E               MOV.B       @(30:16,ER6),R1L
+    00024A 0D19                   MOV.W       R1,E1
+    00024C 1911                   SUB.W       R1,R1
+    00024E 7A6100FF00             AND.L       #16711680:32,ER1
+           00           
+    000254 01F06410               OR.L        ER1,ER0
+    000258 1A91                   SUB.L       ER1,ER1
+    00025A 6E69001C               MOV.B       @(28:16,ER6),R1L
+    00025E 01F06410               OR.L        ER1,ER0
+    000262 1A91                   SUB.L       ER1,ER1
+    000264 6E69001F               MOV.B       @(31:16,ER6),R1L
+    000268 0D12                   MOV.W       R1,R2
+    00026A 0CA2                   MOV.B       R2L,R2H
+    00026C 18AA                   SUB.B       R2L,R2L
+    00026E 0D2A                   MOV.W       R2,E2
+    000270 1922                   SUB.W       R2,R2
+    000272 7A62FF0000             AND.L       #-16777216:32,ER2
+           00           
+    000278 01F06420               OR.L        ER2,ER0
+    00027C 01006F7100             MOV.L       @(36:16,SP),ER1
+           24           
+    000282 6E90001E               MOV.B       R0H,@(30:16,ER1)
+    000286 6E98001F               MOV.B       R0L,@(31:16,ER1)
+    00028A 0D80                   MOV.W       E0,R0
+    00028C 6E90001C               MOV.B       R0H,@(28:16,ER1)
+    000290 6E98001D               MOV.B       R0L,@(29:16,ER1)
+                   121:    
+                   122:                    return( 0 );
+    000294 1900                   SUB.W       R0,R0
+                   123:    }
+    000296              L127:                             
+    000296 7A17000000             ADD.L       #10:32,SP
+           0A           
+    00029C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   124:    
+                   125:    /***************************************************************
+                   126:            最初のディレクトリー検索
+                   127:                            エントリー番号を０にして検索する
+                   128:    
+                   129:            INPUT:
+                   130:                            fd = ＦＣＢ番号
+                   131:                            fname = ファイル名＋エクステンド名
+                   132:                                    （８＋３文字　スペース埋め込み済み）
+                   133:                            attribute = ファイルアトリビュート
+                   134:    
+                   135:                            dir = ディレクトリーエントリー情報
+                   136:                                    fcb->dir_cluster = 0;           ルートディレクトリーを検索
+                   137:                                    fcb->dir_cluster <> 0;          サブディレクトリーを検索
+                   138:    
+                   139:            RETURN:
+                   140:                            0 = 正常終了
+                   141:                            other = 異常終了
+                   142:    
+                   143:                            fcb.dir_cluster = 検索ディレクトリーのクラスター番号(0=ROOT)
+                   144:                            fcb.dir_entry = 検索ディレクトリーのエントリー番号
+                   145:    
+                   146:    ***************************************************************/
+                   147:    int     search_directory( FCB *fcb, char *fname, unsigned char attribute, DIR_ENTRY *dir )
+    0002A0              _search_directory:               ; function: search_directory
+    0002A0 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   148:    {
+    0002A4 0F86                   MOV.L       ER0,ER6
+    0002A6 0F95                   MOV.L       ER1,ER5
+                   149:                    if( fcb==NULL )
+    0002A8 0FE6                   MOV.L       ER6,ER6
+    0002AA 4606                   BNE         L153:8
+                   150:                            return( -1 );                           /*ファイルコントロールブロック情報無し*/
+    0002AC 7900FFFF               MOV.W       #-1:16,R0
+    0002B0 4028                   BRA         L154:8
+    0002B2              L153:                             
+                   151:    
+                   152:                    fcb->dir_entry = 0;                     /*最初から検索*/
+    0002B2 79000000               MOV.W       #0:16,R0
+    0002B6 6EE0001D               MOV.B       R0H,@(29:16,ER6)
+    0002BA 6EE8001E               MOV.B       R0L,@(30:16,ER6)
+                   153:    
+                   154:                    return( next_search_directory( fcb, fname, attribute, dir ) );
+    0002BE 01006F7100             MOV.L       @(26:16,SP),ER1
+           1A           
+    0002C4 01006DF1               PUSH.L      ER1
+    0002C8 6E79001D               MOV.B       @(29:16,SP),R1L
+    0002CC 6DF1                   PUSH.W      R1
+    0002CE 0FD1                   MOV.L       ER5,ER1
+    0002D0 0FE0                   MOV.L       ER6,ER0
+    0002D2 5E                     JSR         @_next_search_directory:24
+           <000000>     
+    0002D6 0B97                   ADDS.L      #4,SP
+    0002D8 0B87                   ADDS.L      #2,SP
+                   155:    }
+    0002DA              L154:                             
+    0002DA 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   156:    
+                   157:    
+                   158:    /***************************************************************
+                   159:            ディレクトリー追加
+                   160:                            削除されたところ、未登録のところへ書込む
+                   161:                            サブディレクトリーの場合、エントリーがなくなったら
+                   162:                            新しいクラスターをチェイン追加し、最初にエントリーする
+                   163:    
+                   164:            INPUT:
+                   165:                            fd = ＦＣＢ番号
+                   166:                            fname = ファイル名＋エクステンド名
+                   167:                                    （８＋３文字　スペース埋め込み済み）
+                   168:                            attribute = ファイルアトリビュート
+                   169:    
+                   170:                            dir = ディレクトリーエントリー情報
+                   171:    
+                   172:            RETURN:
+                   173:                            0 = 正常終了
+                   174:                            other = 異常終了
+                   175:    
+                   176:                            fcb.dir_cluster = 検索ディレクトリーのクラスター番号(0=ROOT)
+                   177:                            fcb.dir_entry = 検索ディレクトリーのエントリー番号
+                   178:    
+                   179:    ***************************************************************/
+                   180:    int     append_directory( FCB *fcb, DIR_ENTRY *dir )
+    0002DE              _append_directory:               ; function: append_directory
+    0002DE 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0002E2 1B87                   SUBS.L      #2,SP
+                   181:    {
+    0002E4 0F86                   MOV.L       ER0,ER6
+    0002E6 0F93                   MOV.L       ER1,ER3
+                   182:                    BPB             *bpb;
+                   183:                    short   offset;
+                   184:                    unsigned char *buffer;
+                   185:                    unsigned short  cluster;
+                   186:    
+                   187:                    if( fcb==NULL )
+    0002E8 0FE6                   MOV.L       ER6,ER6
+    0002EA 5870014A               BEQ         L217:16
+                   188:                            return( -1 );                           /*ファイルコントロールブロック情報無し*/
+                   189:                    bpb = fcb->bpb;
+    0002EE 6E600023               MOV.B       @(35:16,ER6),R0H
+    0002F2 6E680024               MOV.B       @(36:16,ER6),R0L
+    0002F6 0D08                   MOV.W       R0,E0
+    0002F8 6E600025               MOV.B       @(37:16,ER6),R0H
+    0002FC 6E680026               MOV.B       @(38:16,ER6),R0L
+    000300 0F84                   MOV.L       ER0,ER4
+                   190:                    if( bpb==NULL )
+    000302 58700132               BEQ         L217:16
+                   191:                            return( -1 );                           /*デバイス情報無し*/
+                   192:    
+                   193:                    for( fcb->dir_entry=0; fcb->dir_entry<1024; fcb->dir_entry++ ){         /*エントリーの最初から検索*/
+    000306 79000000               MOV.W       #0:16,R0
+    00030A 5A                     JMP         @L211:24
+           <000000>     
+    00030E              L158:                             
+                   194:    
+                   195:                            if( fcb->dir_cluster==0 ){              /*ルートディレクトリーの場合*/
+    00030E 6E60001B               MOV.B       @(27:16,ER6),R0H
+    000312 6E68001C               MOV.B       @(28:16,ER6),R0L
+    000316 0D00                   MOV.W       R0,R0
+    000318 463E                   BNE         L160:8
+                   196:                                    if( fcb->dir_entry>=bpb->root_entry )
+    00031A 6E60001D               MOV.B       @(29:16,ER6),R0H
+    00031E 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000322 6E41000C               MOV.B       @(12:16,ER4),R1H
+    000326 6E49000D               MOV.B       @(13:16,ER4),R1L
+    00032A 1D10                   CMP.W       R1,R0
+    00032C 58400108               BCC         L217:16
+                   197:                                            return( -1 );                           /*エントリーオーバー*/
+                   198:                                    if( root_dir_read( bpb, fcb->dir_entry, &offset ) )
+    000330 0FF0                   MOV.L       SP,ER0
+    000332 01006DF0               PUSH.L      ER0
+    000336 6E60001D               MOV.B       @(29:16,ER6),R0H
+    00033A 6E68001E               MOV.B       @(30:16,ER6),R0L
+    00033E 0D01                   MOV.W       R0,R1
+    000340 0FC0                   MOV.L       ER4,ER0
+    000342 5E                     JSR         @_root_dir_read:24
+           <000000>     
+    000346 0B97                   ADDS.L      #4,SP
+    000348 0D00                   MOV.W       R0,R0
+    00034A 586000EA               BNE         L217:16
+                   199:                                            return( -1 );                           /*ルートディレクトリー読込みエラー*/
+                   200:    
+                   201:                                    buffer = rootdir_buffer.buffer;
+    00034E 7A05                   MOV.L       #_rootdir_buffer+10:32,ER5
+           <00000000>   
+    000354 5A                     JMP         @L163:24
+           <000000>     
+    000358              L160:                             
+                   202:                            }
+                   203:                            else {                                                  /*サブディレクトリーの場合*/
+                   204:                                    offset = fcb->dir_entry * 32;                           /*エントリーのオフセットを設定*/
+    000358 6E60001D               MOV.B       @(29:16,ER6),R0H
+    00035C 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000360 79080020               MOV.W       #32:16,E0
+    000364 5280                   MULXU.W     E0,ER0
+    000366 69F0                   MOV.W       R0,@SP
+                   205:                                    if( offset>=(short)bpb->bytes_cluster ){        /*クラスターオーバーのときは次のクラスター*/
+    000368 6E400020               MOV.B       @(32:16,ER4),R0H
+    00036C 6E480021               MOV.B       @(33:16,ER4),R0L
+    000370 6971                   MOV.W       @SP,R1
+    000372 1D01                   CMP.W       R0,R1
+    000374 58D000A8               BLT         L164:16
+                   206:                                            cluster = next_cluster( bpb, fcb->dir_cluster );
+    000378 6E60001B               MOV.B       @(27:16,ER6),R0H
+    00037C 6E68001C               MOV.B       @(28:16,ER6),R0L
+    000380 0D01                   MOV.W       R0,R1
+    000382 0FC0                   MOV.L       ER4,ER0
+    000384 5E                     JSR         @_next_cluster:24
+           <000000>     
+    000388 0D05                   MOV.W       R0,R5
+                   207:                                            if( cluster < 2 || cluster==0xFFFF ){   /*ディレクトリーのクラスターがなくなったとき*/
+    00038A 79200002               CMP.W       #2:16,R0
+    00038E 4506                   BCS         L166:8
+    000390 7920FFFF               CMP.W       #-1:16,R0
+    000394 4672                   BNE         L165:8
+    000396              L166:                             
+                   208:                                                    cluster = empty_cluster(bpb,fcb->dir_cluster);  /*空きクラスターを探す*/
+    000396 6E60001B               MOV.B       @(27:16,ER6),R0H
+    00039A 6E68001C               MOV.B       @(28:16,ER6),R0L
+    00039E 0D01                   MOV.W       R0,R1
+    0003A0 0FC0                   MOV.L       ER4,ER0
+    0003A2 5E                     JSR         @_empty_cluster:24
+           <000000>     
+    0003A6 0D05                   MOV.W       R0,R5
+                   209:                                                    if( cluster < 2 || cluster==0xFFFF )    /*追加できないとき*/
+    0003A8 79200002               CMP.W       #2:16,R0
+    0003AC 4506                   BCS         L168:8
+    0003AE 7920FFFF               CMP.W       #-1:16,R0
+    0003B2 4604                   BNE         L167:8
+    0003B4              L168:                             
+                   210:                                                            return( -1 );                   /*追加エラー*/
+    0003B4 5A                     JMP         @L217:24
+           <000000>     
+    0003B8              L167:                             
+                   211:                                                    if(update_cluster(bpb,fcb->dir_cluster,cluster))        /*クラスターチェイン*/
+    0003B8 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0003BC 6E68001C               MOV.B       @(28:16,ER6),R0L
+    0003C0 0D59                   MOV.W       R5,E1
+    0003C2 0D01                   MOV.W       R0,R1
+    0003C4 0FC0                   MOV.L       ER4,ER0
+    0003C6 5E                     JSR         @_update_cluster:24
+           <000000>     
+    0003CA 0D00                   MOV.W       R0,R0
+    0003CC 466A                   BNE         L217:8
+                   212:                                                            return( -1 );                   /*追加エラー*/
+                   213:                                                    if(update_cluster(bpb,cluster,0xFFFF))  /*チェインエンドマーク*/
+    0003CE 7909FFFF               MOV.W       #-1:16,E1
+    0003D2 0D51                   MOV.W       R5,R1
+    0003D4 0FC0                   MOV.L       ER4,ER0
+    0003D6 5E                     JSR         @_update_cluster:24
+           <000000>     
+    0003DA 0D00                   MOV.W       R0,R0
+    0003DC 465A                   BNE         L217:8
+                   214:                                                            return( -1 );                   /*追加エラー*/
+                   215:                                                    if(new_cluster_read(bpb, cluster, 1 ))  /*新しいクラスターを読み込む*/
+    0003DE 79090001               MOV.W       #1:16,E1
+    0003E2 0D51                   MOV.W       R5,R1
+    0003E4 0FC0                   MOV.L       ER4,ER0
+    0003E6 5E                     JSR         @_new_cluster_read:24
+           <000000>     
+    0003EA 0D00                   MOV.W       R0,R0
+    0003EC 464A                   BNE         L217:8
+                   216:                                                            return( -1 );                   /*追加エラー*/
+                   217:                                                    memset(cluster_buffer.buffer, 0, sizeof(cluster_buffer.buffer));
+    0003EE 1A80                   SUB.L       ER0,ER0
+    0003F0 F020                   MOV.B       #32:8,R0H
+    0003F2 01006DF0               PUSH.L      ER0
+    0003F6 1911                   SUB.W       R1,R1
+    0003F8 7A00                   MOV.L       #_cluster_buffer+14:32,ER0
+           <00000000>   
+    0003FE 5E                     JSR         @_memset:24
+           <000000>     
+    000402 0B97                   ADDS.L      #4,SP
+                   218:                                                    cluster_write();
+    000404 5E                     JSR         @_cluster_write:24
+           <000000>     
+    000408              L165:                             
+                   219:                                            }
+                   220:                                            fcb->dir_cluster = cluster;
+    000408 6EE5001B               MOV.B       R5H,@(27:16,ER6)
+    00040C 6EED001C               MOV.B       R5L,@(28:16,ER6)
+                   221:    
+                   222:                                            fcb->dir_entry = 0;
+    000410 79000000               MOV.W       #0:16,R0
+    000414 6EE0001D               MOV.B       R0H,@(29:16,ER6)
+    000418 6EE8001E               MOV.B       R0L,@(30:16,ER6)
+                   223:                                            offset = 0;
+    00041C 1900                   SUB.W       R0,R0
+    00041E 69F0                   MOV.W       R0,@SP
+    000420              L164:                             
+                   224:                                    }
+                   225:                                    if( cluster_read( bpb, fcb->dir_cluster, 1 ) )
+    000420 6E60001B               MOV.B       @(27:16,ER6),R0H
+    000424 6E68001C               MOV.B       @(28:16,ER6),R0L
+    000428 79090001               MOV.W       #1:16,E1
+    00042C 0D01                   MOV.W       R0,R1
+    00042E 0FC0                   MOV.L       ER4,ER0
+    000430 5E                     JSR         @_cluster_read:24
+           <000000>     
+    000434 0D00                   MOV.W       R0,R0
+    000436 4708                   BEQ         L172:8
+                   226:                                            return( -1 );           /*サブディレクトリー読込みエラー*/
+    000438              L217:                             
+    000438 7900FFFF               MOV.W       #-1:16,R0
+    00043C 5A                     JMP         @L156:24
+           <000000>     
+    000440              L172:                             
+                   227:    
+                   228:                                    buffer = cluster_buffer.buffer;
+    000440 7A05                   MOV.L       #_cluster_buffer+14:32,ER5
+           <00000000>   
+    000446              L163:                             
+                   229:                            }
+                   230:    
+                   231:                            if( buffer[offset+0]==0 )               /*エントリーの最後の場合*/
+    000446 6970                   MOV.W       @SP,R0
+    000448 17F0                   EXTS.L      ER0
+    00044A 0AD0                   ADD.L       ER5,ER0
+    00044C 6809                   MOV.B       @ER0,R1L
+    00044E 472A                   BEQ         L174:8
+                   232:                                    break;          /*未登録エントリー*/
+                   233:    
+                   234:                            if( buffer[offset+0]==0xE5 )    /*削除エントリーの場合*/
+    000450 6970                   MOV.W       @SP,R0
+    000452 17F0                   EXTS.L      ER0
+    000454 0AD0                   ADD.L       ER5,ER0
+    000456 6808                   MOV.B       @ER0,R0L
+    000458 A8E5                   CMP.B       #-27:8,R0L
+    00045A 471E                   BEQ         L174:8
+                   235:                                    break;          /*削除されたところ*/
+    00045C 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000460 6E68001E               MOV.B       @(30:16,ER6),R0L
+    000464 0B50                   INC.W       #1,R0
+    000466              L211:                             
+    000466 6EE0001D               MOV.B       R0H,@(29:16,ER6)
+    00046A 6EE8001E               MOV.B       R0L,@(30:16,ER6)
+    00046E 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000472 79200400               CMP.W       #1024:16,R0
+    000476 5850FE94               BCS         L158:16
+    00047A              L174:                             
+                   236:                    }
+                   237:    
+                   238:                    if( buffer[offset+0]!=0 && buffer[offset+0]!=0xE5 ){
+    00047A 6970                   MOV.W       @SP,R0
+    00047C 17F0                   EXTS.L      ER0
+    00047E 0AD0                   ADD.L       ER5,ER0
+    000480 680C                   MOV.B       @ER0,R4L
+    000482 470C                   BEQ         L176:8
+    000484 ACE5                   CMP.B       #-27:8,R4L
+    000486 4708                   BEQ         L176:8
+                   239:                            return( 1 );                    /*空なし*/
+    000488 79000001               MOV.W       #1:16,R0
+    00048C 5A                     JMP         @L156:24
+           <000000>     
+    000490              L176:                             
+                   240:                    }
+                   241:    
+                   242:                    dir->w_time = now_time;
+    000490 6B2000                 MOV.W       @_now_time:24,R0
+           <000000>     
+    000496 6EB00016               MOV.B       R0H,@(22:16,ER3)
+    00049A 6EB80017               MOV.B       R0L,@(23:16,ER3)
+                   243:                    dir->w_date = now_date;
+    00049E 6B2000                 MOV.W       @_now_date:24,R0
+           <000000>     
+    0004A4 6EB00018               MOV.B       R0H,@(24:16,ER3)
+    0004A8 6EB80019               MOV.B       R0L,@(25:16,ER3)
+                   244:                    dir->all_bytes = 0L;
+    0004AC 1A80                   SUB.L       ER0,ER0
+    0004AE F800                   MOV.B       #0:8,R0L
+    0004B0 6EB0001E               MOV.B       R0H,@(30:16,ER3)
+    0004B4 6EB8001F               MOV.B       R0L,@(31:16,ER3)
+    0004B8 0D80                   MOV.W       E0,R0
+    0004BA 6EB0001C               MOV.B       R0H,@(28:16,ER3)
+    0004BE 6EB8001D               MOV.B       R0L,@(29:16,ER3)
+                   245:                    dir->start_cluster = 0;
+    0004C2 79000000               MOV.W       #0:16,R0
+    0004C6 6EB0001A               MOV.B       R0H,@(26:16,ER3)
+    0004CA 6EB8001B               MOV.B       R0L,@(27:16,ER3)
+                   246:    
+                   247:                    memcpy( &buffer[offset+0], dir->filename, 8+3 );
+    0004CE 1A80                   SUB.L       ER0,ER0
+    0004D0 F80B                   MOV.B       #11:8,R0L
+    0004D2 01006DF0               PUSH.L      ER0
+    0004D6 6F700004               MOV.W       @(4:16,SP),R0
+    0004DA 17F0                   EXTS.L      ER0
+    0004DC 0AD0                   ADD.L       ER5,ER0
+    0004DE 0FB1                   MOV.L       ER3,ER1
+    0004E0 5E                     JSR         @_memcpy:24
+           <000000>     
+    0004E4 0B97                   ADDS.L      #4,SP
+                   248:                    buffer[offset+8+3] = dir->attribute;
+    0004E6 6970                   MOV.W       @SP,R0
+    0004E8 7910000B               ADD.W       #11:16,R0
+    0004EC 17F0                   EXTS.L      ER0
+    0004EE 0AD0                   ADD.L       ER5,ER0
+    0004F0 6E39000B               MOV.B       @(11:16,ER3),R1L
+    0004F4 6889                   MOV.B       R1L,@ER0
+                   249:    
+                   250:                    buffer[offset+22]=(unsigned char)(dir->w_time & 0xFF);
+    0004F6 6E380017               MOV.B       @(23:16,ER3),R0L
+    0004FA 6971                   MOV.W       @SP,R1
+    0004FC 17F1                   EXTS.L      ER1
+    0004FE 0AD1                   ADD.L       ER5,ER1
+    000500 6E980016               MOV.B       R0L,@(22:16,ER1)
+                   251:                    buffer[offset+23]=(unsigned char)((dir->w_time>>8) & 0xFF);
+    000504 6E300016               MOV.B       @(22:16,ER3),R0H
+    000508 6971                   MOV.W       @SP,R1
+    00050A 17F1                   EXTS.L      ER1
+    00050C 0AD1                   ADD.L       ER5,ER1
+    00050E 6E900017               MOV.B       R0H,@(23:16,ER1)
+                   252:                    buffer[offset+24]=(unsigned char)(dir->w_date & 0xFF);
+    000512 6E380019               MOV.B       @(25:16,ER3),R0L
+    000516 6971                   MOV.W       @SP,R1
+    000518 17F1                   EXTS.L      ER1
+    00051A 0AD1                   ADD.L       ER5,ER1
+    00051C 6E980018               MOV.B       R0L,@(24:16,ER1)
+                   253:                    buffer[offset+25]=(unsigned char)((dir->w_date>>8) & 0xFF);
+    000520 6E300018               MOV.B       @(24:16,ER3),R0H
+    000524 6971                   MOV.W       @SP,R1
+    000526 17F1                   EXTS.L      ER1
+    000528 0AD1                   ADD.L       ER5,ER1
+    00052A 6E900019               MOV.B       R0H,@(25:16,ER1)
+                   254:    
+                   255:                    buffer[offset+26]=(unsigned char)(dir->start_cluster & 0xFF);
+    00052E 6E38001B               MOV.B       @(27:16,ER3),R0L
+    000532 6971                   MOV.W       @SP,R1
+    000534 17F1                   EXTS.L      ER1
+    000536 0AD1                   ADD.L       ER5,ER1
+    000538 6E98001A               MOV.B       R0L,@(26:16,ER1)
+                   256:                    buffer[offset+27]=(unsigned char)((dir->start_cluster>>8) & 0xFF);
+    00053C 6E30001A               MOV.B       @(26:16,ER3),R0H
+    000540 6971                   MOV.W       @SP,R1
+    000542 17F1                   EXTS.L      ER1
+    000544 0AD1                   ADD.L       ER5,ER1
+    000546 6E90001B               MOV.B       R0H,@(27:16,ER1)
+                   257:    
+                   258:                    buffer[offset+28]=(unsigned char)(dir->all_bytes & 0xFF);
+    00054A 6E30001C               MOV.B       @(28:16,ER3),R0H
+    00054E 6E38001D               MOV.B       @(29:16,ER3),R0L
+    000552 6E38001F               MOV.B       @(31:16,ER3),R0L
+    000556 6971                   MOV.W       @SP,R1
+    000558 17F1                   EXTS.L      ER1
+    00055A 0AD1                   ADD.L       ER5,ER1
+    00055C 6E98001C               MOV.B       R0L,@(28:16,ER1)
+                   259:                    buffer[offset+29]=(unsigned char)((dir->all_bytes>>8) & 0xFF);
+    000560 6E30001C               MOV.B       @(28:16,ER3),R0H
+    000564 6E38001D               MOV.B       @(29:16,ER3),R0L
+    000568 0D08                   MOV.W       R0,E0
+    00056A 6E30001E               MOV.B       @(30:16,ER3),R0H
+    00056E 6E38001F               MOV.B       @(31:16,ER3),R0L
+    000572 F908                   MOV.B       #8:8,R1L
+    000574              L177:                             
+    000574 11B0                   SHAR.L      ER0
+    000576 1A09                   DEC.B       R1L
+    000578 4EFA                   BGT         L177:8
+    00057A 6971                   MOV.W       @SP,R1
+    00057C 17F1                   EXTS.L      ER1
+    00057E 0AD1                   ADD.L       ER5,ER1
+    000580 6E98001D               MOV.B       R0L,@(29:16,ER1)
+                   260:                    buffer[offset+30]=(unsigned char)((dir->all_bytes>>16) & 0xFF);
+    000584 6E30001C               MOV.B       @(28:16,ER3),R0H
+    000588 6E38001D               MOV.B       @(29:16,ER3),R0L
+    00058C 0D08                   MOV.W       R0,E0
+    00058E 17F0                   EXTS.L      ER0
+    000590 6971                   MOV.W       @SP,R1
+    000592 17F1                   EXTS.L      ER1
+    000594 0AD1                   ADD.L       ER5,ER1
+    000596 6E98001E               MOV.B       R0L,@(30:16,ER1)
+                   261:                    buffer[offset+31]=(unsigned char)((dir->all_bytes>>24) & 0xFF);
+    00059A 6E30001C               MOV.B       @(28:16,ER3),R0H
+    00059E 6E38001D               MOV.B       @(29:16,ER3),R0L
+    0005A2 0D08                   MOV.W       R0,E0
+    0005A4 0D81                   MOV.W       E0,R1
+    0005A6 0C19                   MOV.B       R1H,R1L
+    0005A8 17D1                   EXTS.W      R1
+    0005AA 17F1                   EXTS.L      ER1
+    0005AC 6970                   MOV.W       @SP,R0
+    0005AE 17F0                   EXTS.L      ER0
+    0005B0 0AD0                   ADD.L       ER5,ER0
+    0005B2 6E89001F               MOV.B       R1L,@(31:16,ER0)
+                   262:    
+                   263:                    if( fcb->dir_cluster==0 )
+    0005B6 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0005BA 6E68001C               MOV.B       @(28:16,ER6),R0L
+    0005BE 0D00                   MOV.W       R0,R0
+    0005C0 4606                   BNE         L178:8
+                   264:                            root_dir_write();
+    0005C2 5E                     JSR         @_root_dir_write:24
+           <000000>     
+    0005C6 4004                   BRA         L179:8
+    0005C8              L178:                             
+                   265:                    else
+                   266:                            cluster_write();
+    0005C8 5E                     JSR         @_cluster_write:24
+           <000000>     
+    0005CC              L179:                             
+                   267:    
+                   268:                    return( 0 );
+    0005CC 1900                   SUB.W       R0,R0
+                   269:    }
+    0005CE              L156:                             
+    0005CE 0B87                   ADDS.L      #2,SP
+    0005D0 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   270:    
+                   271:    /***************************************************************
+                   272:            ディレクトリー更新
+                   273:                            日付・時刻とファイルの大きさを更新する
+                   274:    
+                   275:            INPUT:
+                   276:                            fd = ＦＣＢ番号
+                   277:    
+                   278:                            dir = ディレクトリーエントリー情報
+                   279:                                            dir->all_bytes = ファイルの大きさ
+                   280:    
+                   281:            RETURN:
+                   282:                            0 = 正常終了
+                   283:                            other = 異常終了
+                   284:    
+                   285:                            fcb.dir_cluster = 検索ディレクトリーのクラスター番号(0=ROOT)
+                   286:                            fcb.dir_entry = 検索ディレクトリーのエントリー番号
+                   287:    
+                   288:    ***************************************************************/
+                   289:    int     update_directory( FCB *fcb, DIR_ENTRY *dir )
+    0005D4              _update_directory:               ; function: update_directory
+    0005D4 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0005D8 1B87                   SUBS.L      #2,SP
+                   290:    {
+    0005DA 0F84                   MOV.L       ER0,ER4
+    0005DC 0F96                   MOV.L       ER1,ER6
+                   291:                    BPB             *bpb;
+                   292:                    short   offset;
+                   293:                    unsigned char *buffer;
+                   294:    
+                   295:                    if( fcb==NULL )
+    0005DE 0FC4                   MOV.L       ER4,ER4
+    0005E0 58700082               BEQ         L221:16
+                   296:                            return( -1 );                           /*ファイルコントロールブロック情報無し*/
+                   297:                    bpb = fcb->bpb;
+    0005E4 6E400023               MOV.B       @(35:16,ER4),R0H
+    0005E8 6E480024               MOV.B       @(36:16,ER4),R0L
+    0005EC 0D08                   MOV.W       R0,E0
+    0005EE 6E400025               MOV.B       @(37:16,ER4),R0H
+    0005F2 6E480026               MOV.B       @(38:16,ER4),R0L
+    0005F6 0F85                   MOV.L       ER0,ER5
+                   298:                    if( bpb==NULL )
+    0005F8 476C                   BEQ         L221:8
+                   299:                            return( -1 );                           /*デバイス情報無し*/
+                   300:    
+                   301:                    if( fcb->dir_cluster==0 ){              /*ルートディレクトリーの場合*/
+    0005FA 6E40001B               MOV.B       @(27:16,ER4),R0H
+    0005FE 6E48001C               MOV.B       @(28:16,ER4),R0L
+    000602 0D00                   MOV.W       R0,R0
+    000604 4638                   BNE         L183:8
+                   302:                            if( fcb->dir_entry>=bpb->root_entry )
+    000606 6E40001D               MOV.B       @(29:16,ER4),R0H
+    00060A 6E48001E               MOV.B       @(30:16,ER4),R0L
+    00060E 6E51000C               MOV.B       @(12:16,ER5),R1H
+    000612 6E59000D               MOV.B       @(13:16,ER5),R1L
+    000616 1D10                   CMP.W       R1,R0
+    000618 444C                   BCC         L221:8
+                   303:                                    return( -1 );                           /*エントリーオーバー*/
+                   304:                            if( root_dir_read( bpb, fcb->dir_entry, &offset ) )
+    00061A 0FF0                   MOV.L       SP,ER0
+    00061C 01006DF0               PUSH.L      ER0
+    000620 6E40001D               MOV.B       @(29:16,ER4),R0H
+    000624 6E48001E               MOV.B       @(30:16,ER4),R0L
+    000628 0D01                   MOV.W       R0,R1
+    00062A 0FD0                   MOV.L       ER5,ER0
+    00062C 5E                     JSR         @_root_dir_read:24
+           <000000>     
+    000630 0B97                   ADDS.L      #4,SP
+    000632 0D00                   MOV.W       R0,R0
+    000634 4630                   BNE         L221:8
+                   305:                                    return( -1 );                           /*ルートディレクトリー読込みエラー*/
+                   306:    
+                   307:                            buffer = rootdir_buffer.buffer;
+    000636 7A05                   MOV.L       #_rootdir_buffer+10:32,ER5
+           <00000000>   
+    00063C 4036                   BRA         L186:8
+    00063E              L183:                             
+                   308:                    }
+                   309:                    else {                                                  /*サブディレクトリーの場合*/
+                   310:                            offset = fcb->dir_entry * 32;                           /*エントリーのオフセットを設定*/
+    00063E 6E40001D               MOV.B       @(29:16,ER4),R0H
+    000642 6E48001E               MOV.B       @(30:16,ER4),R0L
+    000646 79080020               MOV.W       #32:16,E0
+    00064A 5280                   MULXU.W     E0,ER0
+    00064C 69F0                   MOV.W       R0,@SP
+                   311:                            if( cluster_read( bpb, fcb->dir_cluster, 1 ) )
+    00064E 6E40001B               MOV.B       @(27:16,ER4),R0H
+    000652 6E48001C               MOV.B       @(28:16,ER4),R0L
+    000656 79090001               MOV.W       #1:16,E1
+    00065A 0D01                   MOV.W       R0,R1
+    00065C 0FD0                   MOV.L       ER5,ER0
+    00065E 5E                     JSR         @_cluster_read:24
+           <000000>     
+    000662 0D00                   MOV.W       R0,R0
+    000664 4708                   BEQ         L187:8
+                   312:                                    return( -1 );           /*サブディレクトリー読込みエラー*/
+    000666              L221:                             
+    000666 7900FFFF               MOV.W       #-1:16,R0
+    00066A 5A                     JMP         @L181:24
+           <000000>     
+    00066E              L187:                             
+                   313:    
+                   314:                            buffer = cluster_buffer.buffer;
+    00066E 7A05                   MOV.L       #_cluster_buffer+14:32,ER5
+           <00000000>   
+    000674              L186:                             
+                   315:                    }
+                   316:    
+                   317:                    memcpy( &buffer[offset+0], dir->filename, 8+3 );
+    000674 1A80                   SUB.L       ER0,ER0
+    000676 F80B                   MOV.B       #11:8,R0L
+    000678 01006DF0               PUSH.L      ER0
+    00067C 6F700004               MOV.W       @(4:16,SP),R0
+    000680 17F0                   EXTS.L      ER0
+    000682 0AD0                   ADD.L       ER5,ER0
+    000684 0FE1                   MOV.L       ER6,ER1
+    000686 5E                     JSR         @_memcpy:24
+           <000000>     
+    00068A 0B97                   ADDS.L      #4,SP
+                   318:                    buffer[offset+8+3] = dir->attribute;
+    00068C 6970                   MOV.W       @SP,R0
+    00068E 7910000B               ADD.W       #11:16,R0
+    000692 17F0                   EXTS.L      ER0
+    000694 0AD0                   ADD.L       ER5,ER0
+    000696 6E69000B               MOV.B       @(11:16,ER6),R1L
+    00069A 6889                   MOV.B       R1L,@ER0
+                   319:                    dir->w_time = now_time;
+    00069C 6B2000                 MOV.W       @_now_time:24,R0
+           <000000>     
+    0006A2 6EE00016               MOV.B       R0H,@(22:16,ER6)
+    0006A6 6EE80017               MOV.B       R0L,@(23:16,ER6)
+                   320:                    dir->w_date = now_date;
+    0006AA 6B2000                 MOV.W       @_now_date:24,R0
+           <000000>     
+    0006B0 6EE00018               MOV.B       R0H,@(24:16,ER6)
+    0006B4 6EE80019               MOV.B       R0L,@(25:16,ER6)
+                   321:    
+                   322:                    buffer[offset+22]=(unsigned char)(dir->w_time & 0xFF);
+    0006B8 6E680017               MOV.B       @(23:16,ER6),R0L
+    0006BC 6971                   MOV.W       @SP,R1
+    0006BE 17F1                   EXTS.L      ER1
+    0006C0 0AD1                   ADD.L       ER5,ER1
+    0006C2 6E980016               MOV.B       R0L,@(22:16,ER1)
+                   323:                    buffer[offset+23]=(unsigned char)((dir->w_time>>8) & 0xFF);
+    0006C6 6E600016               MOV.B       @(22:16,ER6),R0H
+    0006CA 6971                   MOV.W       @SP,R1
+    0006CC 17F1                   EXTS.L      ER1
+    0006CE 0AD1                   ADD.L       ER5,ER1
+    0006D0 6E900017               MOV.B       R0H,@(23:16,ER1)
+                   324:                    buffer[offset+24]=(unsigned char)(dir->w_date & 0xFF);
+    0006D4 6E680019               MOV.B       @(25:16,ER6),R0L
+    0006D8 6971                   MOV.W       @SP,R1
+    0006DA 17F1                   EXTS.L      ER1
+    0006DC 0AD1                   ADD.L       ER5,ER1
+    0006DE 6E980018               MOV.B       R0L,@(24:16,ER1)
+                   325:                    buffer[offset+25]=(unsigned char)((dir->w_date>>8) & 0xFF);
+    0006E2 6E600018               MOV.B       @(24:16,ER6),R0H
+    0006E6 6971                   MOV.W       @SP,R1
+    0006E8 17F1                   EXTS.L      ER1
+    0006EA 0AD1                   ADD.L       ER5,ER1
+    0006EC 6E900019               MOV.B       R0H,@(25:16,ER1)
+                   326:    
+                   327:                    buffer[offset+26]=(unsigned char)(dir->start_cluster & 0xFF);
+    0006F0 6E68001B               MOV.B       @(27:16,ER6),R0L
+    0006F4 6971                   MOV.W       @SP,R1
+    0006F6 17F1                   EXTS.L      ER1
+    0006F8 0AD1                   ADD.L       ER5,ER1
+    0006FA 6E98001A               MOV.B       R0L,@(26:16,ER1)
+                   328:                    buffer[offset+27]=(unsigned char)((dir->start_cluster>>8) & 0xFF);
+    0006FE 6E60001A               MOV.B       @(26:16,ER6),R0H
+    000702 6971                   MOV.W       @SP,R1
+    000704 17F1                   EXTS.L      ER1
+    000706 0AD1                   ADD.L       ER5,ER1
+    000708 6E90001B               MOV.B       R0H,@(27:16,ER1)
+                   329:    
+                   330:                    buffer[offset+28]=(unsigned char)(dir->all_bytes & 0xFF);
+    00070C 6E60001C               MOV.B       @(28:16,ER6),R0H
+    000710 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000714 6E68001F               MOV.B       @(31:16,ER6),R0L
+    000718 6971                   MOV.W       @SP,R1
+    00071A 17F1                   EXTS.L      ER1
+    00071C 0AD1                   ADD.L       ER5,ER1
+    00071E 6E98001C               MOV.B       R0L,@(28:16,ER1)
+                   331:                    buffer[offset+29]=(unsigned char)((dir->all_bytes>>8) & 0xFF);
+    000722 6E60001C               MOV.B       @(28:16,ER6),R0H
+    000726 6E68001D               MOV.B       @(29:16,ER6),R0L
+    00072A 0D08                   MOV.W       R0,E0
+    00072C 6E60001E               MOV.B       @(30:16,ER6),R0H
+    000730 6E68001F               MOV.B       @(31:16,ER6),R0L
+    000734 F908                   MOV.B       #8:8,R1L
+    000736              L188:                             
+    000736 11B0                   SHAR.L      ER0
+    000738 1A09                   DEC.B       R1L
+    00073A 4EFA                   BGT         L188:8
+    00073C 6971                   MOV.W       @SP,R1
+    00073E 17F1                   EXTS.L      ER1
+    000740 0AD1                   ADD.L       ER5,ER1
+    000742 6E98001D               MOV.B       R0L,@(29:16,ER1)
+                   332:                    buffer[offset+30]=(unsigned char)((dir->all_bytes>>16) & 0xFF);
+    000746 6E60001C               MOV.B       @(28:16,ER6),R0H
+    00074A 6E68001D               MOV.B       @(29:16,ER6),R0L
+    00074E 0D08                   MOV.W       R0,E0
+    000750 17F0                   EXTS.L      ER0
+    000752 6971                   MOV.W       @SP,R1
+    000754 17F1                   EXTS.L      ER1
+    000756 0AD1                   ADD.L       ER5,ER1
+    000758 6E98001E               MOV.B       R0L,@(30:16,ER1)
+                   333:                    buffer[offset+31]=(unsigned char)((dir->all_bytes>>24) & 0xFF);
+    00075C 6E60001C               MOV.B       @(28:16,ER6),R0H
+    000760 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000764 0D08                   MOV.W       R0,E0
+    000766 0D81                   MOV.W       E0,R1
+    000768 0C19                   MOV.B       R1H,R1L
+    00076A 17D1                   EXTS.W      R1
+    00076C 17F1                   EXTS.L      ER1
+    00076E 6970                   MOV.W       @SP,R0
+    000770 17F0                   EXTS.L      ER0
+    000772 0AD0                   ADD.L       ER5,ER0
+    000774 6E89001F               MOV.B       R1L,@(31:16,ER0)
+                   334:    
+                   335:                    fcb->all_bytes = dir->all_bytes;
+    000778 6E60001C               MOV.B       @(28:16,ER6),R0H
+    00077C 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000780 0D08                   MOV.W       R0,E0
+    000782 6E60001E               MOV.B       @(30:16,ER6),R0H
+    000786 6E68001F               MOV.B       @(31:16,ER6),R0L
+    00078A 6EC00013               MOV.B       R0H,@(19:16,ER4)
+    00078E 6EC80014               MOV.B       R0L,@(20:16,ER4)
+    000792 0D80                   MOV.W       E0,R0
+    000794 6EC00011               MOV.B       R0H,@(17:16,ER4)
+    000798 6EC80012               MOV.B       R0L,@(18:16,ER4)
+                   336:    
+                   337:                    if( fcb->dir_cluster==0 )
+    00079C 6E40001B               MOV.B       @(27:16,ER4),R0H
+    0007A0 6E48001C               MOV.B       @(28:16,ER4),R0L
+    0007A4 0D00                   MOV.W       R0,R0
+    0007A6 4606                   BNE         L189:8
+                   338:                            root_dir_write();
+    0007A8 5E                     JSR         @_root_dir_write:24
+           <000000>     
+    0007AC 4004                   BRA         L190:8
+    0007AE              L189:                             
+                   339:                    else
+                   340:                            cluster_write();
+    0007AE 5E                     JSR         @_cluster_write:24
+           <000000>     
+    0007B2              L190:                             
+                   341:    
+                   342:                    return( 0 );
+    0007B2 1900                   SUB.W       R0,R0
+                   343:    }
+    0007B4              L181:                             
+    0007B4 0B87                   ADDS.L      #2,SP
+    0007B6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   344:    
+                   345:    /***************************************************************
+                   346:            ディレクトリー削除
+                   347:                            ファイル名を検索してから行うこと
+                   348:    
+                   349:            INPUT:
+                   350:                            fd = ＦＣＢ番号
+                   351:    
+                   352:                            dir = ディレクトリーエントリー情報
+                   353:                                            dir->all_bytes = ファイルの大きさ
+                   354:    
+                   355:            RETURN:
+                   356:                            0 = 正常終了
+                   357:                            other = 異常終了
+                   358:    
+                   359:                            fcb.dir_cluster = 0
+                   360:                            fcb.dir_entry = 検索ディレクトリーのエントリー番号
+                   361:    
+                   362:    ***************************************************************/
+                   363:    int     delete_directory( FCB *fcb, DIR_ENTRY *dir )
+    0007BA              _delete_directory:               ; function: delete_directory
+    0007BA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0007BE 1B87                   SUBS.L      #2,SP
+                   364:    {
+    0007C0 0F86                   MOV.L       ER0,ER6
+    0007C2 0F94                   MOV.L       ER1,ER4
+                   365:                    BPB             *bpb;
+                   366:                    short   offset;
+                   367:                    unsigned char *buffer;
+                   368:                    unsigned short  cluster,cluster2;
+                   369:    
+                   370:                    if( fcb==NULL )
+    0007C4 0FE6                   MOV.L       ER6,ER6
+    0007C6 58700082               BEQ         L225:16
+                   371:                            return( -1 );                           /*ファイルコントロールブロック情報無し*/
+                   372:                    bpb = fcb->bpb;
+    0007CA 6E600023               MOV.B       @(35:16,ER6),R0H
+    0007CE 6E680024               MOV.B       @(36:16,ER6),R0L
+    0007D2 0D08                   MOV.W       R0,E0
+    0007D4 6E600025               MOV.B       @(37:16,ER6),R0H
+    0007D8 6E680026               MOV.B       @(38:16,ER6),R0L
+    0007DC 0F85                   MOV.L       ER0,ER5
+                   373:                    if( bpb==NULL )
+    0007DE 476C                   BEQ         L225:8
+                   374:                            return( -1 );                           /*デバイス情報無し*/
+                   375:    
+                   376:                    if( fcb->dir_cluster==0 ){              /*ルートディレクトリーの場合*/
+    0007E0 6E60001B               MOV.B       @(27:16,ER6),R0H
+    0007E4 6E68001C               MOV.B       @(28:16,ER6),R0L
+    0007E8 0D00                   MOV.W       R0,R0
+    0007EA 4638                   BNE         L194:8
+                   377:                            if( fcb->dir_entry>=bpb->root_entry )
+    0007EC 6E60001D               MOV.B       @(29:16,ER6),R0H
+    0007F0 6E68001E               MOV.B       @(30:16,ER6),R0L
+    0007F4 6E51000C               MOV.B       @(12:16,ER5),R1H
+    0007F8 6E59000D               MOV.B       @(13:16,ER5),R1L
+    0007FC 1D10                   CMP.W       R1,R0
+    0007FE 444C                   BCC         L225:8
+                   378:                                    return( -1 );                           /*エントリーオーバー*/
+                   379:                            if( root_dir_read( bpb, fcb->dir_entry, &offset ) )
+    000800 0FF0                   MOV.L       SP,ER0
+    000802 01006DF0               PUSH.L      ER0
+    000806 6E60001D               MOV.B       @(29:16,ER6),R0H
+    00080A 6E68001E               MOV.B       @(30:16,ER6),R0L
+    00080E 0D01                   MOV.W       R0,R1
+    000810 0FD0                   MOV.L       ER5,ER0
+    000812 5E                     JSR         @_root_dir_read:24
+           <000000>     
+    000816 0B97                   ADDS.L      #4,SP
+    000818 0D00                   MOV.W       R0,R0
+    00081A 4630                   BNE         L225:8
+                   380:                                    return( -1 );                           /*ルートディレクトリー読込みエラー*/
+                   381:    
+                   382:                            buffer = rootdir_buffer.buffer;
+    00081C 7A05                   MOV.L       #_rootdir_buffer+10:32,ER5
+           <00000000>   
+    000822 4034                   BRA         L197:8
+    000824              L194:                             
+                   383:                    }
+                   384:                    else {                                                  /*サブディレクトリーの場合*/
+                   385:                            offset = fcb->dir_entry * 32;                           /*エントリーのオフセットを設定*/
+    000824 6E60001D               MOV.B       @(29:16,ER6),R0H
+    000828 6E68001E               MOV.B       @(30:16,ER6),R0L
+    00082C 79080020               MOV.W       #32:16,E0
+    000830 5280                   MULXU.W     E0,ER0
+    000832 69F0                   MOV.W       R0,@SP
+                   386:                            if( cluster_read( bpb, fcb->dir_cluster, 1 ) )
+    000834 6E60001B               MOV.B       @(27:16,ER6),R0H
+    000838 6E68001C               MOV.B       @(28:16,ER6),R0L
+    00083C 79090001               MOV.W       #1:16,E1
+    000840 0D01                   MOV.W       R0,R1
+    000842 0FD0                   MOV.L       ER5,ER0
+    000844 5E                     JSR         @_cluster_read:24
+           <000000>     
+    000848 0D00                   MOV.W       R0,R0
+    00084A 4706                   BEQ         L198:8
+                   387:                                    return( -1 );           /*サブディレクトリー読込みエラー*/
+    00084C              L225:                             
+    00084C 7900FFFF               MOV.W       #-1:16,R0
+    000850 407A                   BRA         L192:8
+    000852              L198:                             
+                   388:    
+                   389:                            buffer = cluster_buffer.buffer;
+    000852 7A05                   MOV.L       #_cluster_buffer+14:32,ER5
+           <00000000>   
+    000858              L197:                             
+                   390:                    }
+                   391:    
+                   392:                    buffer[offset+0] = 0xE5;
+    000858 6970                   MOV.W       @SP,R0
+    00085A 17F0                   EXTS.L      ER0
+    00085C 0AD0                   ADD.L       ER5,ER0
+    00085E F9E5                   MOV.B       #-27:8,R1L
+    000860 6889                   MOV.B       R1L,@ER0
+                   393:    
+                   394:                    if( fcb->dir_cluster==0 )
+    000862 6E60001B               MOV.B       @(27:16,ER6),R0H
+    000866 6E68001C               MOV.B       @(28:16,ER6),R0L
+    00086A 0D00                   MOV.W       R0,R0
+    00086C 4606                   BNE         L199:8
+                   395:                            root_dir_write();
+    00086E 5E                     JSR         @_root_dir_write:24
+           <000000>     
+    000872 4004                   BRA         L200:8
+    000874              L199:                             
+                   396:                    else
+                   397:                            cluster_write();
+    000874 5E                     JSR         @_cluster_write:24
+           <000000>     
+    000878              L200:                             
+                   398:    
+                   399:                    /*クラスターチェインの削除*/
+                   400:                    cluster = dir->start_cluster;
+    000878 6E40001A               MOV.B       @(26:16,ER4),R0H
+    00087C 6E48001B               MOV.B       @(27:16,ER4),R0L
+    000880 0D05                   MOV.W       R0,R5
+                   401:                    while( cluster>=2 && cluster!=0xFFFF ){
+    000882 403A                   BRA         L202:8
+    000884              L201:                             
+                   402:                            cluster2 = next_cluster( fcb->bpb, cluster );
+    000884 6E600023               MOV.B       @(35:16,ER6),R0H
+    000888 6E680024               MOV.B       @(36:16,ER6),R0L
+    00088C 0D08                   MOV.W       R0,E0
+    00088E 6E600025               MOV.B       @(37:16,ER6),R0H
+    000892 6E680026               MOV.B       @(38:16,ER6),R0L
+    000896 0D51                   MOV.W       R5,R1
+    000898 5E                     JSR         @_next_cluster:24
+           <000000>     
+    00089C 0D0D                   MOV.W       R0,E5
+                   403:                            update_cluster( fcb->bpb, cluster, 0 );
+    00089E 6E610023               MOV.B       @(35:16,ER6),R1H
+    0008A2 6E690024               MOV.B       @(36:16,ER6),R1L
+    0008A6 0D19                   MOV.W       R1,E1
+    0008A8 6E610025               MOV.B       @(37:16,ER6),R1H
+    0008AC 6E690026               MOV.B       @(38:16,ER6),R1L
+    0008B0 0F92                   MOV.L       ER1,ER2
+    0008B2 1999                   SUB.W       E1,E1
+    0008B4 0D51                   MOV.W       R5,R1
+    0008B6 0FA0                   MOV.L       ER2,ER0
+    0008B8 5E                     JSR         @_update_cluster:24
+           <000000>     
+                   404:                            cluster = cluster2;
+    0008BC 0DD5                   MOV.W       E5,R5
+    0008BE              L202:                             
+    0008BE 79250002               CMP.W       #2:16,R5
+    0008C2 4506                   BCS         L203:8
+    0008C4 7925FFFF               CMP.W       #-1:16,R5
+    0008C8 46BA                   BNE         L201:8
+    0008CA              L203:                             
+                   405:                    }
+                   406:    
+                   407:                    return( 0 );
+    0008CA 1900                   SUB.W       R0,R0
+                   408:    }
+    0008CC              L192:                             
+    0008CC 0B87                   ADDS.L      #2,SP
+    0008CE 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   409:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:58  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000008D2 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000008D2 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000008D2 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       16 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        5 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         77 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\diraccs.c -object=.\obj\diraccs.obj
+CPU         : 300ha:24

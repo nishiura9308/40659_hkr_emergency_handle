@@ -1,0 +1,387 @@
+################################################################################
+#                                                                              #
+#      IAR Universal Linker V4.50C/386                                         #
+#                                                                              #
+#           Link time     =  07/Jul/2003  14:29:28                             #
+#           Target CPU    =  z80                                               #
+#           List file     =  paa.map                                           #
+#           Output file 1 =  paa.hex                                           #
+#           Output format =  intel-standard                                    #
+#           Command line  =  -f LINK.CMD (-cZ80 -FIntel-Standard -A            #
+#                            .\obj\paaInitA.r01 -A .\obj\paaTimeA.r01 -A       #
+#                            .\obj\paaCommA.r01 -A .\obj\paaPioA.r01 -A        #
+#                            .\obj\paaMain.r01 -A .\obj\paaInit.r01 -A         #
+#                            .\obj\paaPio.r01 -A .\obj\paaTimer.r01 -A         #
+#                            .\obj\paaExec.r01 -A .\obj\paaComm.r01 -C CL64180 #
+#                            -Z(code)RCODE,CODE,CONST,CSTR=0100                #
+#                            -Z(data)RDATA,UDATA0=C000) -o PAA.hex -l PAA.map  #
+#                            -t -xes                                           #
+#                                                                              #
+#                                               (c) Copyright IAR Systems 1998 #
+################################################################################
+
+
+
+
+
+                ****************************************
+                *                                      *
+                *           CROSS REFERENCE            *
+                *                                      *
+                ****************************************
+
+                  There are no program entries.
+
+
+                ****************************************
+                *                                      *
+                *              ENTRY LIST              *
+                *                                      *
+                ****************************************
+
+CSTARTUP ( .\obj\paainita.r01 )
+  PRGBEGIN                         0003 
+  prg_name                         0100 
+  prg_version                      0124 
+  init_ic                          01DE 
+  read_dipsw                       01FB 
+  watch_dog_reset                  0206 
+  _Bankchange                      020C 
+  __enable                         022E 
+  __disable                        0230 
+  ram_check                        0232 
+  rom_check                        02D4 
+  HALTCPU                          0309 
+paatimea ( .\obj\paatimea.r01 )
+  timer_0_initialize               030B 
+  timer_0_ir                       0336 
+  timer_1_initialize               036B 
+  timer_1_ir                       0396 
+paacomma ( .\obj\paacomma.r01 )
+  asci_0_initialize                03DA 
+  asci_0_tx_disable                03EF 
+  asci_0_tx_enable                 0404 
+  asci_0_transmit                  0419 
+  asci_0_ir                        041E 
+paapioa ( .\obj\paapioa.r01 )
+  csio_initialize                  0461 
+  csio_output                      0478 
+  switch_read                      04CB 
+  io_output_on1                    04D6 
+  io_output_on2                    04E3 
+  io_output_on3                    04F0 
+  io_output_on4                    04FD 
+  io_output_off1                   050A 
+  io_output_off2                   051A 
+  io_output_off3                   052A 
+  io_output_off4                   053A 
+  iodata                           C000 
+paamain ( .\obj\paamain.r01 )
+  main                             059D 
+  ?0001                            066A 
+  preReadIO                        C006 
+  readCount                        C005 
+paainit ( .\obj\paainit.r01 )
+  paaInitialize                    067B 
+  ?0000                            0683 
+  ?0001                            068B 
+  ?0002                            0692 
+  ?0003                            069A 
+paapio ( .\obj\paapio.r01 )
+  paaSignalIn                      069C 
+  paaSignalOut                     06EB 
+  nowReadIO                        C008 
+  ?0008                            06B8 
+  ?0009                            06BE 
+  ?0011                            06C9 
+  ?0012                            06DC 
+  ?0010                            06DC 
+  preReadIO                        C00B 
+  readCount                        C00A 
+paatimer ( .\obj\paatimer.r01 )
+  timer_0_func                     06EC 
+  timer_1_func                     075F 
+  ?0000                            0704 
+  ?0002                            070A 
+  ?0003                            0711 
+  ?0004                            0717 
+  ?0005                            071E 
+  ?0001                            0720 
+  ?0006                            072C 
+  ?0007                            0739 
+  ?0008                            073F 
+  ?0009                            074C 
+  ?0010                            0752 
+paaexec ( .\obj\paaexec.r01 )
+  paaAMPCheck                      08A3 
+  paaExecuteAUTO                   08EF 
+  paaExecuteCAB                    097D 
+  paaExecuteEMG                    09AE 
+  paaExecuteINIT                   0C2A 
+  paaExecuteMAN                    0936 
+  paaExecuteMode                   0C4F 
+  paaExecuteTEST                   0A57 
+  paaGetMode                       0760 
+  paaLEDOUT                        0C8A 
+  paaSetVolume                     07C7 
+  amp1Active                       C012 
+  amp2Active                       C013 
+  ampFailCount1                    C014 
+  ampFailCount2                    C016 
+  emg_rsc                          C00E 
+  initial_voice_level              C00F 
+  ledCount                         C01A 
+  noise_checkCount                 C010 
+  opeMode                          C025 
+  testCount                        C018 
+  voice_bus_mode                   C00D 
+  ?0001                            0795 
+  ?0002                            079C 
+  ?0003                            07A3 
+  ?0004                            07AA 
+  ?0005                            07B1 
+  ?0006                            07B8 
+  ?0007                            07BF 
+  ?0000                            07C5 
+  ?0008                            07DB 
+  ?0009                            07E4 
+  ?0010                            07F1 
+  ?0011                            07FA 
+  ?0012                            0808 
+  ?0013                            080B 
+  ?0014                            082F 
+  ?0015                            0835 
+  ?0016                            083B 
+  ?0017                            0843 
+  ?0018                            0849 
+  ?0019                            0851 
+  ?0020                            0858 
+  ?0021                            085E 
+  ?0022                            0865 
+  ?0023                            086B 
+  ?0024                            0872 
+  ?0025                            0876 
+  ?0026                            089C 
+  ?0027                            08B1 
+  ?0029                            08BF 
+  ?0030                            08C7 
+  ?0031                            08CF 
+  ?0032                            08DD 
+  ?0033                            08E5 
+  ?0034                            08ED 
+  ?0028                            08ED 
+  ?0035                            08FB 
+  ?0036                            0930 
+  ?0037                            0942 
+  ?0038                            0977 
+  ?0039                            0989 
+  ?0040                            09A8 
+  ?0041                            09BA 
+  ?0042                            09DD 
+  ?0043                            09E4 
+  ?0044                            09F5 
+  ?0045                            0A03 
+  ?0046                            0A0A 
+  ?0047                            0A1B 
+  ?0048                            0A29 
+  ?0049                            0A33 
+  ?0050                            0A51 
+  ?0051                            0A63 
+  ?0052                            0AA7 
+  ?0053                            0AAE 
+  ?0054                            0AB2 
+  ?0055                            0ABF 
+  ?0056                            0AC2 
+  ?0057                            0ACF 
+  ?0058                            0ADF 
+  ?0059                            0AEC 
+  ?0060                            0AFC 
+  ?0061                            0B03 
+  ?0063                            0B11 
+  ?0064                            0B19 
+  ?0065                            0B21 
+  ?0062                            0B21 
+  ?0066                            0B28 
+  ?0068                            0B36 
+  ?0069                            0B3E 
+  ?0070                            0B46 
+  ?0067                            0B46 
+  ?0071                            0B50 
+  ?0072                            0B5A 
+  ?0073                            0B60 
+  ?0075                            0B77 
+  ?0076                            0B7B 
+  ?0074                            0B7E 
+  ?0077                            0B84 
+  ?0079                            0B9B 
+  ?0080                            0BA2 
+  ?0081                            0BA9 
+  ?0078                            0BB6 
+  ?0082                            0BBD 
+  ?0084                            0BCB 
+  ?0085                            0BCD 
+  ?0083                            0BD8 
+  ?0086                            0BDF 
+  ?0087                            0BE3 
+  ?0088                            0BF1 
+  ?0090                            0BFD 
+  ?0091                            0C0C 
+  ?0092                            0C23 
+  ?0089                            0C27 
+  ?0093                            0C27 
+  ?0095                            0C6A 
+  ?0096                            0C6F 
+  ?0097                            0C74 
+  ?0098                            0C79 
+  ?0099                            0C7E 
+  ?0100                            0C83 
+  ?0094                            0C88 
+  ?0101                            0C99 
+  ?0102                            0CA0 
+  ?0103                            0CA5 
+  ?0104                            0CAB 
+  ?0105                            0CB2 
+  ?0106                            0CB7 
+  ?0107                            0CBE 
+  ?0108                            0CC8 
+  ?0109                            0CCF 
+  ?0110                            0CD9 
+  ?0111                            0CE0 
+  ?0112                            0CE4 
+  ampok                            C022 
+  befNoiseLevel                    C01D 
+  befOpeMode                       C01E 
+  befTestRSCNo                     C020 
+  bef_emg_rsc                      C023 
+  checkAmp                         C01B 
+  testPhase                        C024 
+  testRSCNo                        C01F 
+  testTrouble                      C021 
+paacomm ( .\obj\paacomm.r01 )
+  asci_0_recv_ir                   1038 
+  asci_0_send_ir                   0CE7 
+  paaReceive                       0EAB 
+  paaSend                          0D0A 
+  address                          C026 
+  address2                         C028 
+  sendarea                         C02A 
+  ?0000                            0CF3 
+  ?0001                            0CF8 
+  ?0002                            0D07 
+  ?0005                            0D6F 
+  ?0006                            0D6F 
+  ?0003                            0D6F 
+  ?0004                            0D8F 
+  ?0007                            0D9E 
+  ?0009                            0DA5 
+  ?0010                            0DB6 
+  ?0014                            0DE4 
+  ?0015                            0DE4 
+  ?0012                            0DE4 
+  ?0013                            0E0A 
+  ?0016                            0E1F 
+  ?0061                            0E27 
+  ?0062                            0E2F 
+  ?0008                            0E32 
+  ?0019                            0E66 
+  ?0020                            0E66 
+  ?0017                            0E66 
+  ?0018                            0E86 
+  ?0021                            0E95 
+  ?0022                            0EC1 
+  ?0023                            0EC5 
+  ?0024                            0ED3 
+  ?0025                            0F58 
+  ?0026                            0F70 
+  ?0028                            0F8A 
+  ?0029                            0FC4 
+  ?0027                            0FC4 
+  ?0030                            0FE5 
+  ?0031                            101B 
+  ?0032                            102E 
+  ?0033                            1032 
+  ?0034                            1033 
+  ?0035                            104B 
+  ?0036                            1053 
+  ?0037                            105A 
+  ?0039                            1060 
+  ?0040                            1071 
+  ?0038                            1074 
+  ?0042                            107B 
+  ?0043                            107E 
+  ?0044                            1088 
+  ?0046                            1093 
+  ?0047                            10A3 
+  ?0045                            10AB 
+  ?0048                            10B2 
+  ?0049                            10CC 
+  ?0050                            10D0 
+  ?0051                            10D2 
+  ?0052                            10DC 
+  ?0053                            10E8 
+  ?0054                            10F2 
+  ?0056                            1106 
+  ?0058                            1115 
+  ?0059                            1118 
+  ?0057                            1118 
+  ?0055                            1118 
+  ?0041                            111E 
+  ?0060                            111E 
+  recvbcc                          C0B4 
+  recvbuff                         C031 
+  recvdle                          C0B3 
+  recvlen                          C0B1 
+  recvphase                        C0B2 
+  sendbuff                         C0B5 
+  sendcnt                          C136 
+  sendlen                          C135 
+?LIB_VERSION_L00 ( v:\lib\cl64180.r01 )
+  ?CL64180L_4_04_L00               0000 
+?C_LSH_L01 ( v:\lib\cl64180.r01 )
+  ?C_LSH_L01                       054A 
+?US_RSH_L02 ( v:\lib\cl64180.r01 )
+  ?US_RSH_L02                      0551 
+?SS_RSH_L02 ( v:\lib\cl64180.r01 )
+  ?SS_RSH_L02                      055B 
+?C_S_SWITCH_L06 ( v:\lib\cl64180.r01 )
+  ?C_S_SWITCH_L06                  0565 
+?C_V_SWITCH_L06 ( v:\lib\cl64180.r01 )
+  ?C_V_SWITCH_L06                  0581 
+?V_SWITCH_END_L06 ( v:\lib\cl64180.r01 )
+  ?V_SWITCH_END_L06                0593 
+
+
+
+                ****************************************
+                *                                      *
+                *      SEGMENTS IN ADDRESS ORDER       *
+                *                                      *
+                ****************************************
+
+
+ SEGMENT               START ADDRESS    END ADDRESS  TYPE  ORG  P/N  ALIGN
+ =======               =============    ===========  ====  ===  ===  =====
+RCODE                        0100     -     059C      rel  stc  pos   0     
+CODE                         059D     -     1122      rel  flt  pos   0     
+CSTR                              Not in use          dse  flt  pos   0     
+CONST                             Not in use          dse  flt  pos   0     
+RDATA                        C000     -     C004      rel  stc  pos   0     
+UDATA0                       C005     -     C136      rel  flt  pos   0     
+                             0000     -     0006     aseg  
+                             0038     -     003D     aseg  
+                             0040     -     0057     aseg  
+                             0066     -     006B     aseg  
+                             3FFF     -     3FFF     aseg  
+
+                ****************************************
+                *                                      *
+                *        END OF CROSS REFERENCE        *
+                *                                      *
+                ****************************************
+
+  4175 bytes of CODE memory
+   311 bytes of DATA memory
+
+Errors: none
+Warnings: none
+

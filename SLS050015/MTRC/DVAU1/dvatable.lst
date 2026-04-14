@@ -1,0 +1,1606 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:16  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatable.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            テーブル定義
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/08/07         K.Honda
+                     9:                            a01. 2000/10/10         K.Honda
+                    10:                            a02. 2001/03/22 日付によるファイル変更
+                    11:                            a03. 2013/05/10 駅コードによる到着前放送検索追加
+                    12:    *********************************************************************/
+                    13:    
+                    14:    #include <stdio.h>
+                    15:    #include <string.h>
+                    16:    #include        "iodefine.h"
+                    17:    
+                    18:    #include        "table.h"
+                    19:    #include        "timer.h"
+                    20:    
+                    21:    #include "dosaccs.h"
+                    22:    #include "fcntl.h"
+                    23:    
+                    24:    
+                    25:    /*@@@S*/
+                    26:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    27:            グローバル変数
+                    28:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    29:    //
+                    30:    //      バックアップ情報の定義
+                    31:    //
+                    32:    #pragma section BACKUP
+                    33:    struct  BACKUP_DATA             backup_data;            // バックアップデータ
+                    34:    
+                    35:    char    dataVersionCRCL;
+                    36:    char    dataVersionCRCH;
+                    37:    
+                    38:    struct  CONFIG_INFO             config_data;            // 設定情報
+                    39:    struct  ANNOUNCE_INFO   announce_data;          // 放送設定情報
+                    40:    #pragma section
+                    41:    
+                    42:    struct  ROUTEINFO               route;                          // 駅情報
+                    43:    
+                    44:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    45:            ローカル定数定義
+                    46:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    47:    #define MAGIC_CODE      0x314A
+                    48:    
+                    49:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    50:            ローカル構造体定義
+                    51:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    52:    
+                    53:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    54:            ローカルテーブル
+                    55:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    56:    
+                    57:    
+                    58:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    59:                    外部参照
+                    60:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    61:    extern  void dvaIOOut( unsigned long onbit, unsigned long offbit );
+                    62:    
+                    63:    extern  struct  TIMER_CONTROL   timedata;               // タイマー情報
+                    64:    
+                    65:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    66:                    ローカル変数
+                    67:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    68:    static  unsigned char   switchDate[8];          // yy mm dd hh mm ss
+                    69:    static  int                             newFileFlag;            // New File Read
+                    70:    
+                    71:    /*@@@E*/
+                    72:                                                            /* 5432 1098 7654 3210 */
+                    73:                                                            /* 0001 0000 0010 0001 */
+                    74:    #define CRCCCITT        0x8408          /** X^16 + X^12 + X^5 + X^0 */
+                    75:    
+                    76:    unsigned short  crcCCITT_table[256];
+                    77:    unsigned short  crcCode;
+                    78:    
+                    79:    void GenerateCRC( void )
+    000000              _GenerateCRC:                    ; function: GenerateCRC
+                    80:    {
+                    81:                    int             i,j;
+                    82:                    unsigned short  crc;
+                    83:    
+                    84:                    for( i=0; i<256; i++ ){
+    000000 1999                   SUB.W       E1,E1
+    000002              L286:                             
+                    85:                            crc = (unsigned short)i;
+    000002 0D91                   MOV.W       E1,R1
+                    86:                            for( j=0; j<8; j++ ){
+    000004 79000008               MOV.W       #8:16,R0
+    000008              L287:                             
+                    87:                                    if( crc & 0x0001 ){
+    000008 7309                   BTST.B      #0,R1L
+    00000A 4708                   BEQ         L288:8
+                    88:                                            crc >>=1;
+    00000C 1111                   SHLR.W      R1
+                    89:                                            crc ^= CRCCCITT;
+    00000E 79518408               XOR.W       #-31736:16,R1
+    000012 4002                   BRA         L289:8
+    000014              L288:                             
+                    90:                                    }
+                    91:                                    else {
+                    92:                                            crc >>=1;
+    000014 1111                   SHLR.W      R1
+    000016              L289:                             
+    000016 1B50                   DEC.W       #1,R0
+    000018 46EE                   BNE         L287:8
+                    93:                                    }
+                    94:                            }
+                    95:                            crcCCITT_table[i] = crc;
+    00001A 0D90                   MOV.W       E1,R0
+    00001C 17F0                   EXTS.L      ER0
+    00001E 1030                   SHLL.L      ER0
+    000020 78006BA100             MOV.W       R1,@(_crcCCITT_table:24,ER0)
+           <000000>     
+    000028 0B59                   INC.W       #1,E1
+    00002A 79290100               CMP.W       #256:16,E1
+    00002E 4DD2                   BLT         L286:8
+                    96:                    }
+                    97:    }
+    000030 5470                   RTS
+                    98:    
+                    99:    void InitializeCRC( void )
+    000032              _InitializeCRC:                  ; function: InitializeCRC
+                   100:    {
+                   101:                    crcCode = 0;
+    000032 1900                   SUB.W       R0,R0
+    000034 6BA000                 MOV.W       R0,@_crcCode:24
+           <000000>     
+                   102:    }
+    00003A 5470                   RTS
+                   103:    
+                   104:    void CalculateCRCCCITT( unsigned char data )
+    00003C              _CalculateCRCCCITT:              ; function: CalculateCRCCCITT
+    00003C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   105:    {
+                   106:                    crcCode = crcCCITT_table[ ( crcCode ^  (unsigned short)data ) & 0xFF ] ^ ( crcCode >> 8 );
+    000040 7A06                   MOV.L       #_crcCode:32,ER6
+           <00000000>   
+    000046 6869                   MOV.B       @ER6,R1L
+    000048 1811                   SUB.B       R1H,R1H
+    00004A 6E6A0001               MOV.B       @(1:16,ER6),R2L
+    00004E 158A                   XOR.B       R0L,R2L
+    000050 1752                   EXTU.W      R2
+    000052 1772                   EXTU.L      ER2
+    000054 1032                   SHLL.L      ER2
+    000056 78206B2200             MOV.W       @(_crcCCITT_table:24,ER2),R2
+           <000000>     
+    00005E 6512                   XOR.W       R1,R2
+    000060 69E2                   MOV.W       R2,@ER6
+                   107:    }
+    000062 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   108:    
+                   109:    /************************************************************************
+                   110:    
+                   111:            Function name   << dvaGetDefaultRoute >>
+                   112:                                            存在するルート検索処理
+                   113:            Syntax                  dvaGetDefaultRoute( void );
+                   114:            Argument                none
+                   115:            Author                  TOA Corporation  K.Honda
+                   116:            Revision                a00 2000/08/07
+                   117:                                    a01 2001/03/22  日付によるファイル変更
+                   118:    
+                   119:    *************************************************************************/
+                   120:    struct ROUTEINFO *dvaGetDefaultRoute( void )
+    000066              _dvaGetDefaultRoute:             ; function: dvaGetDefaultRoute
+    000066 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00006A 7A37000000             SUB.L       #16:32,SP
+           10           
+                   121:    {
+    000070 7A03000008             MOV.L       #2184:32,ER3
+           88           
+    000076 0FF4                   MOV.L       SP,ER4
+                   122:                    FILE    *fd;
+                   123:                    int             i;
+                   124:                    char    filename[16];
+                   125:    extern  char    dosaccs_workbuff[512];          /*ストリームバッファー*/
+                   126:    
+                   127:                    for( i=0; i<MAX_ROUTE; i++ ){
+    000078 1955                   SUB.W       R5,R5
+    00007A 5A                     JMP         @L291:24
+           <000000>     
+    00007E              L290:                             
+                   128:                            if( newFileFlag ){
+    00007E 6B2000                 MOV.W       @_$newFileFlag:24,R0
+           <000000>     
+    000084 470A                   BEQ         L292:8
+                   129:                                    sprintf( filename, "A:\\ROUTE%02X.DAT", i );
+    000086 6DF5                   PUSH.W      R5
+    000088 7A00                   MOV.L       #L144:32,ER0
+           <00000000>   
+    00008E 4008                   BRA         L383:8
+    000090              L292:                             
+                   130:                            }
+                   131:                            else {
+                   132:                                    sprintf( filename, "A:\\ROUTE%02X.BEF", i );
+    000090 6DF5                   PUSH.W      R5
+    000092 7A00                   MOV.L       #L146:32,ER0
+           <00000000>   
+    000098              L383:                             
+    000098 01006DF0               PUSH.L      ER0
+    00009C 0FC0                   MOV.L       ER4,ER0
+    00009E 5E                     JSR         @_sprintf:24
+           <000000>     
+    0000A2 0B97                   ADDS.L      #4,SP
+    0000A4 0B87                   ADDS.L      #2,SP
+                   133:                            }
+                   134:                            fd = fopen( filename, "rb" );
+    0000A6 7A01                   MOV.L       #L147:32,ER1
+           <00000000>   
+    0000AC 0FC0                   MOV.L       ER4,ER0
+    0000AE 5E                     JSR         @_fopen:24
+           <000000>     
+    0000B2 0F86                   MOV.L       ER0,ER6
+                   135:                            if( fd!=NULL ){
+    0000B4 4750                   BEQ         L294:8
+                   136:                                    setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    0000B6 1A80                   SUB.L       ER0,ER0
+    0000B8 F002                   MOV.B       #2:8,R0H
+    0000BA 01006DF0               PUSH.L      ER0
+    0000BE 79000001               MOV.W       #1:16,R0
+    0000C2 6DF0                   PUSH.W      R0
+    0000C4 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    0000CA 0FE0                   MOV.L       ER6,ER0
+    0000CC 5E                     JSR         @_setvbuf:24
+           <000000>     
+    0000D0 0B97                   ADDS.L      #4,SP
+    0000D2 0B87                   ADDS.L      #2,SP
+                   137:                                    if( fread( &route, 1, sizeof(route), fd )==sizeof(route) ){
+    0000D4 01006DF6               PUSH.L      ER6
+    0000D8 01006DF3               PUSH.L      ER3
+    0000DC 1A91                   SUB.L       ER1,ER1
+    0000DE F901                   MOV.B       #1:8,R1L
+    0000E0 7A00                   MOV.L       #_route:32,ER0
+           <00000000>   
+    0000E6 5E                     JSR         @_fread:24
+           <000000>     
+    0000EA 0B97                   ADDS.L      #4,SP
+    0000EC 0B97                   ADDS.L      #4,SP
+    0000EE 1FB0                   CMP.L       ER3,ER0
+    0000F0 460E                   BNE         L295:8
+                   138:                                            fclose( fd );
+    0000F2 0FE0                   MOV.L       ER6,ER0
+    0000F4 5E                     JSR         @_fclose:24
+           <000000>     
+                   139:                                            return( &route );
+    0000F8 7A00                   MOV.L       #_route:32,ER0
+           <00000000>   
+    0000FE 4012                   BRA         L296:8
+    000100              L295:                             
+                   140:                                    }
+                   141:                                    fclose( fd );
+    000100 0FE0                   MOV.L       ER6,ER0
+    000102 5E                     JSR         @_fclose:24
+           <000000>     
+    000106              L294:                             
+    000106 0B55                   INC.W       #1,R5
+    000108              L291:                             
+    000108 79250020               CMP.W       #32:16,R5
+    00010C 58D0FF6E               BLT         L290:16
+                   142:                            }
+                   143:                    }
+                   144:    
+                   145:                    return( NULL );
+    000110 1A80                   SUB.L       ER0,ER0
+                   146:    }
+    000112              L296:                             
+    000112 7A17000000             ADD.L       #16:32,SP
+           10           
+    000118 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   147:    
+                   148:    /************************************************************************
+                   149:    
+                   150:            Function name   << dvaBackupCheck >>
+                   151:                                            バックアップ情報のチェック
+                   152:            Syntax                  ret = dvaBackupCheck( void );
+                   153:            Argument                int ret : o : 0= バックアップ状態ＯＫ
+                   154:                                                  1= バックアップ状態クリア
+                   155:                                                 -1= パラメータデータ異常
+                   156:            Author                  TOA Corporation  K.Honda
+                   157:            Revision                a00 2000/08/07
+                   158:                                    a01 2001/03/22  日付によるファイル変更
+                   159:    
+                   160:    *************************************************************************/
+                   161:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   162:    
+                   163:            処理概要：
+                   164:                    バックアップエリアをチェックし
+                   165:                    バックアップデータが有効であれば　リターンする
+                   166:                    有効でなければ、バックアップされたデータをクリアし
+                   167:                    ＡＴＡカードから設定情報を読み込み　テーブルに設定する
+                   168:                    ＡＴＡカードから読み込めなければ、エラーとしてリターンする
+                   169:    
+                   170:            ------------------------------------------------------------------[@@@E]*/
+                   171:    int dvaBackupCheck( void )
+    00011C              _dvaBackupCheck:                 ; function: dvaBackupCheck
+    00011C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000120 1B97                   SUBS.L      #4,SP
+    000122 1B87                   SUBS.L      #2,SP
+                   172:    {
+    000124 790B0001               MOV.W       #1:16,E3
+    000128 7A06                   MOV.L       #_$newFileFlag:32,ER6
+           <00000000>   
+                   173:                    FILE    *fd;
+                   174:                    int             ret;
+                   175:                    unsigned char   *p;
+                   176:                    int             i;
+                   177:    extern  char    dosaccs_workbuff[512];          /*ストリームバッファー*/
+                   178:    
+                   179:    #if 0
+                   180:    printf("Before Dump\r\n");
+                   181:    {
+                   182:    unsigned long   address;
+                   183:    unsigned char   byte_data,*byte_address;
+                   184:    unsigned char   dump_data[16];
+                   185:    int     i,j;
+                   186:    
+                   187:            address = (unsigned long)&backup_data;
+                   188:            address &= 0xFFFFFFF0L;
+                   189:            printf( "\r\n                            B I N A R Y                        ASCII      " ) ;
+                   190:            printf( "\r\n ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 0123456789ABCDEF\r\n\r\n" ) ;
+                   191:            for ( i=0; i<32; i++,address+=16L ){
+                   192:                    memset( dump_data, '\0', sizeof ( dump_data )) ;
+                   193:                    for ( j=0; j<16; j++ ) {
+                   194:                            byte_address = (unsigned char *)(address+(unsigned long)j);
+                   195:                            byte_data = *byte_address;
+                   196:                            dump_data[j] = byte_data;
+                   197:                    }
+                   198:                    printf( "%08lX  " , address ) ;
+                   199:                    for ( j=0; j<16; j++ ) {
+                   200:                            printf( "%02X " , dump_data[j] ) ;
+                   201:                    }
+                   202:                    for ( j=0; j<16; j++ ) {
+                   203:                            if ( dump_data[j] < ' ' || dump_data[j] > 'z' ) dump_data[j] = ' ' ;
+                   204:                            printf( "%c" , dump_data[j] );
+                   205:                    }
+                   206:                    printf( "\r\n" );
+                   207:            }
+                   208:    }
+                   209:    #endif
+                   210:                    ret = 0;
+    00012E 1933                   SUB.W       R3,R3
+                   211:                    if( P4.DR.BIT.B0 ){
+    000130 7EC77700               BLD.B       #0,@16777159:8
+    000134 4412                   BCC         L297:8
+                   212:    #if 0
+                   213:    printf("Backup Data Check\r\n");
+                   214:    printf("magicCode = %X\r\n", backup_data.magicCode );
+                   215:    #endif
+                   216:                            if( backup_data.magicCode != MAGIC_CODE ){
+    000136 6A2000                 MOV.B       @_backup_data:24,R0H
+           <000000>     
+    00013C 6A2800                 MOV.B       @_backup_data+1:24,R0L
+           <000000>     
+    000142 7920314A               CMP.W       #12618:16,R0
+    000146 472E                   BEQ         L299:8
+                   217:                                    // Backup NG
+                   218:                                    // Backup Area Clear
+                   219:                                    memset( &backup_data, 0, sizeof(backup_data) );
+                   220:                                    // Trace Data Reset
+                   221:                                    TraceClear();
+                   222:    
+                   223:                                    backup_data.magicCode = MAGIC_CODE;             // Magic Code Reset
+                   224:                                    ret = 1;
+    000148              L297:                             
+                   225:                            }
+                   226:                    }
+                   227:                    else {
+                   228:    #if 0
+                   229:    printf("Backup Data Force Clear\r\n");
+                   230:    #endif
+                   231:                            // Backup NG
+                   232:                            // Backup Area Clear
+                   233:                            memset( &backup_data, 0, sizeof(backup_data) );
+                   234:                            // Trace Data Reset
+                   235:                            TraceClear();
+                   236:    
+                   237:                            backup_data.magicCode = MAGIC_CODE;             // Magic Code Reset
+                   238:                            ret = 1;
+    000148 1A80                   SUB.L       ER0,ER0
+    00014A F83D                   MOV.B       #61:8,R0L
+    00014C 01006DF0               PUSH.L      ER0
+    000150 1911                   SUB.W       R1,R1
+    000152 7A00                   MOV.L       #_backup_data:32,ER0
+           <00000000>   
+    000158 5E                     JSR         @_memset:24
+           <000000>     
+    00015C 0B97                   ADDS.L      #4,SP
+    00015E 5E                     JSR         @_TraceClear:24
+           <000000>     
+    000162 7900314A               MOV.W       #12618:16,R0
+    000166 6AA000                 MOV.B       R0H,@_backup_data:24
+           <000000>     
+    00016C 6AA800                 MOV.B       R0L,@_backup_data+1:24
+           <000000>     
+    000172 79030001               MOV.W       #1:16,R3
+    000176              L299:                             
+                   239:                    }
+                   240:    
+                   241:    #if 0
+                   242:    printf("After Dump\r\n");
+                   243:    {
+                   244:    unsigned long   address;
+                   245:    unsigned char   byte_data,*byte_address;
+                   246:    unsigned char   dump_data[16];
+                   247:    int     i,j;
+                   248:    
+                   249:            address = (unsigned long)&backup_data;
+                   250:            address &= 0xFFFFFFF0L;
+                   251:            printf( "\r\n                            B I N A R Y                        ASCII      " ) ;
+                   252:            printf( "\r\n ADDRESS  00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F 0123456789ABCDEF\r\n\r\n" ) ;
+                   253:            for ( i=0; i<32; i++,address+=16L ){
+                   254:                    memset( dump_data, '\0', sizeof ( dump_data )) ;
+                   255:                    for ( j=0; j<16; j++ ) {
+                   256:                            byte_address = (unsigned char *)(address+(unsigned long)j);
+                   257:                            byte_data = *byte_address;
+                   258:                            dump_data[j] = byte_data;
+                   259:                    }
+                   260:                    printf( "%08lX  " , address ) ;
+                   261:                    for ( j=0; j<16; j++ ) {
+                   262:                            printf( "%02X " , dump_data[j] ) ;
+                   263:                    }
+                   264:                    for ( j=0; j<16; j++ ) {
+                   265:                            if ( dump_data[j] < ' ' || dump_data[j] > 'z' ) dump_data[j] = ' ' ;
+                   266:                            printf( "%c" , dump_data[j] );
+                   267:                    }
+                   268:                    printf( "\r\n" );
+                   269:            }
+                   270:    }
+                   271:    #endif
+                   272:    
+                   273:                    GenerateCRC();          // ＣＲＣテーブルの作成
+    000176 5E                     JSR         @_GenerateCRC:24
+           <000000>     
+                   274:    
+                   275:                    // Read Information Data
+                   276:                    newFileFlag = 1;                // 新しいファイルを使用
+    00017A 79000001               MOV.W       #1:16,R0
+    00017E 69E0                   MOV.W       R0,@ER6
+                   277:    
+                   278:                    fd = fopen("A:\\SWITCH.DAT", "rb" );
+    000180 7A01                   MOV.L       #L161:32,ER1
+           <00000000>   
+    000186 7A00                   MOV.L       #L160:32,ER0
+           <00000000>   
+    00018C 5E                     JSR         @_fopen:24
+           <000000>     
+    000190 0F84                   MOV.L       ER0,ER4
+                   279:                    if( fd!=NULL ){
+    000192 58700142               BEQ         L300:16
+                   280:                            setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    000196 1A80                   SUB.L       ER0,ER0
+    000198 F002                   MOV.B       #2:8,R0H
+    00019A 01006DF0               PUSH.L      ER0
+    00019E 6DFB                   PUSH.W      E3
+    0001A0 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    0001A6 0FC0                   MOV.L       ER4,ER0
+    0001A8 5E                     JSR         @_setvbuf:24
+           <000000>     
+    0001AC 0B97                   ADDS.L      #4,SP
+    0001AE 0B87                   ADDS.L      #2,SP
+                   281:                            if( fread( switchDate, 1, sizeof(switchDate), fd )!=sizeof(switchDate) ){
+    0001B0 7A05                   MOV.L       #_$switchDate:32,ER5
+           <00000000>   
+    0001B6 01006DF4               PUSH.L      ER4
+    0001BA 1AA2                   SUB.L       ER2,ER2
+    0001BC FA08                   MOV.B       #8:8,R2L
+    0001BE 01006DF2               PUSH.L      ER2
+    0001C2 1A91                   SUB.L       ER1,ER1
+    0001C4 F901                   MOV.B       #1:8,R1L
+    0001C6 0FD0                   MOV.L       ER5,ER0
+    0001C8 5E                     JSR         @_fread:24
+           <000000>     
+    0001CC 0B97                   ADDS.L      #4,SP
+    0001CE 0B97                   ADDS.L      #4,SP
+    0001D0 1FA0                   CMP.L       ER2,ER0
+    0001D2 4706                   BEQ         L301:8
+                   282:                                    fclose( fd );
+    0001D4 0FC0                   MOV.L       ER4,ER0
+                   283:                                    return( -1 );
+    0001D6 5A                     JMP         @L388:24
+           <000000>     
+    0001DA              L301:                             
+                   284:                            }
+                   285:                            fclose( fd );
+    0001DA 0FC0                   MOV.L       ER4,ER0
+    0001DC 5E                     JSR         @_fclose:24
+           <000000>     
+                   286:    
+                   287:                            if( timedata.dateActive ){              // 日付比較ＯＫ？
+    0001E0 6A2000                 MOV.B       @_timedata:24,R0H
+           <000000>     
+    0001E6 6A2800                 MOV.B       @_timedata+1:24,R0L
+           <000000>     
+    0001EC 0D00                   MOV.W       R0,R0
+    0001EE 587000E6               BEQ         L303:16
+                   288:                                    if( switchDate[0] < timedata.tm_year ){ // 新しい
+    0001F2 7A04                   MOV.L       #_timedata:32,ER4
+           <00000000>   
+    0001F8 6E480002               MOV.B       @(2:16,ER4),R0L
+    0001FC 0C8A                   MOV.B       R0L,R2L
+    0001FE 6859                   MOV.B       @ER5,R1L
+    000200 1C89                   CMP.B       R0L,R1L
+    000202 440A                   BCC         L304:8
+                   289:                                            newFileFlag = 1;
+    000204 79010001               MOV.W       #1:16,R1
+    000208 69E1                   MOV.W       R1,@ER6
+    00020A 5A                     JMP         @L305:24
+           <000000>     
+    00020E              L304:                             
+                   290:                                    }
+                   291:                                    else if( switchDate[0] > timedata.tm_year ){    // 古い
+    00020E 6858                   MOV.B       @ER5,R0L
+    000210 0CA9                   MOV.B       R2L,R1L
+    000212 1C98                   CMP.B       R1L,R0L
+    000214 4308                   BLS         L306:8
+                   292:                                            newFileFlag = 0;
+    000216 1900                   SUB.W       R0,R0
+    000218 69E0                   MOV.W       R0,@ER6
+    00021A 5A                     JMP         @L307:24
+           <000000>     
+    00021E              L306:                             
+                   293:                                    }
+                   294:                                    else if( switchDate[1] < timedata.tm_mon ){     // 新しい
+    00021E 0FD0                   MOV.L       ER5,ER0
+    000220 0B70                   INC.L       #1,ER0
+    000222 010069F0               MOV.L       ER0,@SP
+    000226 6E490003               MOV.B       @(3:16,ER4),R1L
+    00022A 0C9A                   MOV.B       R1L,R2L
+    00022C 6808                   MOV.B       @ER0,R0L
+    00022E 1C98                   CMP.B       R1L,R0L
+    000230 440A                   BCC         L308:8
+                   295:                                            newFileFlag = 1;
+    000232 79000001               MOV.W       #1:16,R0
+    000236 69E0                   MOV.W       R0,@ER6
+    000238 5A                     JMP         @L309:24
+           <000000>     
+    00023C              L308:                             
+                   296:                                    }
+                   297:                                    else if( switchDate[1] > timedata.tm_mon ){     // 古い
+    00023C 01006970               MOV.L       @SP,ER0
+    000240 6808                   MOV.B       @ER0,R0L
+    000242 0CA9                   MOV.B       R2L,R1L
+    000244 1C98                   CMP.B       R1L,R0L
+    000246 4308                   BLS         L310:8
+                   298:                                            newFileFlag = 0;
+    000248 1900                   SUB.W       R0,R0
+    00024A 69E0                   MOV.W       R0,@ER6
+    00024C 5A                     JMP         @L311:24
+           <000000>     
+    000250              L310:                             
+                   299:                                    }
+                   300:                                    else if( switchDate[2] < timedata.tm_day ){     // 新しい
+    000250 0FD0                   MOV.L       ER5,ER0
+    000252 0BF0                   INC.L       #2,ER0
+    000254 010069F0               MOV.L       ER0,@SP
+    000258 6E490004               MOV.B       @(4:16,ER4),R1L
+    00025C 0C9A                   MOV.B       R1L,R2L
+    00025E 6808                   MOV.B       @ER0,R0L
+    000260 1C98                   CMP.B       R1L,R0L
+    000262 4408                   BCC         L312:8
+                   301:                                            newFileFlag = 1;
+    000264 79000001               MOV.W       #1:16,R0
+    000268 69E0                   MOV.W       R0,@ER6
+    00026A 406C                   BRA         L313:8
+    00026C              L312:                             
+                   302:                                    }
+                   303:                                    else if( switchDate[2] > timedata.tm_day ){     // 古い
+    00026C 01006970               MOV.L       @SP,ER0
+    000270 6808                   MOV.B       @ER0,R0L
+    000272 0CA9                   MOV.B       R2L,R1L
+    000274 1C98                   CMP.B       R1L,R0L
+    000276 4306                   BLS         L314:8
+                   304:                                            newFileFlag = 0;
+    000278 1900                   SUB.W       R0,R0
+    00027A 69E0                   MOV.W       R0,@ER6
+    00027C 405A                   BRA         L315:8
+    00027E              L314:                             
+                   305:                                    }
+                   306:                                    else if( switchDate[3] < timedata.tm_hour ){    // 新しい
+    00027E 0FD0                   MOV.L       ER5,ER0
+    000280 0B80                   ADDS.L      #2,ER0
+    000282 0B70                   INC.L       #1,ER0
+    000284 010069F0               MOV.L       ER0,@SP
+    000288 6E490005               MOV.B       @(5:16,ER4),R1L
+    00028C 0C9A                   MOV.B       R1L,R2L
+    00028E 6808                   MOV.B       @ER0,R0L
+    000290 1C98                   CMP.B       R1L,R0L
+    000292 4408                   BCC         L316:8
+                   307:                                            newFileFlag = 1;
+    000294 79000001               MOV.W       #1:16,R0
+    000298 69E0                   MOV.W       R0,@ER6
+    00029A 403C                   BRA         L317:8
+    00029C              L316:                             
+                   308:                                    }
+                   309:                                    else if( switchDate[3] > timedata.tm_hour ){    // 古い
+    00029C 01006970               MOV.L       @SP,ER0
+    0002A0 6808                   MOV.B       @ER0,R0L
+    0002A2 0CA9                   MOV.B       R2L,R1L
+    0002A4 1C98                   CMP.B       R1L,R0L
+    0002A6 4306                   BLS         L318:8
+                   310:                                            newFileFlag = 0;
+    0002A8 1900                   SUB.W       R0,R0
+    0002AA 69E0                   MOV.W       R0,@ER6
+    0002AC 402A                   BRA         L319:8
+    0002AE              L318:                             
+                   311:                                    }
+                   312:                                    else if( switchDate[4] < timedata.tm_min ){     // 新しい
+    0002AE 0B95                   ADDS.L      #4,ER5
+    0002B0 010069F5               MOV.L       ER5,@SP
+    0002B4 6E4C0006               MOV.B       @(6:16,ER4),R4L
+    0002B8 0CCA                   MOV.B       R4L,R2L
+    0002BA 685D                   MOV.B       @ER5,R5L
+    0002BC 1CCD                   CMP.B       R4L,R5L
+    0002BE 4408                   BCC         L320:8
+                   313:                                            newFileFlag = 1;
+    0002C0 79000001               MOV.W       #1:16,R0
+    0002C4 69E0                   MOV.W       R0,@ER6
+    0002C6 4010                   BRA         L321:8
+    0002C8              L320:                             
+                   314:                                    }
+                   315:                                    else if( switchDate[4] > timedata.tm_min ){     // 古い
+    0002C8 01006970               MOV.L       @SP,ER0
+    0002CC 6808                   MOV.B       @ER0,R0L
+    0002CE 0CA9                   MOV.B       R2L,R1L
+    0002D0 1C98                   CMP.B       R1L,R0L
+    0002D2 4304                   BLS         L322:8
+                   316:                                            newFileFlag = 0;
+    0002D4 1900                   SUB.W       R0,R0
+    0002D6 69E0                   MOV.W       R0,@ER6
+    0002D8              L322:                             
+    0002D8              L321:                             
+    0002D8              L319:                             
+    0002D8              L317:                             
+    0002D8              L315:                             
+    0002D8              L313:                             
+    0002D8              L311:                             
+    0002D8              L309:                             
+    0002D8              L307:                             
+    0002D8              L305:                             
+    0002D8              L303:                             
+    0002D8              L300:                             
+                   317:                                    }
+                   318:                            }
+                   319:                    }
+                   320:    
+                   321:    
+                   322:                    // Read Information Data
+                   323:                    if( newFileFlag ){
+    0002D8 6960                   MOV.W       @ER6,R0
+    0002DA 470E                   BEQ         L323:8
+                   324:                            fd = fopen("A:\\CONFIG.DAT", "rb" );
+    0002DC 7A01                   MOV.L       #L177:32,ER1
+           <00000000>   
+    0002E2 7A00                   MOV.L       #L176:32,ER0
+           <00000000>   
+    0002E8 400C                   BRA         L386:8
+    0002EA              L323:                             
+                   325:                    }
+                   326:                    else {
+                   327:                            fd = fopen("A:\\CONFIG.BEF", "rb" );
+    0002EA 7A01                   MOV.L       #L180:32,ER1
+           <00000000>   
+    0002F0 7A00                   MOV.L       #L179:32,ER0
+           <00000000>   
+    0002F6              L386:                             
+    0002F6 5E                     JSR         @_fopen:24
+           <000000>     
+    0002FA 0F85                   MOV.L       ER0,ER5
+                   328:                    }
+                   329:                    if( fd==NULL ){
+    0002FC 587000F6               BEQ         L390:16
+                   330:                            return( -1 );
+                   331:                    }
+                   332:                    setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    000300 1A80                   SUB.L       ER0,ER0
+    000302 F002                   MOV.B       #2:8,R0H
+    000304 01006DF0               PUSH.L      ER0
+    000308 6DFB                   PUSH.W      E3
+    00030A 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    000310 0FD0                   MOV.L       ER5,ER0
+    000312 5E                     JSR         @_setvbuf:24
+           <000000>     
+    000316 0B97                   ADDS.L      #4,SP
+    000318 0B87                   ADDS.L      #2,SP
+                   333:                    if( fread( &config_data, 1, sizeof(config_data), fd )!=sizeof(config_data) ){
+    00031A 01006DF5               PUSH.L      ER5
+    00031E 1AA2                   SUB.L       ER2,ER2
+    000320 FA10                   MOV.B       #16:8,R2L
+    000322 01006DF2               PUSH.L      ER2
+    000326 1A91                   SUB.L       ER1,ER1
+    000328 F901                   MOV.B       #1:8,R1L
+    00032A 7A00                   MOV.L       #_config_data:32,ER0
+           <00000000>   
+    000330 5E                     JSR         @_fread:24
+           <000000>     
+    000334 0B97                   ADDS.L      #4,SP
+    000336 0B97                   ADDS.L      #4,SP
+    000338 1FA0                   CMP.L       ER2,ER0
+    00033A 4706                   BEQ         L326:8
+                   334:                            fclose( fd );
+    00033C 0FD0                   MOV.L       ER5,ER0
+                   335:                            return( -1 );
+    00033E 5A                     JMP         @L388:24
+           <000000>     
+    000342              L326:                             
+                   336:                    }
+                   337:                    fclose( fd );
+    000342 0FD0                   MOV.L       ER5,ER0
+    000344 5E                     JSR         @_fclose:24
+           <000000>     
+                   338:    
+                   339:                    InitializeCRC();
+    000348 5E                     JSR         @_InitializeCRC:24
+           <000000>     
+                   340:                    p = (unsigned char *)&config_data;
+    00034C 7A04                   MOV.L       #_config_data:32,ER4
+           <00000000>   
+                   341:                    for( i=0; i<16; i++ ){
+    000352 79050010               MOV.W       #16:16,R5
+    000356              L327:                             
+                   342:                            CalculateCRCCCITT( (unsigned char)*p++ );
+    000356 6C48                   MOV.B       @ER4+,R0L
+    000358 5E                     JSR         @_CalculateCRCCCITT:24
+           <000000>     
+    00035C 1B55                   DEC.W       #1,R5
+    00035E 46F6                   BNE         L327:8
+                   343:                    }
+                   344:    
+                   345:                    dataVersionCRCL = (unsigned char)((crcCode) & 0x0FF);
+    000360 6A2800                 MOV.B       @_crcCode+1:24,R0L
+           <000000>     
+    000366 6AA800                 MOV.B       R0L,@_dataVersionCRCL:24
+           <000000>     
+                   346:                    dataVersionCRCH = (unsigned char)(((crcCode)>>8) & 0x0FF);
+    00036C 6A2800                 MOV.B       @_crcCode:24,R0L
+           <000000>     
+    000372 6AA800                 MOV.B       R0L,@_dataVersionCRCH:24
+           <000000>     
+                   347:    
+                   348:    
+                   349:                    if( newFileFlag ){
+    000378 6960                   MOV.W       @ER6,R0
+    00037A 470E                   BEQ         L328:8
+                   350:                            fd = fopen("A:\\ANNOUNCE.DAT", "rb" );
+    00037C 7A01                   MOV.L       #L186:32,ER1
+           <00000000>   
+    000382 7A00                   MOV.L       #L185:32,ER0
+           <00000000>   
+    000388 400C                   BRA         L389:8
+    00038A              L328:                             
+                   351:                    }
+                   352:                    else {
+                   353:                            fd = fopen("A:\\ANNOUNCE.BEF", "rb" );
+    00038A 7A01                   MOV.L       #L189:32,ER1
+           <00000000>   
+    000390 7A00                   MOV.L       #L188:32,ER0
+           <00000000>   
+    000396              L389:                             
+    000396 5E                     JSR         @_fopen:24
+           <000000>     
+    00039A 0F85                   MOV.L       ER0,ER5
+                   354:                    }
+                   355:                    if( fd==NULL ){
+    00039C 4758                   BEQ         L390:8
+                   356:                            return( -1 );
+                   357:                    }
+                   358:                    setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    00039E 1A80                   SUB.L       ER0,ER0
+    0003A0 F002                   MOV.B       #2:8,R0H
+    0003A2 01006DF0               PUSH.L      ER0
+    0003A6 6DFB                   PUSH.W      E3
+    0003A8 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    0003AE 0FD0                   MOV.L       ER5,ER0
+    0003B0 5E                     JSR         @_setvbuf:24
+           <000000>     
+    0003B4 0B97                   ADDS.L      #4,SP
+    0003B6 0B87                   ADDS.L      #2,SP
+                   359:                    if( fread( &announce_data, 1, sizeof(announce_data), fd )!=sizeof(announce_data) ){
+    0003B8 01006DF5               PUSH.L      ER5
+    0003BC 7A0200000E             MOV.L       #3654:32,ER2
+           46           
+    0003C2 01006DF2               PUSH.L      ER2
+    0003C6 1A91                   SUB.L       ER1,ER1
+    0003C8 F901                   MOV.B       #1:8,R1L
+    0003CA 7A00                   MOV.L       #_announce_data:32,ER0
+           <00000000>   
+    0003D0 5E                     JSR         @_fread:24
+           <000000>     
+    0003D4 0B97                   ADDS.L      #4,SP
+    0003D6 0B97                   ADDS.L      #4,SP
+    0003D8 1FA0                   CMP.L       ER2,ER0
+    0003DA 470C                   BEQ         L331:8
+                   360:                            fclose( fd );
+    0003DC 0FD0                   MOV.L       ER5,ER0
+                   361:                            return( -1 );
+    0003DE              L388:                             
+    0003DE 5E                     JSR         @_fclose:24
+           <000000>     
+    0003E2 1B5A                   DEC.W       #1,E2
+    0003E4 0DA0                   MOV.W       E2,R0
+    0003E6 4016                   BRA         L302:8
+    0003E8              L331:                             
+                   362:                    }
+                   363:                    fclose( fd );
+    0003E8 0FD0                   MOV.L       ER5,ER0
+    0003EA 5E                     JSR         @_fclose:24
+           <000000>     
+                   364:    
+                   365:                    // Read Default Root Data
+                   366:                    if( dvaGetDefaultRoute()==NULL )
+    0003EE 5E                     JSR         @_dvaGetDefaultRoute:24
+           <000000>     
+    0003F2 0F80                   MOV.L       ER0,ER0
+    0003F4 4606                   BNE         L332:8
+                   367:                            return( -1 );
+    0003F6              L390:                             
+    0003F6 7900FFFF               MOV.W       #-1:16,R0
+    0003FA 4002                   BRA         L302:8
+    0003FC              L332:                             
+                   368:    
+                   369:    
+                   370:                    return( ret );
+    0003FC 0D30                   MOV.W       R3,R0
+                   371:    }
+    0003FE              L302:                             
+    0003FE 0B87                   ADDS.L      #2,SP
+    000400 0B97                   ADDS.L      #4,SP
+    000402 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   372:    
+                   373:    
+                   374:    /************************************************************************
+                   375:    
+                   376:            Function name   << dvaSearchRoute >>
+                   377:                                            ルート検索処理
+                   378:            Syntax                  info = dvaSearchRoute( routeCode );
+                   379:            Argument                unsigned char routeCode : i : ルートコード
+                   380:                                    struct ROUTEINFO *info  : o : ルート情報アドレス
+                   381:                                                                   NULL = ルート情報なし
+                   382:            Author                  TOA Corporation  K.Honda
+                   383:            Revision                a00 2000/08/07
+                   384:                                    a01 2001/03/22  日付によるファイル変更
+                   385:    
+                   386:    *************************************************************************/
+                   387:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   388:    
+                   389:            処理概要：
+                   390:                    ルートコードからＡＴＡカード上のルート情報を読み出す
+                   391:    
+                   392:            ------------------------------------------------------------------[@@@E]*/
+                   393:    struct ROUTEINFO *dvaSearchRoute( unsigned char routeCode )
+    000406              _dvaSearchRoute:                 ; function: dvaSearchRoute
+    000406 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00040A 7A37000000             SUB.L       #16:32,SP
+           10           
+                   394:    {
+    000410 0FF5                   MOV.L       SP,ER5
+    000412 0C8C                   MOV.B       R0L,R4L
+                   395:                    FILE    *fd;
+                   396:                    char    filename[16];
+                   397:                    int             len;
+                   398:    extern  char    dosaccs_workbuff[512];          /*ストリームバッファー*/
+                   399:    extern  BPB     root_bpb[MAX_DRIVE];            /* ＢＰＢ管理エリア */
+                   400:    
+                   401:                    if( route.routeCode==routeCode ){
+    000414 6A2900                 MOV.B       @_route:24,R1L
+           <000000>     
+    00041A 1CC9                   CMP.B       R4L,R1L
+    00041C 58700090               BEQ         L391:16
+                   402:                            return( &route );
+                   403:                    }
+                   404:    
+                   405:                    if( newFileFlag ){
+    000420 1754                   EXTU.W      R4
+    000422 0D46                   MOV.W       R4,R6
+    000424 6B2000                 MOV.W       @_$newFileFlag:24,R0
+           <000000>     
+    00042A 470A                   BEQ         L335:8
+                   406:                            sprintf( filename, "A:\\ROUTE%02X.DAT", routeCode );
+    00042C 6DF6                   PUSH.W      R6
+    00042E 7A00                   MOV.L       #L201:32,ER0
+           <00000000>   
+    000434 4008                   BRA         L392:8
+    000436              L335:                             
+                   407:                    }
+                   408:                    else {
+                   409:                            sprintf( filename, "A:\\ROUTE%02X.BEF", routeCode );
+    000436 6DF6                   PUSH.W      R6
+    000438 7A00                   MOV.L       #L203:32,ER0
+           <00000000>   
+    00043E              L392:                             
+    00043E 01006DF0               PUSH.L      ER0
+    000442 0FD0                   MOV.L       ER5,ER0
+    000444 5E                     JSR         @_sprintf:24
+           <000000>     
+    000448 0B97                   ADDS.L      #4,SP
+    00044A 0B87                   ADDS.L      #2,SP
+                   410:                    }
+                   411:                    fd = fopen( filename, "rb" );
+    00044C 7A01                   MOV.L       #L204:32,ER1
+           <00000000>   
+    000452 0FD0                   MOV.L       ER5,ER0
+    000454 5E                     JSR         @_fopen:24
+           <000000>     
+    000458 0F86                   MOV.L       ER0,ER6
+                   412:                    if( fd!=NULL ){
+    00045A 4762                   BEQ         L337:8
+                   413:                            setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    00045C 1A80                   SUB.L       ER0,ER0
+    00045E F002                   MOV.B       #2:8,R0H
+    000460 01006DF0               PUSH.L      ER0
+    000464 79000001               MOV.W       #1:16,R0
+    000468 6DF0                   PUSH.W      R0
+    00046A 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    000470 0FE0                   MOV.L       ER6,ER0
+    000472 5E                     JSR         @_setvbuf:24
+           <000000>     
+    000476 0B97                   ADDS.L      #4,SP
+    000478 0B87                   ADDS.L      #2,SP
+                   414:                            if( (len=fread( &route, 1, sizeof(route), fd ))==sizeof(route) ){
+    00047A 01006DF6               PUSH.L      ER6
+    00047E 7A02000008             MOV.L       #2184:32,ER2
+           88           
+    000484 01006DF2               PUSH.L      ER2
+    000488 1A91                   SUB.L       ER1,ER1
+    00048A F901                   MOV.B       #1:8,R1L
+    00048C 7A00                   MOV.L       #_route:32,ER0
+           <00000000>   
+    000492 5E                     JSR         @_fread:24
+           <000000>     
+    000496 0B97                   ADDS.L      #4,SP
+    000498 0B97                   ADDS.L      #4,SP
+    00049A 17F0                   EXTS.L      ER0
+    00049C 1FA0                   CMP.L       ER2,ER0
+    00049E 4618                   BNE         L338:8
+                   415:                                    fclose( fd );
+    0004A0 0FE0                   MOV.L       ER6,ER0
+    0004A2 5E                     JSR         @_fclose:24
+           <000000>     
+                   416:                                    if( route.routeCode==routeCode ){
+    0004A6 6A2800                 MOV.B       @_route:24,R0L
+           <000000>     
+    0004AC 1CC8                   CMP.B       R4L,R0L
+    0004AE 460E                   BNE         L340:8
+                   417:                                            return( &route );
+    0004B0              L391:                             
+    0004B0 7A00                   MOV.L       #_route:32,ER0
+           <00000000>   
+    0004B6 4034                   BRA         L334:8
+    0004B8              L338:                             
+                   418:                                    }
+                   419:                            }
+                   420:                            else {
+                   421:                                    fclose( fd );
+    0004B8 0FE0                   MOV.L       ER6,ER0
+    0004BA 5E                     JSR         @_fclose:24
+           <000000>     
+    0004BE              L340:                             
+    0004BE              L337:                             
+                   422:                            }
+                   423:                    }
+                   424:    
+                   425:                    // Card Check
+                   426:                    fd = fopen("A:\\CONFIG.DAT", "rb" );
+    0004BE 7A01                   MOV.L       #L210:32,ER1
+           <00000000>   
+    0004C4 7A00                   MOV.L       #L209:32,ER0
+           <00000000>   
+    0004CA 5E                     JSR         @_fopen:24
+           <000000>     
+    0004CE 0F86                   MOV.L       ER0,ER6
+                   427:                    if( fd==NULL ){
+    0004D0 4612                   BNE         L341:8
+                   428:                            dvaIOOut( OUTSIGNAL_LED7|OUTSIGNAL_LED6, 0xFFFF );
+    0004D2 7A010000FF             MOV.L       #65535:32,ER1
+           FF           
+    0004D8 1A80                   SUB.L       ER0,ER0
+    0004DA F8C0                   MOV.B       #-64:8,R0L
+    0004DC 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   429:                            Halt();
+    0004E0 5E                     JSR         @_Halt:24
+           <000000>     
+    0004E4              L341:                             
+                   430:                    }
+                   431:                    fclose( fd );
+    0004E4 0FE0                   MOV.L       ER6,ER0
+    0004E6 5E                     JSR         @_fclose:24
+           <000000>     
+                   432:    
+                   433:    //              root_bpb[0].part = NULL;
+                   434:    //              INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 No Use */
+                   435:    
+                   436:                    return( NULL );
+    0004EA 1A80                   SUB.L       ER0,ER0
+                   437:    }
+    0004EC              L334:                             
+    0004EC 7A17000000             ADD.L       #16:32,SP
+           10           
+    0004F2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   438:    
+                   439:    /************************************************************************
+                   440:    
+                   441:            Function name   << dvaSearchStation >>
+                   442:                                            駅名検索処理
+                   443:            Syntax                  info = dvaSearchStation( routeCode, stationCode );
+                   444:            Argument                unsigned char routeCode   : i : ルートコード
+                   445:                                    unsigned char stationCode : i : 駅コード
+                   446:                                    struct STATIONINFO *info  : o : 駅情報アドレス
+                   447:                                                                   NULL = 駅情報なし
+                   448:            Author                  TOA Corporation  K.Honda
+                   449:            Revision                a00 2000/08/07
+                   450:                                    a01 2000/11/13  stationNumber 用データを検索しない
+                   451:                                    a02 2001/03/22  日付によるファイル変更
+                   452:    
+                   453:    *************************************************************************/
+                   454:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   455:    
+                   456:            処理概要：
+                   457:                    ルートコードからＡＴＡカード上のルート情報を読み出す
+                   458:                    駅コードからルート情報中の駅情報を取り出す
+                   459:    
+                   460:            ------------------------------------------------------------------[@@@E]*/
+                   461:    struct STATIONINFO *dvaSearchStation( unsigned char routeCode, unsigned char stationCode )
+    0004F6              _dvaSearchStation:               ; function: dvaSearchStation
+    0004F6 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   462:    {
+    0004FA 7A04                   MOV.L       #_route:32,ER4
+           <00000000>   
+    000500 0C8E                   MOV.B       R0L,R6L
+    000502 0C0B                   MOV.B       R0H,R3L
+                   463:                    int             i;
+                   464:    
+                   465:                    if( dvaSearchRoute( routeCode )==NULL )
+    000504 5E                     JSR         @_dvaSearchRoute:24
+           <000000>     
+    000508 0F80                   MOV.L       ER0,ER0
+    00050A 4756                   BEQ         L393:8
+                   466:                            return( NULL );
+                   467:    
+                   468:                    if( route.routeCode==routeCode ){
+    00050C 6848                   MOV.B       @ER4,R0L
+    00050E 1CE8                   CMP.B       R6L,R0L
+    000510 4650                   BNE         L344:8
+                   469:                            for( i=0; i<MAX_STATION; i++ ){
+    000512 1911                   SUB.W       R1,R1
+    000514 4046                   BRA         L346:8
+    000516              L345:                             
+                   470:                                    if( route.station[i].stationCode==0x00 ){
+    000516 79060022               MOV.W       #34:16,R6
+    00051A 01C05216               MULXS.W     R1,ER6
+    00051E 78606A2800             MOV.B       @(_route+8:24,ER6),R0L
+           <000000>     
+    000526 473A                   BEQ         L348:8
+                   471:                                            break;
+                   472:                                    }
+                   473:                                    if( route.station[i].Arriving==0 && route.station[i].Arrived==0 ){
+    000528 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    000530 4B28                   BMI         L349:8
+    000532 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    00053A 7768                   BLD.B       #6,R0L
+    00053C 451C                   BCS         L349:8
+                   474:                                            if( route.station[i].stationCode==stationCode ){
+    00053E 78606A2800             MOV.B       @(_route+8:24,ER6),R0L
+           <000000>     
+    000546 1CB8                   CMP.B       R3L,R0L
+    000548 4610                   BNE         L350:8
+                   475:                                                    backup_data.nowStationNo = i;
+    00054A 6AA900                 MOV.B       R1L,@_backup_data+6:24
+           <000000>     
+                   476:                                                    return( &route.station[i] );
+    000550 1A80                   SUB.L       ER0,ER0
+    000552 F808                   MOV.B       #8:8,R0L
+    000554 0AC0                   ADD.L       ER4,ER0
+    000556 0AE0                   ADD.L       ER6,ER0
+    000558 400A                   BRA         L343:8
+    00055A              L350:                             
+    00055A              L349:                             
+    00055A 0B51                   INC.W       #1,R1
+    00055C              L346:                             
+    00055C 79210040               CMP.W       #64:16,R1
+    000560 4DB4                   BLT         L345:8
+    000562              L348:                             
+    000562              L344:                             
+                   477:                                            }
+                   478:                                    }
+                   479:                            }
+                   480:                    }
+                   481:                    return( NULL );
+                   482:    }
+    000562              L393:                             
+    000562 1A80                   SUB.L       ER0,ER0
+    000564              L343:                             
+    000564 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   483:    
+                   484:    /************************************************************************
+                   485:    
+                   486:            Function name   << dvaSearchStationNumber >>
+                   487:                                            stationNumber検索処理
+                   488:            Syntax                  info = dvaSearchStationNumber( routeCode, stationNumber );
+                   489:            Argument                unsigned char routeCode     : i : ルートコード
+                   490:                                    unsigned char stationNumber : i : 駅コード
+                   491:                                    struct STATIONINFO *info    : o : 駅情報アドレス
+                   492:                                                                   NULL = 駅情報なし
+                   493:            Author                  TOA Corporation  K.Honda
+                   494:            Revision                a00 2000/09/07
+                   495:                                    a01 2001/03/22  日付によるファイル変更
+                   496:    
+                   497:    *************************************************************************/
+                   498:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   499:    
+                   500:            処理概要：
+                   501:                    ルートコードからＡＴＡカード上のルート情報を読み出す
+                   502:                    駅コードからルート情報中のstaionNumber情報を取り出す
+                   503:    
+                   504:            ------------------------------------------------------------------[@@@E]*/
+                   505:    struct STATIONINFO *dvaSearchStationNumber( unsigned char routeCode, unsigned char stationNumber )
+    000568              _dvaSearchStationNumber:         ; function: dvaSearchStationNumber
+    000568 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   506:    {
+    00056C 7A04                   MOV.L       #_route:32,ER4
+           <00000000>   
+    000572 0C8E                   MOV.B       R0L,R6L
+    000574 0C0B                   MOV.B       R0H,R3L
+                   507:                    int             i;
+                   508:    
+                   509:                    if( dvaSearchRoute( routeCode )==NULL )
+    000576 5E                     JSR         @_dvaSearchRoute:24
+           <000000>     
+    00057A 0F80                   MOV.L       ER0,ER0
+    00057C 4756                   BEQ         L394:8
+                   510:                            return( NULL );
+                   511:    
+                   512:                    if( route.routeCode==routeCode ){
+    00057E 6848                   MOV.B       @ER4,R0L
+    000580 1CE8                   CMP.B       R6L,R0L
+    000582 4650                   BNE         L353:8
+                   513:                            for( i=0; i<MAX_STATION; i++ ){
+    000584 1911                   SUB.W       R1,R1
+    000586 4046                   BRA         L355:8
+    000588              L354:                             
+                   514:                                    if( route.station[i].stationCode==0x00 ){
+    000588 79060022               MOV.W       #34:16,R6
+    00058C 01C05216               MULXS.W     R1,ER6
+    000590 78606A2800             MOV.B       @(_route+8:24,ER6),R0L
+           <000000>     
+    000598 473A                   BEQ         L357:8
+                   515:                                            break;
+                   516:                                    }
+                   517:                                    if( route.station[i].Arriving || route.station[i].Arrived ){
+    00059A 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    0005A2 4B0C                   BMI         L359:8
+    0005A4 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    0005AC 7768                   BLD.B       #6,R0L
+    0005AE 441C                   BCC         L358:8
+    0005B0              L359:                             
+                   518:                                            if( route.station[i].stationNumber==stationNumber ){
+    0005B0 78606A2800             MOV.B       @(_route+16:24,ER6),R0L
+           <000000>     
+    0005B8 1CB8                   CMP.B       R3L,R0L
+    0005BA 4610                   BNE         L360:8
+                   519:                                                    backup_data.nowStationNo = i;
+    0005BC 6AA900                 MOV.B       R1L,@_backup_data+6:24
+           <000000>     
+                   520:                                                    return( &route.station[i] );
+    0005C2 1A80                   SUB.L       ER0,ER0
+    0005C4 F808                   MOV.B       #8:8,R0L
+    0005C6 0AC0                   ADD.L       ER4,ER0
+    0005C8 0AE0                   ADD.L       ER6,ER0
+    0005CA 400A                   BRA         L352:8
+    0005CC              L360:                             
+    0005CC              L358:                             
+    0005CC 0B51                   INC.W       #1,R1
+    0005CE              L355:                             
+    0005CE 79210040               CMP.W       #64:16,R1
+    0005D2 4DB4                   BLT         L354:8
+    0005D4              L357:                             
+    0005D4              L353:                             
+                   521:                                            }
+                   522:                                    }
+                   523:                            }
+                   524:                    }
+                   525:                    return( NULL );
+                   526:    }
+    0005D4              L394:                             
+    0005D4 1A80                   SUB.L       ER0,ER0
+    0005D6              L352:                             
+    0005D6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   527:    
+                   528:    /************************************************************************
+                   529:    
+                   530:            Function name   << dvaSearchStationNumberExt >>
+                   531:                                            stationNumber検索処理
+                   532:            Syntax                  info = dvaSearchStationNumberExt( routeCode, stationCode );
+                   533:            Argument                unsigned char routeCode     : i : ルートコード
+                   534:                                    unsigned char stationCode : i : 駅コード
+                   535:                                    struct STATIONINFO *info    : o : 駅情報アドレス
+                   536:                                                                   NULL = 駅情報なし
+                   537:            Author                  TOA Corporation  H.nishiura
+                   538:                    Revision                a00 2013/05/10
+                   539:    
+                   540:    *************************************************************************/
+                   541:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   542:    
+                   543:            処理概要：
+                   544:                    ルートコードからＡＴＡカード上のルート情報を読み出す
+                   545:                    駅コードからルート情報中のstaionNumber情報を取り出す
+                   546:    
+                   547:            ------------------------------------------------------------------[@@@E]*/
+                   548:    struct STATIONINFO *dvaSearchStationNumberExt( unsigned char routeCode, unsigned char stationCode )
+    0005DA              _dvaSearchStationNumberExt:      ; function: dvaSearchStationNumberExt
+    0005DA 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   549:    {
+    0005DE 7A04                   MOV.L       #_route:32,ER4
+           <00000000>   
+    0005E4 0C8E                   MOV.B       R0L,R6L
+    0005E6 0C0B                   MOV.B       R0H,R3L
+                   550:                    int             i;
+                   551:    
+                   552:                    if( dvaSearchRoute( routeCode )==NULL )
+    0005E8 5E                     JSR         @_dvaSearchRoute:24
+           <000000>     
+    0005EC 0F80                   MOV.L       ER0,ER0
+    0005EE 4756                   BEQ         L395:8
+                   553:                            return( NULL );
+                   554:    
+                   555:                    if( route.routeCode==routeCode ){
+    0005F0 6848                   MOV.B       @ER4,R0L
+    0005F2 1CE8                   CMP.B       R6L,R0L
+    0005F4 4650                   BNE         L363:8
+                   556:                            for( i=0; i<MAX_STATION; i++ ){
+    0005F6 1911                   SUB.W       R1,R1
+    0005F8 4046                   BRA         L365:8
+    0005FA              L364:                             
+                   557:                                    if( route.station[i].stationCode==0x00 ){
+    0005FA 79060022               MOV.W       #34:16,R6
+    0005FE 01C05216               MULXS.W     R1,ER6
+    000602 78606A2800             MOV.B       @(_route+8:24,ER6),R0L
+           <000000>     
+    00060A 473A                   BEQ         L367:8
+                   558:                                            break;
+                   559:                                    }
+                   560:                                    if( route.station[i].Arriving || route.station[i].Arrived ){
+    00060C 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    000614 4B0C                   BMI         L369:8
+    000616 78606A2800             MOV.B       @(_route+17:24,ER6),R0L
+           <000000>     
+    00061E 7768                   BLD.B       #6,R0L
+    000620 441C                   BCC         L368:8
+    000622              L369:                             
+                   561:                                            if( route.station[i].stationCode==stationCode ){
+    000622 78606A2800             MOV.B       @(_route+8:24,ER6),R0L
+           <000000>     
+    00062A 1CB8                   CMP.B       R3L,R0L
+    00062C 4610                   BNE         L370:8
+                   562:                                                    backup_data.nowStationNo = i;
+    00062E 6AA900                 MOV.B       R1L,@_backup_data+6:24
+           <000000>     
+                   563:                                                    return( &route.station[i] );
+    000634 1A80                   SUB.L       ER0,ER0
+    000636 F808                   MOV.B       #8:8,R0L
+    000638 0AC0                   ADD.L       ER4,ER0
+    00063A 0AE0                   ADD.L       ER6,ER0
+    00063C 400A                   BRA         L362:8
+    00063E              L370:                             
+    00063E              L368:                             
+    00063E 0B51                   INC.W       #1,R1
+    000640              L365:                             
+    000640 79210040               CMP.W       #64:16,R1
+    000644 4DB4                   BLT         L364:8
+    000646              L367:                             
+    000646              L363:                             
+                   564:                                            }
+                   565:                                    }
+                   566:                            }
+                   567:                    }
+                   568:                    return( NULL );
+                   569:    }
+    000646              L395:                             
+    000646 1A80                   SUB.L       ER0,ER0
+    000648              L362:                             
+    000648 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   570:    
+                   571:    /************************************************************************
+                   572:    
+                   573:            Function name   << dvaSearchDestination >>
+                   574:                                            到着駅検索処理
+                   575:            Syntax                  info = dvaSearchDestination( routeCode );
+                   576:            Argument                unsigned char routeCode     : i : ルートコード
+                   577:                                    struct STATIONINFO *info    : o : 駅情報アドレス
+                   578:                                                                   NULL = 駅情報なし
+                   579:            Author                  TOA Corporation  K.Honda
+                   580:            Revision                a00 2000/08/07
+                   581:                                    a01 2001/03/22  日付によるファイル変更
+                   582:    
+                   583:    *************************************************************************/
+                   584:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   585:    
+                   586:            処理概要：
+                   587:                    ルートコードからＡＴＡカード上のルート情報を読み出す
+                   588:                    ルート情報中の最終駅の情報を取り出す
+                   589:    
+                   590:            ------------------------------------------------------------------[@@@E]*/
+                   591:    struct STATIONINFO *dvaSearchDestination( unsigned char routeCode )
+    00064C              _dvaSearchDestination:           ; function: dvaSearchDestination
+    00064C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   592:    {
+    000650 7A04                   MOV.L       #_route:32,ER4
+           <00000000>   
+    000656 1AD5                   SUB.L       ER5,ER5
+    000658 FD22                   MOV.B       #34:8,R5L
+    00065A 0C8E                   MOV.B       R0L,R6L
+                   593:                    int             i;
+                   594:    
+                   595:                    if( dvaSearchRoute( routeCode )==NULL )
+    00065C 5E                     JSR         @_dvaSearchRoute:24
+           <000000>     
+    000660 0F80                   MOV.L       ER0,ER0
+    000662 4736                   BEQ         L396:8
+                   596:                            return( NULL );
+                   597:    
+                   598:                    if( route.routeCode==routeCode ){
+    000664 6848                   MOV.B       @ER4,R0L
+    000666 1CE8                   CMP.B       R6L,R0L
+    000668 4630                   BNE         L373:8
+                   599:                            for( i=0; i<MAX_STATION; i++ ){
+    00066A 1966                   SUB.W       R6,R6
+    00066C 4026                   BRA         L375:8
+    00066E              L374:                             
+                   600:                                    if( route.station[i].stationCode==0x00 ){
+    00066E 0D60                   MOV.W       R6,R0
+    000670 01C05250               MULXS.W     R5,ER0
+    000674 78006A2900             MOV.B       @(_route+8:24,ER0),R1L
+           <000000>     
+    00067C 4614                   BNE         L376:8
+                   601:                                            if( i>0 ){
+    00067E 0D66                   MOV.W       R6,R6
+    000680 4F10                   BLE         L377:8
+                   602:                                                    return( &route.station[i-1] );
+    000682 1B56                   DEC.W       #1,R6
+    000684 01C05256               MULXS.W     R5,ER6
+    000688 1A80                   SUB.L       ER0,ER0
+    00068A F808                   MOV.B       #8:8,R0L
+    00068C 0AC0                   ADD.L       ER4,ER0
+    00068E 0AE0                   ADD.L       ER6,ER0
+    000690 400A                   BRA         L372:8
+    000692              L377:                             
+    000692              L376:                             
+    000692 0B56                   INC.W       #1,R6
+    000694              L375:                             
+    000694 79260040               CMP.W       #64:16,R6
+    000698 4DD4                   BLT         L374:8
+    00069A              L373:                             
+                   603:                                            }
+                   604:                                    }
+                   605:                            }
+                   606:                    }
+                   607:                    return( NULL );
+                   608:    }
+    00069A              L396:                             
+    00069A 1A80                   SUB.L       ER0,ER0
+    00069C              L372:                             
+    00069C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   609:    
+                   610:    /************************************************************************
+                   611:    
+                   612:            Function name   << dvaBackupSet >>
+                   613:                                            バックアップ情報の格納
+                   614:            Syntax                  ret = dvaBackup( void );
+                   615:            Argument                int ret : o : 0= バックアップＯＫ
+                   616:                                                 -1= パラメータデータ異常
+                   617:            Author                  TOA Corporation  K.Honda
+                   618:            Revision                a00 2000/08/07
+                   619:                                    a01 2001/03/22  日付によるファイル変更
+                   620:    
+                   621:    *************************************************************************/
+                   622:    int dvaBackup( void )
+    0006A0              _dvaBackup:                      ; function: dvaBackup
+    0006A0 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   623:    {
+                   624:                    FILE    *fd;
+                   625:    extern  char    dosaccs_workbuff[512];          /*ストリームバッファー*/
+                   626:    
+                   627:                    // Write Information Data
+                   628:                    if( newFileFlag ){
+    0006A4 6B2000                 MOV.W       @_$newFileFlag:24,R0
+           <000000>     
+    0006AA 470E                   BEQ         L378:8
+                   629:                            fd = fopen("A:\\CONFIG.DAT", "w" );
+    0006AC 7A01                   MOV.L       #L256:32,ER1
+           <00000000>   
+    0006B2 7A00                   MOV.L       #L255:32,ER0
+           <00000000>   
+    0006B8 400C                   BRA         L397:8
+    0006BA              L378:                             
+                   630:                    }
+                   631:                    else {
+                   632:                            fd = fopen("A:\\CONFIG.BEF", "w" );
+    0006BA 7A01                   MOV.L       #L259:32,ER1
+           <00000000>   
+    0006C0 7A00                   MOV.L       #L258:32,ER0
+           <00000000>   
+    0006C6              L397:                             
+    0006C6 5E                     JSR         @_fopen:24
+           <000000>     
+    0006CA 0F86                   MOV.L       ER0,ER6
+                   633:                    }
+                   634:                    if( fd==NULL ){
+    0006CC 4606                   BNE         L380:8
+                   635:                            return( -1 );
+    0006CE 7900FFFF               MOV.W       #-1:16,R0
+    0006D2 4054                   BRA         L381:8
+    0006D4              L380:                             
+                   636:                    }
+                   637:                    setvbuf( fd, dosaccs_workbuff, _IOFBF, sizeof(dosaccs_workbuff) );
+    0006D4 1A80                   SUB.L       ER0,ER0
+    0006D6 F002                   MOV.B       #2:8,R0H
+    0006D8 01006DF0               PUSH.L      ER0
+    0006DC 79000001               MOV.W       #1:16,R0
+    0006E0 6DF0                   PUSH.W      R0
+    0006E2 7A01                   MOV.L       #_dosaccs_workbuff:32,ER1
+           <00000000>   
+    0006E8 0FE0                   MOV.L       ER6,ER0
+    0006EA 5E                     JSR         @_setvbuf:24
+           <000000>     
+    0006EE 0B97                   ADDS.L      #4,SP
+    0006F0 0B87                   ADDS.L      #2,SP
+                   638:                    if( fwrite( &config_data, 1, sizeof(config_data), fd )!=sizeof(config_data) ){
+    0006F2 01006DF6               PUSH.L      ER6
+    0006F6 1AA2                   SUB.L       ER2,ER2
+    0006F8 FA10                   MOV.B       #16:8,R2L
+    0006FA 01006DF2               PUSH.L      ER2
+    0006FE 1A91                   SUB.L       ER1,ER1
+    000700 F901                   MOV.B       #1:8,R1L
+    000702 7A00                   MOV.L       #_config_data:32,ER0
+           <00000000>   
+    000708 5E                     JSR         @_fwrite:24
+           <000000>     
+    00070C 0B97                   ADDS.L      #4,SP
+    00070E 0B97                   ADDS.L      #4,SP
+    000710 1FA0                   CMP.L       ER2,ER0
+    000712 470C                   BEQ         L382:8
+                   639:                            fclose( fd );
+    000714 0FE0                   MOV.L       ER6,ER0
+    000716 5E                     JSR         @_fclose:24
+           <000000>     
+                   640:                            return( -1 );
+    00071A 1B5A                   DEC.W       #1,E2
+    00071C 0DA0                   MOV.W       E2,R0
+    00071E 4008                   BRA         L381:8
+    000720              L382:                             
+                   641:                    }
+                   642:                    fclose( fd );
+    000720 0FE0                   MOV.L       ER6,ER0
+    000722 5E                     JSR         @_fclose:24
+           <000000>     
+                   643:    
+                   644:                    return( 0 );
+    000726 1900                   SUB.W       R0,R0
+                   645:    }
+    000728              L381:                             
+    000728 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   646:    
+  C                                                      ; section
+    000000              L144:
+    000000              L201:
+    000000 413A5C524F             .SDATAZ     "A:\ROUTE%02X.DAT"
+           5554452530   
+           32582E4441   
+           5400         
+    000011              L146:
+    000011              L203:
+    000011 413A5C524F             .SDATAZ     "A:\ROUTE%02X.BEF"
+           5554452530   
+           32582E4245   
+           4600         
+    000022              L147:
+    000022              L161:
+    000022              L177:
+    000022              L180:
+    000022              L186:
+    000022              L189:
+    000022              L204:
+    000022              L210:
+    000022 726200                 .SDATAZ     "rb"
+    000025              L160:
+    000025 413A5C5357             .SDATAZ     "A:\SWITCH.DAT"
+           495443482E   
+           44415400     
+    000033              L176:
+    000033              L209:
+    000033              L255:
+    000033 413A5C434F             .SDATAZ     "A:\CONFIG.DAT"
+           4E4649472E   
+           44415400     
+    000041              L179:
+    000041              L258:
+    000041 413A5C434F             .SDATAZ     "A:\CONFIG.BEF"
+           4E4649472E   
+           42454600     
+    00004F              L185:
+    00004F 413A5C414E             .SDATAZ     "A:\ANNOUNCE.DAT"
+           4E4F554E43   
+           452E444154   
+           00           
+    00005F              L188:
+    00005F 413A5C414E             .SDATAZ     "A:\ANNOUNCE.BEF"
+           4E4F554E43   
+           452E424546   
+           00           
+    00006F              L256:
+    00006F              L259:
+    00006F 7700                   .SDATAZ     "w"
+  BBACKUP                                                ; section
+    000000              _backup_data:                    ; static: backup_data
+    000000 0000003D               .RES.B      61
+    00003D              _dataVersionCRCL:                ; static: dataVersionCRCL
+    00003D 00000001               .RES.B      1
+    00003E              _dataVersionCRCH:                ; static: dataVersionCRCH
+    00003E 00000001               .RES.B      1
+    00003F              _config_data:                    ; static: config_data
+    00003F 00000010               .RES.B      16
+    00004F              _announce_data:                  ; static: announce_data
+    00004F 00000E46               .RES.B      3654
+  B                                                      ; section
+    000000              _route:                          ; static: route
+    000000 00000888               .RES.B      2184
+    000888              _$switchDate:                    ; static: switchDate
+    000888 00000008               .RES.B      8
+    000890              _$newFileFlag:                   ; static: newFileFlag
+    000890 00000002               .RES.W      1
+    000892              _crcCCITT_table:                 ; static: crcCCITT_table
+    000892 00000200               .RES.W      256
+    000A92              _crcCode:                        ; static: crcCode
+    000A92 00000002               .RES.W      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:16  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x0000072C Byte(s)
+CONSTANT SECTION(C):                                0x00000071 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000A94 Byte(s)
+BSS      SECTION(BBACKUP):                          0x00000E95 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x0000072C Byte(s)
+TOTAL CONSTANT SECTION: 0x00000071 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00001929 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000020C6 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       14 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       19 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        149 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvatable.c -object=.\obj\dvatable.obj
+CPU         : 300ha:24

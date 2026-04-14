@@ -1,0 +1,856 @@
+               H SERIES LINKAGE EDITOR Ver. 6.0E
+
+
+LINK COMMAND LINE
+
+LNK -noecho -sub=J:\$OP2B.tmp 
+
+
+
+LINK SUBCOMMANDS
+
+INPUT J:\$OP2C.tmp
+OUTPUT .\DVAU1.abs
+FORM A
+START PEntryProgram,P,C,D,B(0100000)
+START BBACKUP(0160000)
+START BDOSACCS,BDataWatchDog(017c000)
+START S(017f000)
+START BIntChgTable,BDOSACCS2(0fffd10)
+SYSROF
+DEBUG
+PRINT .\DVAU1.map
+EXIT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     1
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+PEntryProgram                     H'00100000  -  H'0010001D  H'0000001E
+              entry                            DVAU1                           
+
+* TOTAL ADDRESS *                 H'00100000  -  H'0010001D  H'0000001E
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'0010001E  -  H'00100029  H'0000000C
+              lowlvl                           DVAU1                           
+                                  H'0010002A  -  H'0010005D  H'00000034
+              sbrk                             DVAU1                           
+                                  H'0010005E  -  H'0010058D  H'00000530
+              dosaccs3                         DVAU1                           
+                                  H'0010058E  -  H'00100787  H'000001FA
+              dvamain                          DVAU1                           
+                                  H'00100788  -  H'00100881  H'000000FA
+              dvainit1                         DVAU1                           
+                                  H'00100882  -  H'0010132F  H'00000AAE
+              dvatms                           DVAU1                           
+                                  H'00101330  -  H'001016BD  H'0000038E
+              dvatime                          DVAU1                           
+                                  H'001016BE  -  H'00101F2D  H'00000870
+              hdlc                             DVAU1                           
+                                  H'00101F2E  -  H'00102231  H'00000304
+              commlib                          DVAU1                           
+                                  H'00102232  -  H'00103345  H'00001114
+              dvaev500                         DVAU1                           
+                                  H'00103346  -  H'00103DB9  H'00000A74
+              dvatrace                         DVAU1                           
+                                  H'00103DBA  -  H'001044E5  H'0000072C
+              dvatable                         DVAU1                           
+                                  H'001044E6  -  H'001073BB  H'00002ED6
+              dvamcp                           DVAU1                           
+                                  H'001073BC  -  H'0010A757  H'0000339C
+              dvaproc                          DVAU1                           
+                                  H'0010A758  -  H'0010AA41  H'000002EA
+              dvaio                            DVAU1                           
+                                  H'0010AA42  -  H'0010E74F  H'00003D0E
+              dvamente                         DVAU1                           
+                                  H'0010E750  -  H'0010E797  H'00000048
+              fclose                           DVAU1                           
+                                  H'0010E798  -  H'0010E84D  H'000000B6
+              fopen                            DVAU1                           
+                                  H'0010E84E  -  H'0010E8AB  H'0000005E
+              fprintf                          DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     2
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'0010E8AC  -  H'0010EBBB  H'00000310
+              fread                            DVAU1                           
+                                  H'0010EBBC  -  H'0010EC3B  H'00000080
+              freopen                          DVAU1                           
+                                  H'0010EC3C  -  H'0010EFAD  H'00000372
+              fwrite                           DVAU1                           
+                                  H'0010EFAE  -  H'0010F037  H'0000008A
+              memcmp                           DVAU1                           
+                                  H'0010F038  -  H'0010F061  H'0000002A
+              memcpy                           DVAU1                           
+                                  H'0010F062  -  H'0010F0A1  H'00000040
+              memset                           DVAU1                           
+                                  H'0010F0A2  -  H'0010F0FB  H'0000005A
+              printf                           DVAU1                           
+                                  H'0010F0FC  -  H'0010F207  H'0000010C
+              setvbuf                          DVAU1                           
+                                  H'0010F208  -  H'0010F263  H'0000005C
+              sprintf                          DVAU1                           
+                                  H'0010F264  -  H'0010F2BF  H'0000005C
+              sscanf                           DVAU1                           
+                                  H'0010F2C0  -  H'0010F2F3  H'00000034
+              strcat                           DVAU1                           
+                                  H'0010F2F4  -  H'0010F325  H'00000032
+              strcmp                           DVAU1                           
+                                  H'0010F326  -  H'0010F351  H'0000002C
+              strcpy                           DVAU1                           
+                                  H'0010F352  -  H'0010F375  H'00000024
+              strlen                           DVAU1                           
+                                  H'0010F376  -  H'0010F3A7  H'00000032
+              bfincr3                          DVAU1                           
+                                  H'0010F3A8  -  H'0010F3EB  H'00000044
+              bfinir3                          DVAU1                           
+                                  H'0010F3EC  -  H'0010F40F  H'00000024
+              bfui3                            DVAU1                           
+                                  H'0010F410  -  H'0010F435  H'00000026
+              divl3                            DVAU1                           
+                                  H'0010F436  -  H'0010F4B5  H'00000080
+              mvn3                             DVAU1                           
+                                  H'0010F4B6  -  H'0010F4D7  H'00000022
+              spregsv3                         DVAU1                           
+                                  H'0010F4D8  -  H'0010F4ED  H'00000016
+              sprgld23                         DVAU1                           
+                                  H'0010F4EE  -  H'0010F599  H'000000AC
+              _alocbuf                         DVAU1                           
+                                  H'0010F59A  -  H'0010F663  H'000000CA
+              _flclose                         DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     3
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'0010F664  -  H'0010F7EF  H'0000018C
+              _flopen                          DVAU1                           
+                                  H'0010F7F0  -  H'00111793  H'00001FA4
+              _fmtin                           DVAU1                           
+                                  H'00111794  -  H'001137D1  H'0000203E
+              _fmtout                          DVAU1                           
+                                  H'001137D2  -  H'001138E1  H'00000110
+              fputc                            DVAU1                           
+                                  H'001138E2  -  H'0011391D  H'0000003C
+              divul3                           DVAU1                           
+                                  H'0011391E  -  H'00113CFF  H'000003E2
+              _dti                             DVAU1                           
+                                  H'00113D00  -  H'00113E95  H'00000196
+              _flshbuf                         DVAU1                           
+                                  H'00113E96  -  H'00114079  H'000001E4
+              _its                             DVAU1                           
+                                  H'0011407A  -  H'00114253  H'000001DA
+              _std                             DVAU1                           
+                                  H'00114254  -  H'00114379  H'00000126
+              free                             DVAU1                           
+                                  H'0011437A  -  H'001144E9  H'00000170
+              malloc                           DVAU1                           
+                                  H'001144EA  -  H'001145B7  H'000000CE
+              dtof3                            DVAU1                           
+                                  H'001145B8  -  H'001145C3  H'0000000C
+              gtd3                             DVAU1                           
+                                  H'001145C4  -  H'001145D3  H'00000010
+              led3                             DVAU1                           
+                                  H'001145D4  -  H'001145E3  H'00000010
+              ltd3                             DVAU1                           
+                                  H'001145E4  -  H'001145F1  H'0000000E
+              ned3                             DVAU1                           
+                                  H'001145F2  -  H'00114613  H'00000022
+              negd3                            DVAU1                           
+                                  H'00114614  -  H'0011464B  H'00000038
+              _allzero                         DVAU1                           
+                                  H'0011464C  -  H'0011470F  H'000000C4
+              _calcint                         DVAU1                           
+                                  H'00114710  -  H'00114809  H'000000FA
+              _calcnpw                         DVAU1                           
+                                  H'0011480A  -  H'0011491D  H'00000114
+              _calcpow                         DVAU1                           
+                                  H'0011491E  -  H'001149C1  H'000000A4
+              _log10                           DVAU1                           
+                                  H'001149C2  -  H'00114A5D  H'0000009C
+              _lsfts                           DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     4
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'00114A5E  -  H'00114A8F  H'00000032
+              _pow5                            DVAU1                           
+                                  H'00114A90  -  H'00114B2B  H'0000009C
+              _rsfts                           DVAU1                           
+                                  H'00114B2C  -  H'00114C03  H'000000D8
+              _sub                             DVAU1                           
+                                  H'00114C04  -  H'00114CC5  H'000000C2
+              _unpack                          DVAU1                           
+                                  H'00114CC6  -  H'00114D81  H'000000BC
+              cmpd3                            DVAU1                           
+                                  H'00114D82  -  H'00114DC7  H'00000046
+              ltod3                            DVAU1                           
+                                  H'00114DC8  -  H'001150B5  H'000002EE
+              muld3                            DVAU1                           
+                                  H'001150B6  -  H'00115117  H'00000062
+              _add                             DVAU1                           
+                                  H'00115118  -  H'00115193  H'0000007C
+              _lsft                            DVAU1                           
+                                  H'00115194  -  H'00115227  H'00000094
+              _mult64                          DVAU1                           
+                                  H'00115228  -  H'00115393  H'0000016C
+              _pack                            DVAU1                           
+                                  H'00115394  -  H'001154FB  H'00000168
+              _power                           DVAU1                           
+                                  H'001154FC  -  H'00115619  H'0000011E
+              _rnd                             DVAU1                           
+                                  H'0011561A  -  H'001156B9  H'000000A0
+              _setsbit                         DVAU1                           
+                                  H'001156BA  -  H'00115733  H'0000007A
+              dtol3                            DVAU1                           
+                                  H'00115734  -  H'00115769  H'00000036
+              itod3                            DVAU1                           
+                                  H'0011576A  -  H'0011582F  H'000000C6
+              frexp                            DVAU1                           
+                                  H'00115830  -  H'0011599D  H'0000016E
+              modf                             DVAU1                           
+                                  H'0011599E  -  H'00115C11  H'00000274
+              _mult                            DVAU1                           
+                                  H'00115C12  -  H'00115CBF  H'000000AE
+              _pow10                           DVAU1                           
+                                  H'00115CC0  -  H'00115D19  H'0000005A
+              _rsft                            DVAU1                           
+                                  H'00115D1A  -  H'00115DDD  H'000000C4
+              dtoid                            DVAU1                           
+                                  H'00115DDE  -  H'00115EDB  H'000000FE
+              idtod                            DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     5
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'00115EDC  -  H'00116029  H'0000014E
+              in_modfd                         DVAU1                           
+                                  H'0011602A  -  H'0011621D  H'000001F4
+              in_addd                          DVAU1                           
+                                  H'0011621E  -  H'00116229  H'0000000C
+              in_eqd                           DVAU1                           
+                                  H'0011622A  -  H'001162D1  H'000000A8
+              in_trncd                         DVAU1                           
+                                  H'001162D2  -  H'00116375  H'000000A4
+              in_cmpd                          DVAU1                           
+
+* TOTAL ADDRESS *                 H'0010001E  -  H'00116375  H'00016358
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+C                                 H'00116376  -  H'0011638F  H'0000001A
+              dosaccs3                         DVAU1                           
+                                  H'00116390  -  H'001163F0  H'00000061
+              dvamain                          DVAU1                           
+                                  H'001163F2  -  H'00116453  H'00000062
+              dvaev500                         DVAU1                           
+                                  H'00116454  -  H'0011674E  H'000002FB
+              dvatrace                         DVAU1                           
+                                  H'00116750  -  H'001167C0  H'00000071
+              dvatable                         DVAU1                           
+                                  H'001167C2  -  H'001168BC  H'000000FB
+              dvamcp                           DVAU1                           
+                                  H'001168BE  -  H'00116904  H'00000047
+              dvaproc                          DVAU1                           
+                                  H'00116906  -  H'00116E19  H'00000514
+              dvamente                         DVAU1                           
+                                  H'00116E1A  -  H'00116E28  H'0000000F
+              _flopen                          DVAU1                           
+                                  H'00116E2A  -  H'00116E41  H'00000018
+              _fmtin                           DVAU1                           
+                                  H'00116E42  -  H'00116E49  H'00000008
+              _fmtout                          DVAU1                           
+                                  H'00116E4A  -  H'00116F49  H'00000100
+              _ctype                           DVAU1                           
+                                  H'00116F4A  -  H'00116FD1  H'00000088
+              _its                             DVAU1                           
+                                  H'00116FD2  -  H'00116FD9  H'00000008
+              _std                             DVAU1                           
+                                  H'00116FDA  -  H'00116FE1  H'00000008
+              _log10                           DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     6
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+C                                 H'00116FE2  -  H'001170C1  H'000000E0
+              _pow5                            DVAU1                           
+                                  H'001170C2  -  H'001170C5  H'00000004
+              _sbrk_si                         DVAU1                           
+                                  H'001170C6  -  H'001171C9  H'00000104
+              _power                           DVAU1                           
+                                  H'001171CA  -  H'001172F5  H'0000012C
+              constd                           DVAU1                           
+                                  H'001172F6  -  H'00117371  H'0000007C
+              trncmask                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'00116376  -  H'00117371  H'00000FFC
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+D                                 H'00117372  -  H'00117375  H'00000004
+              sbrk                             DVAU1                           
+                                  H'00117376  -  H'001174F9  H'00000184
+              dvamente                         DVAU1                           
+                                  H'001174FA  -  H'001174FD  H'00000004
+              _freeptr                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'00117372  -  H'001174FD  H'0000018C
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+B                                 H'001174FE  -  H'0011757D  H'00000080
+              sbrk                             DVAU1                           
+                                  H'0011757E  -  H'0011758B  H'0000000E
+              dvamain                          DVAU1                           
+                                  H'0011758C  -  H'00117682  H'000000F7
+              dvatms                           DVAU1                           
+                                  H'00117684  -  H'0011769F  H'0000001C
+              dvatime                          DVAU1                           
+                                  H'001176A0  -  H'001177C1  H'00000122
+              hdlc                             DVAU1                           
+                                  H'001177C2  -  H'0011782F  H'0000006E
+              dvaev500                         DVAU1                           
+                                  H'00117830  -  H'001182C3  H'00000A94
+              dvatable                         DVAU1                           
+                                  H'001182C4  -  H'00118378  H'000000B5
+              dvamcp                           DVAU1                           
+                                  H'0011837A  -  H'001183AB  H'00000032
+              dvaproc                          DVAU1                           
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     7
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+B                                 H'001183AC  -  H'001183C1  H'00000016
+              dvaio                            DVAU1                           
+                                  H'001183C2  -  H'00118A29  H'00000668
+              dvamente                         DVAU1                           
+                                  H'00118A2A  -  H'00118A2B  H'00000002
+              _errno                           DVAU1                           
+                                  H'00118A2C  -  H'00118A3F  H'00000014
+              sml_buf                          DVAU1                           
+
+* TOTAL ADDRESS *                 H'001174FE  -  H'00118A3F  H'00001542
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BBACKUP                           H'00160000  -  H'00168CB1  H'00008CB2
+              dvatrace                         DVAU1                           
+                                  H'00168CB2  -  H'00169B46  H'00000E95
+              dvatable                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'00160000  -  H'00169B46  H'00009B47
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BDOSACCS                          H'0017C000  -  H'0017EE2B  H'00002E2C
+              dosaccs3                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'0017C000  -  H'0017EE2B  H'00002E2C
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BDataWatchDog                     H'0017EE2C  -  H'0017EE2E  H'00000003
+              dvainit1                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'0017EE2C  -  H'0017EE2E  H'00000003
+
+
+ATTRIBUTE  :   STACK NOSHR
+
+S                                 H'0017F000  -  H'0017FFFF  H'00001000
+              entry                            DVAU1                           
+
+* TOTAL ADDRESS *                 H'0017F000  -  H'0017FFFF  H'00001000
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     8
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BIntChgTable                      H'00FFFD10  -  H'00FFFD4F  H'00000040
+              dvainit1                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'00FFFD10  -  H'00FFFD4F  H'00000040
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BDOSACCS2                         H'00FFFD50  -  H'00FFFEFF  H'000001B0
+              dosaccs3                         DVAU1                           
+
+* TOTAL ADDRESS *                 H'00FFFD50  -  H'00FFFEFF  H'000001B0
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     1
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+$$in_cmpd                         H'001162D2               DAT
+$$trunc_mask                      H'001172F6               DAT
+$BFINCR$3                         H'0010F376               DAT
+$BFINIR$3                         H'0010F3A8               DAT
+$BFUI$3                           H'0010F3EC               DAT
+$CMPD$3                           H'00114CC6               DAT
+$DIVL$3                           H'0010F410               DAT
+$DIVUL$3                          H'001138E2               DAT
+$DTOF$3                           H'001144EA               DAT
+$DTOL$3                           H'001156BA               DAT
+$GTD$3                            H'001145B8               DAT
+$ITOD$3                           H'00115734               DAT
+$LED$3                            H'001145C4               DAT
+$LTD$3                            H'001145D4               DAT
+$LTOD$3                           H'00114D82               DAT
+$MULD$3                           H'00114E7E               DAT
+$MVN$3                            H'0010F436               DAT
+$NED$3                            H'001145E4               DAT
+$NEGD$3                           H'001145F2               DAT
+$sp_regsv$3                       H'0010F4B6               DAT
+$spregld2$3                       H'0010F4D8               DAT
+_CalculateCRCCCITT                H'00103DF6               ENT
+_DOWN_command                     H'0010BC8E               ENT
+_D_command                        H'0010AC9E               ENT
+_ERI0Jump                         H'00FFFD30               DAT
+_ERI1Jump                         H'00FFFD40               DAT
+_EntryFunction                    H'00100000               ENT
+_GenerateCRC                      H'00103DBA               ENT
+_HDLC_Initialize                  H'00101B2A               ENT
+_HDLC_Int                         H'001016BE               ENT
+_HDLC_ReceiveAbort                H'001176A4               DAT
+_HDLC_ReceiveEnd                  H'001176A0               DAT
+_HDLC_RecvEnable                  H'00101E90               ENT
+_HDLC_RecvSendChange              H'00101F0A               ENT
+_HDLC_SendAbort                   H'001176AC               DAT
+_HDLC_SendEnable                  H'001019EA               ENT
+_HDLC_SendEnd                     H'001176A8               DAT
+_HDLC_SendStart                   H'001176B0               DAT
+_Halt                             H'00100022               DAT
+_HardwareSetup                    H'00100788               ENT
+_IMIA0Jump                        H'00FFFD1C               DAT
+_IMIA1Jump                        H'00FFFD20               DAT
+_IMIA2Jump                        H'00FFFD24               DAT
+_IMIA3Jump                        H'00FFFD28               DAT
+_IMIA4Jump                        H'00FFFD2C               DAT
+_IRQ0Jump                         H'00FFFD18               DAT
+_IRQ4Jump                         H'00FFFD14               DAT
+_IRQ5Jump                         H'00FFFD10               DAT
+_InitializeCRC                    H'00103DEC               ENT
+_OPEMODE_command                  H'0010CEC8               ENT
+_REBOOT_command                   H'0010BFEE               ENT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     2
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+_RECONFIG_command                 H'0010C37E               ENT
+_RESET                            H'00100026               DAT
+_RXI0Jump                         H'00FFFD34               DAT
+_RXI1Jump                         H'00FFFD44               DAT
+_R_command                        H'0010AC48               ENT
+_ReturnAutoMode                   H'0011837A               DAT
+_SDR1_command                     H'0010D78A               ENT
+_SDR2_command                     H'0010D894               ENT
+_SDR3_command                     H'0010D984               ENT
+_SDR4_command                     H'0010DBB6               ENT
+_SDR5_command                     H'0010DC9E               ENT
+_SDR6_command                     H'0010DD1C               ENT
+_SDR7_command                     H'0010DDE0               ENT
+_SDR8_command                     H'0010DF1A               ENT
+_SDR9_command                     H'0010DFC4               ENT
+_SDRA_command                     H'0010E04E               ENT
+_SDRB_command                     H'0010E192               ENT
+_TEI0Jump                         H'00FFFD3C               DAT
+_TEI1Jump                         H'00FFFD4C               DAT
+_TMSSDR_command                   H'0010AE02               ENT
+_TMSSD__command                   H'0010B4A2               ENT
+_TRACE_command                    H'0010CDC6               ENT
+_TROUBLE_command                  H'0010BAB2               ENT
+_TXI0Jump                         H'00FFFD38               DAT
+_TXI1Jump                         H'00FFFD48               DAT
+_TalkBackTable                    H'00117376               DAT
+_TraceAdd                         H'00103374               ENT
+_TraceClear                       H'00103346               ENT
+_TraceGet                         H'0010368E               ENT
+_TraceText                        H'00103700               ENT
+_TraceTrouble                     H'00103528               ENT
+_UPLOAD_command                   H'0010CC0E               ENT
+_VERSION                          H'0011757E               DAT
+_VOICE_command                    H'0010CF86               ENT
+_W_command                        H'0010ABA0               ENT
+_WatchDogDisable                  H'00100868               ENT
+_WatchDogReset                    H'0010084E               ENT
+__2PAID                           H'00117236               DAT
+__CLOSEALL                        H'00100194               ENT
+__FOURD                           H'0011721E               DAT
+__HALFD                           H'001171FA               DAT
+__HLFPAID                         H'00117242               DAT
+__IFINFD                          H'001171E2               DAT
+__IFNAND                          H'001171CA               DAT
+__IFONED                          H'001171EE               DAT
+__IFZEROD                         H'001171D6               DAT
+__INIT_IOLIB                      H'0010005E               ENT
+__LOGE2D                          H'0011725A               DAT
+__N2PAID                          H'001172C6               DAT
+__NFOURD                          H'001172AE               DAT
+__NHALFD                          H'0011728A               DAT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     3
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+__NHLFPAID                        H'001172D2               DAT
+__NIFINFD                         H'00117272               DAT
+__NIFONED                         H'0011727E               DAT
+__NIFZEROD                        H'00117266               DAT
+__NLOGE2D                         H'001172EA               DAT
+__NPAID                           H'001172BA               DAT
+__NQUOPAID                        H'001172DE               DAT
+__NQUOTD                          H'00117296               DAT
+__NTWOD                           H'001172A2               DAT
+__PAID                            H'0011722A               DAT
+__QUOPAID                         H'0011724E               DAT
+__QUOTD                           H'00117206               DAT
+__TWOD                            H'00117212               DAT
+__add                             H'001150B6               ENT
+__allzero                         H'00114614               ENT
+__alocbuf                         H'0010F4EE               ENT
+__calcint                         H'0011464C               ENT
+__calcnpw                         H'00114710               ENT
+__calcpow                         H'0011480A               ENT
+__ctype                           H'00116E4A               DAT
+__dos_card_ok                     H'00100542               ENT
+__dos_findfirst                   H'0010045C               ENT
+__dos_findnext                    H'00100494               ENT
+__dos_getdiskfree                 H'001003F8               ENT
+__dos_next_cluster                H'00100520               ENT
+__dos_read_cluster                H'001004FE               ENT
+__dos_read_rootdir                H'001004D0               ENT
+__dti                             H'0011391E               ENT
+__dtoid                           H'00115D1A               DAT
+__errno                           H'00118A2A               DAT
+__flclose                         H'0010F59A               ENT
+__flopen                          H'0010F664               ENT
+__flshbuf                         H'00113D00               ENT
+__fmtin                           H'0010F7F0               ENT
+__fmtout                          H'00111794               ENT
+__freeptr                         H'001174FA               DAT
+__idtod                           H'00115DDE               DAT
+__in_addd                         H'00116036               DAT
+__in_eqd                          H'0011621E               DAT
+__in_modfd                        H'00115EDC               ENT
+__in_subd                         H'0011602A               DAT
+__in_truncd                       H'0011622A               DAT
+__iob                             H'00FFFD50               DAT
+__its                             H'00113E96               ENT
+__log10                           H'0011491E               ENT
+__lsft                            H'00115118               ENT
+__lsfts                           H'001149C2               ENT
+__mult                            H'0011599E               ENT
+__mult64                          H'00115194               ENT
+__nfiles                          H'00116376               DAT
+__pack                            H'00115228               ENT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     4
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+__pow10                           H'00115C12               ENT
+__pow5                            H'00114A5E               ENT
+__power                           H'00115394               ENT
+__rnd                             H'001154FC               ENT
+__rsft                            H'00115CC0               ENT
+__rsfts                           H'00114A90               ENT
+__sbrk_size                       H'001170C2               DAT
+__setsbit                         H'0011561A               ENT
+__std                             H'0011407A               ENT
+__sub                             H'00114B2C               ENT
+__unpack                          H'00114C04               ENT
+_announce_data                    H'00168D01               DAT
+_asci_0_ER                        H'00101F4A               ENT
+_asci_0_Initialize                H'00101FFA               ENT
+_asci_0_RX                        H'00101F2E               ENT
+_asci_0_TE                        H'00101F7C               ENT
+_asci_0_TX                        H'00101F64               ENT
+_asci_0_recv_ir                   H'001022E4               ENT
+_asci_0_send_ir                   H'001022BA               ENT
+_asci_0_transmit                  H'00102106               ENT
+_asci_0_tx_disable                H'001020E6               ENT
+_asci_0_tx_enable                 H'001020D8               ENT
+_asci_1_ER                        H'00101FB0               ENT
+_asci_1_Initialize                H'00102116               ENT
+_asci_1_RX                        H'00101F94               ENT
+_asci_1_TE                        H'00101FE2               ENT
+_asci_1_TX                        H'00101FCA               ENT
+_asci_1_recv_ir                   H'0010E4F0               ENT
+_asci_1_send_ir                   H'0010AA42               ENT
+_asci_1_transmit                  H'00102222               ENT
+_asci_1_tx_disable                H'00102202               ENT
+_asci_1_tx_enable                 H'001021F4               ENT
+_backup_data                      H'00168CB2               DAT
+_boot_cpu2                        H'001004B2               ENT
+_charput                          H'00100830               ENT
+_check_all_bytes                  H'0017EE28               DAT
+_check_date                       H'0017EE24               DAT
+_check_time                       H'0017EE26               DAT
+_close                            H'00100334               ENT
+_cluster_buffer                   H'0017CC16               DAT
+_config_data                      H'00168CF1               DAT
+_crcCCITT_table                   H'001180C2               DAT
+_crcCode                          H'001182C2               DAT
+_dataVersionCRCH                  H'00168CF0               DAT
+_dataVersionCRCL                  H'00168CEF               DAT
+_debugTime                        H'00103D5C               ENT
+_dosaccs_access_len_pos           H'00FFFEEC               DAT
+_dosaccs_drive                    H'00FFFEF4               DAT
+_dosaccs_fd_result                H'00FFFEE6               DAT
+_dosaccs_file_attr_seek           H'00FFFEEE               DAT
+_dosaccs_filename2                H'00FFFEFA               DAT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     5
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+_dosaccs_filename_buffer          H'00FFFEE8               DAT
+_dosaccs_function                 H'00FFFEE4               DAT
+_dosaccs_param                    H'00FFFEF6               DAT
+_dosaccs_result                   H'00FFFEF0               DAT
+_dosaccs_target_run               H'00FFFEFE               DAT
+_dosaccs_trap                     H'0010001E               DAT
+_dosaccs_workbuff                 H'0017EC24               DAT
+_dvaAUTO                          H'001089FC               ENT
+_dvaBackup                        H'0010445A               ENT
+_dvaBackupCheck                   H'00103ED6               ENT
+_dvaCOUPLING                      H'0010A236               ENT
+_dvaEMGHL                         H'0010A064               ENT
+_dvaEMGMA                         H'00109A26               ENT
+_dvaGetDefaultRoute               H'00103E20               ENT
+_dvaIDLE                          H'00107FF4               ENT
+_dvaIOIn                          H'0010A7FC               ENT
+_dvaIOOut                         H'0010A758               ENT
+_dvaInitialStandby                H'00107E06               ENT
+_dvaInitialTEST                   H'00107454               ENT
+_dvaMCPCab                        H'00104ECE               ENT
+_dvaMCPDisplaySet                 H'00104528               ENT
+_dvaMCPErrorDisplay               H'0010564C               ENT
+_dvaMCPGetEMGP                    H'00104562               ENT
+_dvaMCPInitial                    H'001044E6               ENT
+_dvaMCPManual                     H'00104FB6               ENT
+_dvaMCPOpeEMGDisplay              H'00104A5C               ENT
+_dvaMCPOpeEMGPDisplay             H'001046EC               ENT
+_dvaMCPOpeLangDisplay             H'00104E04               ENT
+_dvaMCPOpeLineDisplay             H'00104D74               ENT
+_dvaMCPOpeSPCDisplay              H'00104BE8               ENT
+_dvaMCPOperation                  H'001059EA               ENT
+_dvaMCPRelease                    H'00105086               ENT
+_dvaMCPSWIn                       H'001055BC               ENT
+_dvaMenteReceive                  H'0010E2B0               ENT
+_dvaProcess                       H'0010A256               ENT
+_dvaProcess_Init                  H'001073BC               ENT
+_dvaSELFTEST                      H'001076CC               ENT
+_dvaSPCMA                         H'00109CB0               ENT
+_dvaSearchDestination             H'00104406               ENT
+_dvaSearchRoute                   H'001041C0               ENT
+_dvaSearchStation                 H'001042B0               ENT
+_dvaSearchStationNumber           H'00104322               ENT
+_dvaSearchStationNumberExt        H'00104394               ENT
+_dvaStandby                       H'00107E9A               ENT
+_dvaTEST                          H'00107962               ENT
+_dvaTRS                           H'001097F6               ENT
+_dvauEV5000Cyclic                 H'0010233E               ENT
+_dvauEV5000Initialize             H'00102232               ENT
+_dvauMENTEInitialize              H'0010E648               ENT
+_dvauMENTEMain                    H'0010E68E               ENT
+_dvauMenteSend                    H'0010AA78               ENT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     6
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+_ev5000_time_adjust               H'001177C2               DAT
+_fat_buffer                       H'0017C40A               DAT
+_fclose                           H'0010E750               ENT
+_fopen                            H'0010E798               ENT
+_fprintf                          H'0010E84E               ENT
+_fputc                            H'001137D2               ENT
+_fread                            H'0010E8AC               ENT
+_free                             H'00114254               ENT
+_free_fcb                         H'001002C6               ENT
+_freopen                          H'0010EBBC               ENT
+_frexp                            H'0011576A               DAT
+_fwrite                           H'0010EC3C               ENT
+_getMCPSW                         H'00105104               ENT
+_get_bpb                          H'001001C2               ENT
+_get_fcb                          H'0010029E               ENT
+_ide_error                        H'00FFFDB8               DAT
+_lseek                            H'001003AC               ENT
+_main                             H'0010058E               ENT
+_malloc                           H'0011437A               ENT
+_memcmp                           H'0010EFAE               DAT
+_memcpy                           H'0010F038               DAT
+_memset                           H'0010F062               DAT
+_mkdir                            H'00100420               ENT
+_modf                             H'00115830               ENT
+_new_fcb                          H'00100232               ENT
+_nowSignal                        H'001183AC               DAT
+_now_date                         H'00FFFDB4               DAT
+_now_time                         H'00FFFDB6               DAT
+_onSignal                         H'001183AF               DAT
+_open                             H'00100308               ENT
+_outSignal                        H'001183B8               DAT
+_printf                           H'0010F0A2               ENT
+_read                             H'00100350               ENT
+_rename                           H'00100564               ENT
+_rmdir                            H'0010043E               ENT
+_root_bpb                         H'00FFFDE2               DAT
+_root_fcb                         H'00FFFE20               DAT
+_root_part                        H'00FFFDBA               DAT
+_rootdir_buffer                   H'0017C000               DAT
+_route                            H'00117830               DAT
+_sbrk                             H'0010002A               ENT
+_setvbuf                          H'0010F0FC               ENT
+_sml_buf                          H'00118A2C               DAT
+_sprintf                          H'0010F208               ENT
+_sscanf                           H'0010F264               ENT
+_strcat                           H'0010F2C0               ENT
+_strcmp                           H'0010F2F4               ENT
+_strcpy                           H'0010F326               ENT
+_strlen                           H'0010F352               ENT
+_timedata                         H'00117684               DAT
+_timer_0_Initialize               H'00101652               ENT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     7
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+_timer_0_Intr                     H'00101330               ENT
+_timer_1_Intr                     H'00101B0C               ENT
+_tms_config_data                  H'00117661               DAT
+_tms_config_ok                    H'00117660               DAT
+_tms_config_write                 H'00117580               DAT
+_tms_initialize                   H'00101270               ENT
+_tms_receive_end                  H'00100948               ENT
+_tms_recv_abort                   H'00101204               ENT
+_tms_sd_data                      H'001175F6               DAT
+_tms_sdr_data                     H'0011758C               DAT
+_tms_send_abort                   H'00101200               ENT
+_tms_send_end                     H'001011FC               ENT
+_tms_send_start                   H'00101208               ENT
+_tms_sendsetup                    H'00100882               ENT
+_tms_simulate                     H'0010D058               ENT
+_unlink                           H'001003DA               ENT
+_watchDogCount                    H'0017EE2C               DAT
+_watchDogFlag                     H'0017EE2D               DAT
+_watchDogON                       H'0017EE2E               DAT
+_write                            H'0010037E               ENT

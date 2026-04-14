@@ -1,0 +1,305 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:44  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvaio.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include    "iodefine.h"
+                    14:    
+                    15:    #include    "table.h"
+                    16:    
+                    17:    
+                    18:    /*@@@S*/
+                    19:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    20:            ƒOƒ[ƒoƒ‹•Ï”
+                    21:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    22:    
+                    23:    struct st_ReadSIGNAL nowSignal;                 // ÅV“Ç‚Ý‚¾‚µ’l
+                    24:    
+                    25:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    26:            ’è”’è‹`
+                    27:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    28:    
+                    29:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    30:            \‘¢‘Ì’è‹`
+                    31:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    32:    
+                    33:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    34:            ƒe[ƒuƒ‹
+                    35:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    36:    
+                    37:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    38:                    ŠO•”ŽQÆ
+                    39:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    40:    
+                    41:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    42:                    ƒ[ƒJƒ‹•Ï”
+                    43:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    44:    
+                    45:    static  struct st_ReadSIGNAL    befSignal;
+                    46:    static  struct st_WriteSIGNAL   outSignal;
+                    47:    
+                    48:    /*@@@E*/
+                    49:    /************************************************************************
+                    50:    *                                                                                                                                               *
+                    51:    *       Function name   << dvaIOIn >>   
+                    52:    *                                       Ú“_“ü—Í
+                    53:    *       Syntax                  dvaIOIn( void );
+                    54:    *       Argument                none                                                                                            *
+                    55:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    56:    *       Revision                a00 2000/06/27                                                                          *
+                    57:    *                                                                                                                                               *
+                    58:    *************************************************************************/
+                    59:    void    dvaIOIn(void)
+    000000              _dvaIOIn:                        ; function: dvaIOIn
+    000000 1B97                   SUBS.L      #4,SP
+                    60:    {
+                    61:                    struct st_ReadSIGNAL signal;
+                    62:    
+                    63:                            // Œ»Ý‚ÌÚ“_î•ñ‚ð“Ç‚Ýž‚Þ
+                    64:                    signal.SIGNAL1.BYTE = IOSIGNAL1.BYTE;
+    000002 6A28006002             MOV.B       @6291968:24,R0L
+           00           
+    000008 6EF80001               MOV.B       R0L,@(1:16,SP)
+                    65:                    signal.SIGNAL2.BYTE = IOSIGNAL2.BYTE;
+    00000C 6A28006003             MOV.B       @6292224:24,R0L
+           00           
+    000012 6EF80002               MOV.B       R0L,@(2:16,SP)
+                    66:                    signal.SIGNAL3.BYTE = IOSIGNAL3.BYTE;
+    000016 6A28006004             MOV.B       @6292480:24,R0L
+           00           
+    00001C 6EF80003               MOV.B       R0L,@(3:16,SP)
+                    67:    
+                    68:                    if( signal.SIGNAL1.BYTE!=befSignal.SIGNAL1.BYTE ){
+    000020 6E780001               MOV.B       @(1:16,SP),R0L
+    000024 6A2900                 MOV.B       @_$befSignal:24,R1L
+           <000000>     
+    00002A 1C98                   CMP.B       R1L,R0L
+    00002C 470C                   BEQ         L62:8
+                    69:                            // ‘O‰ñ‚Æˆá‚¤‚Æ‚«‚ÍA‘O‰ñ’l‚ðXV‚·‚é
+                    70:                            befSignal.SIGNAL1.BYTE = signal.SIGNAL1.BYTE;
+    00002E 6E780001               MOV.B       @(1:16,SP),R0L
+    000032 6AA800                 MOV.B       R0L,@_$befSignal:24
+           <000000>     
+    000038 400A                   BRA         L63:8
+    00003A              L62:                              
+                    71:                    }
+                    72:                    else {
+                    73:                            // Œ»Ý‚ÌÚ“_î•ñ‚ðŒöŠJ‚·‚é
+                    74:                            nowSignal.SIGNAL1.BYTE = signal.SIGNAL1.BYTE;
+    00003A 6E780001               MOV.B       @(1:16,SP),R0L
+    00003E 6AA800                 MOV.B       R0L,@_nowSignal:24
+           <000000>     
+    000044              L63:                              
+                    75:                    }
+                    76:    
+                    77:                    if( signal.SIGNAL2.BYTE!=befSignal.SIGNAL2.BYTE ){
+    000044 6E780002               MOV.B       @(2:16,SP),R0L
+    000048 6A2900                 MOV.B       @_$befSignal+1:24,R1L
+           <000000>     
+    00004E 1C98                   CMP.B       R1L,R0L
+    000050 470C                   BEQ         L64:8
+                    78:                            // ‘O‰ñ‚Æˆá‚¤‚Æ‚«‚ÍA‘O‰ñ’l‚ðXV‚·‚é
+                    79:                            befSignal.SIGNAL2.BYTE = signal.SIGNAL2.BYTE;
+    000052 6E780002               MOV.B       @(2:16,SP),R0L
+    000056 6AA800                 MOV.B       R0L,@_$befSignal+1:24
+           <000000>     
+    00005C 400A                   BRA         L65:8
+    00005E              L64:                              
+                    80:                    }
+                    81:                    else {
+                    82:                            // Œ»Ý‚ÌÚ“_î•ñ‚ðŒöŠJ‚·‚é
+                    83:                            nowSignal.SIGNAL2.BYTE = signal.SIGNAL2.BYTE;
+    00005E 6E780002               MOV.B       @(2:16,SP),R0L
+    000062 6AA800                 MOV.B       R0L,@_nowSignal+1:24
+           <000000>     
+    000068              L65:                              
+                    84:                    }
+                    85:    
+                    86:                    if( signal.SIGNAL3.BYTE!=befSignal.SIGNAL3.BYTE ){
+    000068 6E780003               MOV.B       @(3:16,SP),R0L
+    00006C 6A2900                 MOV.B       @_$befSignal+2:24,R1L
+           <000000>     
+    000072 1C98                   CMP.B       R1L,R0L
+    000074 470C                   BEQ         L66:8
+                    87:                            // ‘O‰ñ‚Æˆá‚¤‚Æ‚«‚ÍA‘O‰ñ’l‚ðXV‚·‚é
+                    88:                            befSignal.SIGNAL3.BYTE = signal.SIGNAL3.BYTE;
+    000076 6E780003               MOV.B       @(3:16,SP),R0L
+    00007A 6AA800                 MOV.B       R0L,@_$befSignal+2:24
+           <000000>     
+    000080 400A                   BRA         L67:8
+    000082              L66:                              
+                    89:                    }
+                    90:                    else {
+                    91:                            // Œ»Ý‚ÌÚ“_î•ñ‚ðŒöŠJ‚·‚é
+                    92:                            nowSignal.SIGNAL3.BYTE = signal.SIGNAL3.BYTE;
+    000082 6E780003               MOV.B       @(3:16,SP),R0L
+    000086 6AA800                 MOV.B       R0L,@_nowSignal+2:24
+           <000000>     
+    00008C              L67:                              
+                    93:                    }
+                    94:    
+                    95:                    DUALPORT.nowSignal2 = nowSignal.SIGNAL2.BYTE;
+    00008C 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    000092 6AA8001800             MOV.B       R0L,@1572869:24
+           05           
+                    96:    }
+    000098 0B97                   ADDS.L      #4,SP
+    00009A 5470                   RTS
+                    97:    
+                    98:    /************************************************************************
+                    99:    *                                                                                                                                               *
+                   100:    *       Function name   << dvaIOOut >>                                                                          *
+                   101:    *                                       ‚h^‚no—Íî•ñÝ’èŠÖ”                                                          *
+                   102:    *       Syntax                  dvaIOOut( onbit, offbit );                                                      *
+                   103:    *       Argument                none                                                                                            *
+                   104:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   105:    *       Revision                a00 2000/06/27                                                                          *
+                   106:                                            a01 2001/01/13  ACP LED, MON SP ‚Ìƒ|[ƒg’Ç‰Á
+                   107:    *                                                                                                                                               *
+                   108:    *************************************************************************/
+                   109:    void dvaIOOut( unsigned long onbit, unsigned long offbit )
+    00009C              _dvaIOOut:                       ; function: dvaIOOut
+    00009C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   110:    {
+    0000A0 0F85                   MOV.L       ER0,ER5
+    0000A2 0F96                   MOV.L       ER1,ER6
+                   111:                    outSignal.SIGNAL1.BYTE &= ~((unsigned char)(offbit>>8));
+    0000A4 0FE2                   MOV.L       ER6,ER2
+    0000A6 FB08                   MOV.B       #8:8,R3L
+    0000A8              L68:                              
+    0000A8 1132                   SHLR.L      ER2
+    0000AA 1A0B                   DEC.B       R3L
+    0000AC 4EFA                   BGT         L68:8
+    0000AE 1752                   EXTU.W      R2
+    0000B0 1712                   NOT.W       R2
+    0000B2 7A00                   MOV.L       #_$outSignal:32,ER0
+           <00000000>   
+    0000B8 6809                   MOV.B       @ER0,R1L
+    0000BA 16A9                   AND.B       R2L,R1L
+    0000BC 6889                   MOV.B       R1L,@ER0
+                   112:                    outSignal.SIGNAL2.BYTE &= ~((unsigned char)(offbit));
+    0000BE 0CE8                   MOV.B       R6L,R0L
+    0000C0 1750                   EXTU.W      R0
+    0000C2 1710                   NOT.W       R0
+    0000C4 7A01                   MOV.L       #_$outSignal+1:32,ER1
+           <00000000>   
+    0000CA 681A                   MOV.B       @ER1,R2L
+    0000CC 168A                   AND.B       R0L,R2L
+    0000CE 689A                   MOV.B       R2L,@ER1
+                   113:                    outSignal.SIGNAL3.BYTE &= ~((unsigned char)(offbit>>16));
+    0000D0 0DE6                   MOV.W       E6,R6
+    0000D2 19EE                   SUB.W       E6,E6
+    0000D4 1756                   EXTU.W      R6
+    0000D6 1716                   NOT.W       R6
+    0000D8 7A00                   MOV.L       #_$outSignal+2:32,ER0
+           <00000000>   
+    0000DE 6809                   MOV.B       @ER0,R1L
+    0000E0 16E9                   AND.B       R6L,R1L
+    0000E2 6889                   MOV.B       R1L,@ER0
+                   114:    
+                   115:                    outSignal.SIGNAL1.BYTE |= (unsigned char)(onbit>>8);
+    0000E4 0FD0                   MOV.L       ER5,ER0
+    0000E6 F908                   MOV.B       #8:8,R1L
+    0000E8              L69:                              
+    0000E8 1130                   SHLR.L      ER0
+    0000EA 1A09                   DEC.B       R1L
+    0000EC 4EFA                   BGT         L69:8
+    0000EE 7A01                   MOV.L       #_$outSignal:32,ER1
+           <00000000>   
+    0000F4 681A                   MOV.B       @ER1,R2L
+    0000F6 148A                   OR.B        R0L,R2L
+    0000F8 689A                   MOV.B       R2L,@ER1
+                   116:                    outSignal.SIGNAL2.BYTE |= (unsigned char)(onbit);
+    0000FA 7A00                   MOV.L       #_$outSignal+1:32,ER0
+           <00000000>   
+    000100 6809                   MOV.B       @ER0,R1L
+    000102 14D9                   OR.B        R5L,R1L
+    000104 6889                   MOV.B       R1L,@ER0
+                   117:                    outSignal.SIGNAL3.BYTE |= (unsigned char)(onbit>>16);
+    000106 0DD5                   MOV.W       E5,R5
+    000108 19DD                   SUB.W       E5,E5
+    00010A 7A00                   MOV.L       #_$outSignal+2:32,ER0
+           <00000000>   
+    000110 6809                   MOV.B       @ER0,R1L
+    000112 14D9                   OR.B        R5L,R1L
+    000114 6889                   MOV.B       R1L,@ER0
+                   118:    
+                   119:                    IOSIGNAL1.BYTE = outSignal.SIGNAL1.BYTE;
+    000116 6A2800                 MOV.B       @_$outSignal:24,R0L
+           <000000>     
+    00011C 6AA8006002             MOV.B       R0L,@6291968:24
+           00           
+                   120:                    IOSIGNAL2.BYTE = ~outSignal.SIGNAL2.BYTE;
+    000122 6A2800                 MOV.B       @_$outSignal+1:24,R0L
+           <000000>     
+    000128 1708                   NOT.B       R0L
+    00012A 6AA8006003             MOV.B       R0L,@6292224:24
+           00           
+                   121:                    IOSIGNAL3.BYTE = outSignal.SIGNAL3.BYTE;
+    000130 6A2800                 MOV.B       @_$outSignal+2:24,R0L
+           <000000>     
+    000136 6AA8006004             MOV.B       R0L,@6292480:24
+           00           
+                   122:    }
+    00013C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   123:    
+                   124:    
+                   125:    /*@@@E*/
+  B                                                      ; section
+    000000              _nowSignal:                      ; static: nowSignal
+    000000 00000003               .RES.B      3
+    000003              _$befSignal:                     ; static: befSignal
+    000003 00000003               .RES.B      3
+    000006              _$outSignal:                     ; static: outSignal
+    000006 00000003               .RES.B      3
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:44  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000140 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000009 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000140 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000009 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000149 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        2 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        3 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         15 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\dvaio.c -object=.\obj\dvaio.obj
+CPU         : 300ha:24

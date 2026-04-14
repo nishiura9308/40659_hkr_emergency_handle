@@ -1,0 +1,318 @@
+	NAME	mcpmain(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	EXTERN	__enable
+	EXTERN	address
+	EXTERN	blinkPositionData
+	EXTERN	io_output_off
+	EXTERN	io_output_on
+	PUBLIC	main
+	EXTERN	matrix_blink
+	EXTERN	matrix_led
+	EXTERN	mcpDynamicScanDisplay
+	EXTERN	mcpInitialize
+	EXTERN	now_matrix_blink
+	EXTERN	now_matrix_led
+	EXTERN	now_sw_blink
+	EXTERN	now_sw_led
+	EXTERN	prg_version
+	EXTERN	rawData
+	EXTERN	read_dipsw
+	EXTERN	sendarea
+	EXTERN	sw_blink
+	EXTERN	sw_led
+	EXTERN	watch_dog_reset
+	EXTERN	?CL64180L_4_04_L00
+	EXTERN	?MEMSET_L11
+	RSEG	CODE
+main:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        メイン制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	
+; 10.	*********************************************************************/
+; 11.	
+; 12.	#include        <stdio.h>
+; 13.	#include        <string.h>
+; 14.	
+; 15.	#include "IOFUNC.h"
+; 16.	
+; 17.	#include "COMMDEF.h"
+; 18.	
+; 19.	/*@@@S*/
+; 20.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 21.	        グローバル変数
+; 22.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 23.	
+; 24.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 25.	        ローカル定数定義
+; 26.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 27.	#define SWLED_HL                0x0020
+; 28.	
+; 29.	
+; 30.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 31.	        ローカル構造体定義
+; 32.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 33.	
+; 34.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 35.	        ローカルテーブル
+; 36.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 37.	
+; 38.	
+; 39.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 40.	                外部参照
+; 41.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 42.	extern  void mcpInitialize( void );
+; 43.	extern  void mcpDynamicScanDisplay( void );
+; 44.	
+; 45.	/** 自アドレス **/
+; 46.	extern  unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+; 47.	                                                                                   下位４ビット＝ＤＩＰＳＷアドレス */
+; 48.	
+; 49.	/** 送信エリア **/
+; 50.	extern  struct MCPSEND  sendarea;
+; 51.	
+; 52.	/** スイッチデータ **/
+; 53.	extern  short   sw_led;                         /*スイッチＬＥＤ*/
+; 54.	extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+; 55.	extern  short   sw_blink;                       /*スイッチ点滅データ*/
+; 56.	extern  char    matrix_blink[4];        /*６ｘ４マトリックス点滅データ*/
+; 57.	
+; 58.	extern  short   now_sw_led;                             /*現在表示中、スイッチＬＥＤ*/
+; 59.	extern  char    now_matrix_led[4][6];   /*現在表示中、６ｘ４マトリックスＬＥＤ*/
+; 60.	extern  short   now_sw_blink;
+; 61.	extern  char    now_matrix_blink[4];
+; 62.	
+; 63.	extern  char    rawData[16][10];                        /* ＲＡＷデータ */
+; 64.	extern  char    blinkPositionData[16][10];      /*点滅位置データ*/
+; 65.	
+; 66.	
+; 67.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 68.	                ローカル変数
+; 69.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 70.	static  char    readCount;
+; 71.	static  short   preReadIO;
+; 72.	
+; 73.	/*@@@E*/
+; 74.	/************************************************************************
+; 75.	
+; 76.	        Function name   << main >>
+; 77.	                                        メイン関数
+; 78.	        Syntax                  main( void );
+; 79.	        Argument                none
+; 80.	        Author                  TOA Corporation  K.Honda
+; 81.	        Revision                a00 2000/06/27
+; 82.	
+; 83.	*************************************************************************/
+; 84.	void main( void )
+; 85.	{
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+; 86.	                int             dipsw;
+; 87.	                union {
+; 88.	                        unsigned short  WORD;
+; 89.	                        unsigned char   BYTE[2];
+; 90.	                } swapdata;
+; 91.	                unsigned char   data;
+; 92.	
+; 93.	                io_output_off( 0x00, 0xFF );    /* ALL I/O OFF(LED off) */
+	LD	C,255
+	LD	E,0
+	CALL	io_output_off
+; 94.	                io_output_on( 0x00, 0x05 );
+	LD	C,5
+	LD	E,0
+	CALL	io_output_on
+; 95.	
+; 96.	                mcpInitialize();
+	CALL	mcpInitialize
+; 97.	
+; 98.	                io_output_on( 0x00, 0x80 );             /* Watch Dog Enable */
+	LD	C,128
+	LD	E,0
+	CALL	io_output_on
+; 99.	
+; 100.	                dipsw = read_dipsw();
+	CALL	read_dipsw
+	LD	(IX-6),L
+	LD	(IX-5),H
+; 101.	
+; 102.	                address &= 0x0F0FF;
+	LD	HL,address
+	LD	A,(HL)
+	AND	255
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	240
+	LD	(HL),A
+; 103.	                if( (dipsw & 0x20)==0 ){                /* ODD Car */
+	LD	A,(IX-6)
+	AND	32
+	LD	B,A
+	LD	A,(IX-5)
+	AND	0
+	OR	B
+	JR	NZ,?0009
+?0008:
+; 104.	                        address |= 0x0A00;
+	LD	HL,address
+	LD	A,(HL)
+	OR	0
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	10
+	LD	(HL),A
+; 105.	                }
+; 106.	                else {                                  /* Even Car */
+	JR	?0010
+?0009:
+; 107.	                        address |= 0x0B00;
+	LD	HL,address
+	LD	A,(HL)
+	OR	0
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	11
+	LD	(HL),A
+?0010:
+; 108.	                }
+; 109.	
+; 110.	                sendarea.mcpsw[0] = 0;
+	XOR	A
+	LD	(sendarea+3),A
+; 111.	                sendarea.mcpsw[1] = 0;
+	XOR	A
+	LD	(sendarea+4),A
+; 112.	                sendarea.mcpsw[2] = (char)dipsw;
+	LD	B,(IX-6)
+	LD	A,B
+	LD	(sendarea+5),A
+; 113.	
+; 114.	                swapdata.WORD = prg_version;
+	LD	HL,(prg_version)
+	LD	(IX-4),L
+	LD	(IX-3),H
+; 115.	                data = swapdata.BYTE[0];
+	LD	B,(IX-4)
+	LD	(IX-2),B
+; 116.	                swapdata.BYTE[0] = swapdata.BYTE[1];
+	LD	C,(IX-3)
+	LD	(IX-4),C
+; 117.	                swapdata.BYTE[1] = data;
+	LD	(IX-3),B
+; 118.	                sendarea.version = swapdata.WORD;
+	LD	L,(IX-4)
+	LD	H,(IX-3)
+	LD	(sendarea+6),HL
+; 119.	
+; 120.	
+; 121.	                sw_led &= SWLED_HL;
+	LD	HL,sw_led
+	LD	A,(HL)
+	AND	32
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	0
+	LD	(HL),A
+; 122.	                memset( matrix_led, 0, sizeof(matrix_led) );
+	LD	BC,24
+	LD	DE,matrix_led
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 123.	                sw_blink = 0;
+	LD	HL,0
+	LD	(sw_blink),HL
+; 124.	                memset( matrix_blink, 0, sizeof(matrix_blink) );
+	LD	BC,4
+	LD	DE,matrix_blink
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 125.	                now_sw_led = 0xFFFF;
+	LD	HL,65535
+	LD	(now_sw_led),HL
+; 126.	                now_sw_blink = 0xFFFF;
+	LD	HL,65535
+	LD	(now_sw_blink),HL
+; 127.	                memset( now_matrix_led, 0xFF, sizeof(now_matrix_led) );
+	LD	BC,24
+	LD	DE,now_matrix_led
+	LD	HL,255
+	CALL	?MEMSET_L11
+; 128.	                memset( now_matrix_blink, 0xFF, sizeof(now_matrix_blink) );
+	LD	BC,4
+	LD	DE,now_matrix_blink
+	LD	HL,255
+	CALL	?MEMSET_L11
+; 129.	
+; 130.	                memset( rawData, 0, sizeof(rawData) );
+	LD	BC,160
+	LD	DE,rawData
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 131.	                memset( blinkPositionData, 0, sizeof(blinkPositionData) );
+	LD	BC,160
+	LD	DE,blinkPositionData
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 132.	
+; 133.	                if( sw_led & SWLED_HL ){
+	LD	A,(sw_led)
+	AND	32
+	JR	Z,?0012
+?0011:
+; 134.	                        io_output_off( 0x00, 0x08 ); /* 高輝度設定 */
+	LD	C,8
+	LD	E,0
+	CALL	io_output_off
+; 135.	                        io_output_on( 0x00, 0x02 ); /* 高輝度設定 */
+	LD	C,2
+	LD	E,0
+	CALL	io_output_on
+; 136.	                }
+; 137.	                else {
+	JR	?0013
+?0012:
+; 138.	                        io_output_off( 0x00, 0x02 ); /* 低輝度設定 */
+	LD	C,2
+	LD	E,0
+	CALL	io_output_off
+; 139.	                        io_output_on( 0x00, 0x08 ); /* 低輝度設定 */
+	LD	C,8
+	LD	E,0
+	CALL	io_output_on
+?0013:
+; 140.	                }
+; 141.	
+; 142.	                __enable();
+	CALL	__enable
+?0015:
+; 143.	
+; 144.	                for( ;; ){
+; 145.	                        mcpDynamicScanDisplay(); 
+	CALL	mcpDynamicScanDisplay
+; 146.	
+; 147.	                        watch_dog_reset();
+	CALL	watch_dog_reset
+; 148.	                }
+; 149.	}
+	JR	?0015
+; 150.	
+	RSEG	UDATA0
+readCount:
+	DEFS	1
+preReadIO:
+	DEFS	2
+	END

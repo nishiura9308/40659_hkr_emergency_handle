@@ -1,0 +1,499 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     19-Feb-2001  21:28:34  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\boot.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ƒu[ƒg§Œäƒ‚ƒWƒ…[ƒ‹                                                                                    *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    
+                    16:    #include    "table.h"
+                    17:    
+                    18:    /*@@@S*/
+                    19:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    20:            ƒOƒ[ƒoƒ‹•Ï”
+                    21:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    22:    
+                    23:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    24:            ƒ[ƒJƒ‹’è”’è‹`
+                    25:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    26:    
+                    27:    
+                    28:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    29:            ƒ[ƒJƒ‹\‘¢‘Ì’è‹`
+                    30:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    31:    
+                    32:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    33:            ƒ[ƒJƒ‹ƒe[ƒuƒ‹
+                    34:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    35:    
+                    36:    
+                    37:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    38:                    ŠO•”ŽQÆ
+                    39:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    40:    extern  unsigned short  check_date;
+                    41:    extern  unsigned short  check_time;
+                    42:    extern  unsigned long   check_all_bytes;
+                    43:    
+                    44:    extern  void    (*IRQ4Jump)(void);
+                    45:    
+                    46:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    47:                    ƒ[ƒJƒ‹•Ï”
+                    48:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    49:    static  unsigned char   boot_request;
+                    50:    static  unsigned char   boot_ack;
+                    51:    
+                    52:    /*@@@E*/
+                    53:    void boot_int( void )
+    000000              _boot_int:                       ; function: boot_int
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000004 7A37000000             SUB.L       #12:32,SP
+           0C           
+                    54:    {
+    00000A 7A04                   MOV.L       #_$boot_request:32,ER4
+           <00000000>   
+    000010 7A06000C00             MOV.L       #786432:32,ER6
+           00           
+                    55:                    long    start_adr,end_adr;
+                    56:                    int             len,i;
+                    57:                    long    adr;
+                    58:                    unsigned char   *p;
+                    59:    
+                    60:                    start_adr = RAMTOP_ADDRESS;
+    000016 7A00000800             MOV.L       #524288:32,ER0
+           00           
+    00001C 01006FF000             MOV.L       ER0,@(4:16,SP)
+           04           
+                    61:                    end_adr = RAMTOP_ADDRESS+BOOT_SIZE;
+    000022 7A00000980             MOV.L       #622592:32,ER0
+           00           
+    000028 010069F0               MOV.L       ER0,@SP
+                    62:    
+                    63:                    boot_request = DUALBOOT2.request;
+    00002C 6E6807FF               MOV.B       @(2047:16,ER6),R0L
+    000030 68C8                   MOV.B       R0L,@ER4
+                    64:                    boot_ack = DUALBOOT2.ack;
+    000032 6E6807FE               MOV.B       @(2046:16,ER6),R0L
+    000036 6AA800                 MOV.B       R0L,@_$boot_ack:24
+           <000000>     
+                    65:    
+                    66:                    DUALBOOT2.request = 0x0000;
+    00003C 1888                   SUB.B       R0L,R0L
+    00003E 6EE807FF               MOV.B       R0L,@(2047:16,ER6)
+                    67:    
+                    68:                            if( boot_request==0x0F ){               /* Get RAM Check Code */
+    000042 6848                   MOV.B       @ER4,R0L
+    000044 A80F                   CMP.B       #15:8,R0L
+    000046 4640                   BNE         L118:8
+                    69:                                    boot_request = 0;
+    000048 1888                   SUB.B       R0L,R0L
+    00004A 68C8                   MOV.B       R0L,@ER4
+                    70:                                    DUALBOOT2.check_time = check_time;
+    00004C 6B2000                 MOV.W       @_check_time:24,R0
+           <000000>     
+    000052 6EE007F6               MOV.B       R0H,@(2038:16,ER6)
+    000056 6EE807F7               MOV.B       R0L,@(2039:16,ER6)
+                    71:                                    DUALBOOT2.check_date = check_date;
+    00005A 6B2000                 MOV.W       @_check_date:24,R0
+           <000000>     
+    000060 6EE007F8               MOV.B       R0H,@(2040:16,ER6)
+    000064 6EE807F9               MOV.B       R0L,@(2041:16,ER6)
+                    72:                                    DUALBOOT2.check_all_bytes = check_all_bytes;
+    000068 01006B2000             MOV.L       @_check_all_bytes:24,ER0
+           <000000>     
+    000070 6EE007FC               MOV.B       R0H,@(2044:16,ER6)
+    000074 6EE807FD               MOV.B       R0L,@(2045:16,ER6)
+    000078 0D80                   MOV.W       E0,R0
+    00007A 6EE007FA               MOV.B       R0H,@(2042:16,ER6)
+    00007E 6EE807FB               MOV.B       R0L,@(2043:16,ER6)
+                    73:                                    DUALBOOT2.ack = 0x0F;
+    000082 F80F                   MOV.B       #15:8,R0L
+    000084 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    000088              L118:                             
+                    74:                            }
+                    75:                            if( boot_request==0x0E ){               /* RAM Clear */
+    000088 6848                   MOV.B       @ER4,R0L
+    00008A A80E                   CMP.B       #14:8,R0L
+    00008C 463A                   BNE         L119:8
+                    76:                                    boot_request = 0;
+    00008E 1888                   SUB.B       R0L,R0L
+    000090 68C8                   MOV.B       R0L,@ER4
+                    77:                                    check_time = 0;
+                    78:                                    check_date = 0;
+    000092 1900                   SUB.W       R0,R0
+    000094 6BA000                 MOV.W       R0,@_check_date:24
+           <000000>     
+    00009A 6BA000                 MOV.W       R0,@_check_time:24
+           <000000>     
+                    79:                                    check_all_bytes = 0;
+    0000A0 1A80                   SUB.L       ER0,ER0
+    0000A2 01006BA000             MOV.L       ER0,@_check_all_bytes:24
+           <000000>     
+                    80:                                    memset( (void *)RAMTOP_ADDRESS, 0, BOOT_SIZE );
+    0000AA 7A00000180             MOV.L       #98304:32,ER0
+           00           
+    0000B0 01006DF0               PUSH.L      ER0
+    0000B4 1911                   SUB.W       R1,R1
+    0000B6 7A00000800             MOV.L       #524288:32,ER0
+           00           
+    0000BC 5E                     JSR         @_memset:24
+           <000000>     
+    0000C0 0B97                   ADDS.L      #4,SP
+                    81:                                    DUALBOOT2.ack = 0x0E;
+    0000C2 F80E                   MOV.B       #14:8,R0L
+    0000C4 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    0000C8              L119:                             
+                    82:                            }
+                    83:    
+                    84:                            if( boot_request==0x01 ){               /* Initial Set */
+    0000C8 6848                   MOV.B       @ER4,R0L
+    0000CA A801                   CMP.B       #1:8,R0L
+    0000CC 460A                   BNE         L120:8
+                    85:                                    boot_request = 0;
+    0000CE 1888                   SUB.B       R0L,R0L
+    0000D0 68C8                   MOV.B       R0L,@ER4
+                    86:                                    DUALBOOT2.ack = 0x01;
+    0000D2 F801                   MOV.B       #1:8,R0L
+    0000D4 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    0000D8              L120:                             
+                    87:                            }
+                    88:                            if( boot_request==0x02 ){               /* Data Set */
+    0000D8 6848                   MOV.B       @ER4,R0L
+    0000DA A802                   CMP.B       #2:8,R0L
+    0000DC 4662                   BNE         L121:8
+                    89:                                    boot_request = 0;
+    0000DE 1888                   SUB.B       R0L,R0L
+    0000E0 68C8                   MOV.B       R0L,@ER4
+                    90:                                    adr = DUALBOOT2.address;
+    0000E2 6860                   MOV.B       @ER6,R0H
+    0000E4 6E680001               MOV.B       @(1:16,ER6),R0L
+    0000E8 0D08                   MOV.W       R0,E0
+    0000EA 6E600002               MOV.B       @(2:16,ER6),R0H
+    0000EE 6E680003               MOV.B       @(3:16,ER6),R0L
+    0000F2 0F83                   MOV.L       ER0,ER3
+                    91:                                    len = DUALBOOT2.len;
+    0000F4 6E600004               MOV.B       @(4:16,ER6),R0H
+    0000F8 6E680005               MOV.B       @(5:16,ER6),R0L
+    0000FC 0D08                   MOV.W       R0,E0
+    0000FE 6E600006               MOV.B       @(6:16,ER6),R0H
+    000102 6E680007               MOV.B       @(7:16,ER6),R0L
+    000106 0D0D                   MOV.W       R0,E5
+                    92:                                    for( i=0; i<len; i++,adr++ ){
+    000108 1955                   SUB.W       R5,R5
+    00010A 402A                   BRA         L123:8
+    00010C              L122:                             
+                    93:                                            if( adr>=start_adr && adr<=end_adr ){
+    00010C 01006F7000             MOV.L       @(4:16,SP),ER0
+           04           
+    000112 1F83                   CMP.L       ER0,ER3
+    000114 4D1C                   BLT         L124:8
+    000116 01006970               MOV.L       @SP,ER0
+    00011A 1F83                   CMP.L       ER0,ER3
+    00011C 4E14                   BGT         L124:8
+                    94:                                                    p = (unsigned char *)adr;
+    00011E 0FB2                   MOV.L       ER3,ER2
+                    95:                                                    *p = DUALBOOT2.data[i];
+    000120 0D50                   MOV.W       R5,R0
+    000122 17F0                   EXTS.L      ER0
+    000124 1A91                   SUB.L       ER1,ER1
+    000126 F908                   MOV.B       #8:8,R1L
+    000128 0AE1                   ADD.L       ER6,ER1
+    00012A 0A81                   ADD.L       ER0,ER1
+    00012C 0FA0                   MOV.L       ER2,ER0
+    00012E 6819                   MOV.B       @ER1,R1L
+    000130 6889                   MOV.B       R1L,@ER0
+    000132              L124:                             
+    000132 0B55                   INC.W       #1,R5
+    000134 0B73                   INC.L       #1,ER3
+    000136              L123:                             
+    000136 1DD5                   CMP.W       E5,R5
+    000138 4DD2                   BLT         L122:8
+                    96:                                            }
+                    97:                                    }
+                    98:                                    DUALBOOT2.ack = 0x02;
+    00013A F802                   MOV.B       #2:8,R0L
+    00013C 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    000140              L121:                             
+                    99:                            }
+                   100:                            if( boot_request==0x03 ){               /* Jump to Application */
+    000140 6848                   MOV.B       @ER4,R0L
+    000142 A803                   CMP.B       #3:8,R0L
+    000144 4636                   BNE         L125:8
+                   101:                                    check_time = DUALBOOT2.check_time;
+    000146 6E6007F6               MOV.B       @(2038:16,ER6),R0H
+    00014A 6E6807F7               MOV.B       @(2039:16,ER6),R0L
+    00014E 6BA000                 MOV.W       R0,@_check_time:24
+           <000000>     
+                   102:                                    check_date = DUALBOOT2.check_date;
+    000154 6E6007F8               MOV.B       @(2040:16,ER6),R0H
+    000158 6E6807F9               MOV.B       @(2041:16,ER6),R0L
+    00015C 6BA000                 MOV.W       R0,@_check_date:24
+           <000000>     
+                   103:                                    check_all_bytes = DUALBOOT2.check_all_bytes;
+    000162 6E6007FA               MOV.B       @(2042:16,ER6),R0H
+    000166 6E6807FB               MOV.B       @(2043:16,ER6),R0L
+    00016A 0D08                   MOV.W       R0,E0
+    00016C 6E6007FC               MOV.B       @(2044:16,ER6),R0H
+    000170 6E6807FD               MOV.B       @(2045:16,ER6),R0L
+    000174 01006BA000             MOV.L       ER0,@_check_all_bytes:24
+           <000000>     
+    00017C              L125:                             
+                   104:                            }
+                   105:                            if( boot_request==0x04 ){               /* Jump to Application */
+                   106:    
+                   107:                            }
+                   108:    
+                   109:                            if( boot_request==0x10 ){
+    00017C 6848                   MOV.B       @ER4,R0L
+    00017E A810                   CMP.B       #16:8,R0L
+    000180 4650                   BNE         L127:8
+                   110:                                    boot_request = 0;
+    000182 1888                   SUB.B       R0L,R0L
+    000184 68C8                   MOV.B       R0L,@ER4
+                   111:                                    adr = DUALBOOT2.address;
+    000186 6860                   MOV.B       @ER6,R0H
+    000188 6E680001               MOV.B       @(1:16,ER6),R0L
+    00018C 0D08                   MOV.W       R0,E0
+    00018E 6E600002               MOV.B       @(2:16,ER6),R0H
+    000192 6E680003               MOV.B       @(3:16,ER6),R0L
+    000196 0F83                   MOV.L       ER0,ER3
+                   112:                                    len = DUALBOOT2.len;
+    000198 6E600004               MOV.B       @(4:16,ER6),R0H
+    00019C 6E680005               MOV.B       @(5:16,ER6),R0L
+    0001A0 0D08                   MOV.W       R0,E0
+    0001A2 6E600006               MOV.B       @(6:16,ER6),R0H
+    0001A6 6E680007               MOV.B       @(7:16,ER6),R0L
+    0001AA 0D0D                   MOV.W       R0,E5
+                   113:                                    for( i=0; i<len; i++,adr++ ){
+    0001AC 1955                   SUB.W       R5,R5
+    0001AE 4018                   BRA         L129:8
+    0001B0              L128:                             
+                   114:                                            p = (unsigned char *)adr;
+    0001B0 0FB2                   MOV.L       ER3,ER2
+                   115:                                            *p = DUALBOOT2.data[i];
+    0001B2 0D50                   MOV.W       R5,R0
+    0001B4 17F0                   EXTS.L      ER0
+    0001B6 1A91                   SUB.L       ER1,ER1
+    0001B8 F908                   MOV.B       #8:8,R1L
+    0001BA 0AE1                   ADD.L       ER6,ER1
+    0001BC 0A81                   ADD.L       ER0,ER1
+    0001BE 0FA0                   MOV.L       ER2,ER0
+    0001C0 6819                   MOV.B       @ER1,R1L
+    0001C2 6889                   MOV.B       R1L,@ER0
+    0001C4 0B55                   INC.W       #1,R5
+    0001C6 0B73                   INC.L       #1,ER3
+    0001C8              L129:                             
+    0001C8 1DD5                   CMP.W       E5,R5
+    0001CA 4DE4                   BLT         L128:8
+                   116:                                    }
+                   117:                                    DUALBOOT2.ack = 0x10;
+    0001CC F810                   MOV.B       #16:8,R0L
+    0001CE 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    0001D2              L127:                             
+                   118:                            }
+                   119:                            if( boot_request==0x20 ){
+    0001D2 6848                   MOV.B       @ER4,R0L
+    0001D4 A820                   CMP.B       #32:8,R0L
+    0001D6 4650                   BNE         L130:8
+                   120:                                    boot_request = 0;
+    0001D8 1888                   SUB.B       R0L,R0L
+    0001DA 68C8                   MOV.B       R0L,@ER4
+                   121:                                    adr = DUALBOOT2.address;
+    0001DC 6860                   MOV.B       @ER6,R0H
+    0001DE 6E680001               MOV.B       @(1:16,ER6),R0L
+    0001E2 0D08                   MOV.W       R0,E0
+    0001E4 6E600002               MOV.B       @(2:16,ER6),R0H
+    0001E8 6E680003               MOV.B       @(3:16,ER6),R0L
+    0001EC 0F83                   MOV.L       ER0,ER3
+                   122:                                    len = DUALBOOT2.len;
+    0001EE 6E600004               MOV.B       @(4:16,ER6),R0H
+    0001F2 6E680005               MOV.B       @(5:16,ER6),R0L
+    0001F6 0D08                   MOV.W       R0,E0
+    0001F8 6E600006               MOV.B       @(6:16,ER6),R0H
+    0001FC 6E680007               MOV.B       @(7:16,ER6),R0L
+    000200 0D0D                   MOV.W       R0,E5
+                   123:                                    for( i=0; i<len; i++,adr++ ){
+    000202 1955                   SUB.W       R5,R5
+    000204 4018                   BRA         L132:8
+    000206              L131:                             
+                   124:                                            p = (unsigned char *)adr;
+    000206 0FB2                   MOV.L       ER3,ER2
+                   125:                                            DUALBOOT2.data[i] = *p;
+    000208 0D50                   MOV.W       R5,R0
+    00020A 17F0                   EXTS.L      ER0
+    00020C 1A91                   SUB.L       ER1,ER1
+    00020E F908                   MOV.B       #8:8,R1L
+    000210 0AE1                   ADD.L       ER6,ER1
+    000212 0A81                   ADD.L       ER0,ER1
+    000214 0FA0                   MOV.L       ER2,ER0
+    000216 6808                   MOV.B       @ER0,R0L
+    000218 6898                   MOV.B       R0L,@ER1
+    00021A 0B55                   INC.W       #1,R5
+    00021C 0B73                   INC.L       #1,ER3
+    00021E              L132:                             
+    00021E 1DD5                   CMP.W       E5,R5
+    000220 4DE4                   BLT         L131:8
+                   126:                                    }
+                   127:                                    DUALBOOT2.ack = 0x20;
+    000222 F820                   MOV.B       #32:8,R0L
+    000224 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+    000228              L130:                             
+                   128:                            }
+                   129:    }
+    000228 7A17000000             ADD.L       #12:32,SP
+           0C           
+    00022E 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   130:    
+                   131:    /************************************************************************
+                   132:    *                                                                                                                                               *
+                   133:    *       Function name   << boot >>                                                                                      *
+                   134:    *                                       ‚q‚n‚lƒu[ƒgˆ—
+                   135:    *       Syntax                  boot( void );                                                                           *
+                   136:    *       Argument                none                                                                                            *
+                   137:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   138:    *       Revision                a00 2000/06/27                                                                          *
+                   139:    *                                                                                                                                               *
+                   140:    *************************************************************************/
+                   141:    void boot( void )
+    000232              _boot:                           ; function: boot
+    000232 01006DF6               PUSH.L      ER6
+                   142:    {
+    000236 7A06000C00             MOV.L       #786432:32,ER6
+           00           
+                   143:                    IRQ4Jump = boot_int;
+    00023C 7A00                   MOV.L       #_boot_int:32,ER0
+           <00000000>   
+    000242 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   144:                    INTC.IER.BIT.IRQ4E = 1;         /* IRQ4 Use */
+    00024A 7FF57040               BSET.B      #4,@16777205:8
+                   145:    
+                   146:                    for( ;; ){
+    00024E              L133:                             
+                   147:                            if( boot_request==0x03 ){               /* Jump to Application */
+    00024E 6A2900                 MOV.B       @_$boot_request:24,R1L
+           <000000>     
+    000254 A903                   CMP.B       #3:8,R1L
+    000256 4608                   BNE         L135:8
+                   148:                                    DUALBOOT2.ack = 0x03;
+    000258 F803                   MOV.B       #3:8,R0L
+    00025A 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+                   149:                                    break;
+    00025E 400A                   BRA         L136:8
+    000260              L135:                             
+                   150:                            }
+                   151:                            if( boot_request==0x04 ){               /* Jump to Application */
+    000260 A904                   CMP.B       #4:8,R1L
+    000262 46EA                   BNE         L133:8
+                   152:                                    DUALBOOT2.ack = 0x04;
+    000264 F804                   MOV.B       #4:8,R0L
+    000266 6EE807FE               MOV.B       R0L,@(2046:16,ER6)
+                   153:                                    break;
+    00026A              L136:                             
+                   154:                            }
+                   155:                    }
+                   156:    
+                   157:                    memset( DUALBOOT2.data, 0, sizeof(DUALBOOT2.data) );
+    00026A 7A00000007             MOV.L       #2030:32,ER0
+           EE           
+    000270 01006DF0               PUSH.L      ER0
+    000274 1911                   SUB.W       R1,R1
+    000276 1A80                   SUB.L       ER0,ER0
+    000278 F808                   MOV.B       #8:8,R0L
+    00027A 0AE0                   ADD.L       ER6,ER0
+    00027C 5E                     JSR         @_memset:24
+           <000000>     
+    000280 0B97                   ADDS.L      #4,SP
+                   158:                    DUALBOOT2.address = 0;
+    000282 1A91                   SUB.L       ER1,ER1
+    000284 0F90                   MOV.L       ER1,ER0
+    000286 6EE00002               MOV.B       R0H,@(2:16,ER6)
+    00028A 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    00028E 0D80                   MOV.W       E0,R0
+    000290 68E0                   MOV.B       R0H,@ER6
+    000292 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   159:                    DUALBOOT2.len = 0;
+    000296 0F90                   MOV.L       ER1,ER0
+    000298 6EE00006               MOV.B       R0H,@(6:16,ER6)
+    00029C 6EE80007               MOV.B       R0L,@(7:16,ER6)
+    0002A0 0D80                   MOV.W       E0,R0
+    0002A2 6EE00004               MOV.B       R0H,@(4:16,ER6)
+    0002A6 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   160:                    DUALBOOT2.check_time = 0;
+    0002AA 79000000               MOV.W       #0:16,R0
+    0002AE 6EE007F6               MOV.B       R0H,@(2038:16,ER6)
+    0002B2 6EE807F7               MOV.B       R0L,@(2039:16,ER6)
+                   161:                    DUALBOOT2.check_date = 0;
+    0002B6 6EE007F8               MOV.B       R0H,@(2040:16,ER6)
+    0002BA 6EE807F9               MOV.B       R0L,@(2041:16,ER6)
+                   162:                    DUALBOOT2.check_all_bytes = 0;
+    0002BE 6EE107FC               MOV.B       R1H,@(2044:16,ER6)
+    0002C2 6EE907FD               MOV.B       R1L,@(2045:16,ER6)
+    0002C6 0D91                   MOV.W       E1,R1
+    0002C8 6EE107FA               MOV.B       R1H,@(2042:16,ER6)
+    0002CC 6EE907FB               MOV.B       R1L,@(2043:16,ER6)
+                   163:    
+                   164:                    IRQ4Jump = NULL;
+    0002D0 1A80                   SUB.L       ER0,ER0
+    0002D2 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   165:                    INTC.IER.BIT.IRQ4E = 0;         /* IRQ4 Use */
+    0002DA 7FF57240               BCLR.B      #4,@16777205:8
+                   166:    }
+    0002DE 01006D76               POP.L       ER6
+    0002E2 5470                   RTS
+                   167:    
+  B                                                      ; section
+    000000              _$boot_request:                  ; static: boot_request
+    000000 00000001               .RES.B      1
+    000001              _$boot_ack:                      ; static: boot_ack
+    000001 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     19-Feb-2001  21:28:34  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000002E4 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000002 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000002E4 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000002 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000002E6 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        7 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        2 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         28 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\ .\src\boot.c -object=.\obj\boot.obj
+CPU         : 300ha:24

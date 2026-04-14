@@ -1,0 +1,41 @@
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  04/03/01 12:20:40                                                                PAGE     1
+PROGRAM NAME =
+
+    1                             1     
+    2 000000                      2              .SECTION   P,CODE,ALIGN=2
+    3                             3     
+    4                             4     
+    5                             5              .EXPORT    _jump_app
+    6 000000                      6     _jump_app:
+    7 000000 5E000000             7              JSR        @jump_RAMTOP
+    8 000004 5470                 8              RTS
+    9                             9     
+   10 000000                     10             .section RAMTOP,data
+   11 000000                     11     jump_RAMTOP:
+   12                            12     
+   13 000000                     13             .section ROMSUM,DATA,ALIGN=1
+   14 000000 98                  14             .DATA.B         H'98
+   15                            15     
+   16                            16              .END
+  *****TOTAL ERRORS       0
+  *****TOTAL WARNINGS     0
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  04/03/01 12:20:40                                                                PAGE     2
+
+*** CROSS REFERENCE LIST
+
+NAME                             SECTION  ATTR VALUE             SEQUENCE
+
+P                                P        SCT  00000000      2*
+RAMTOP                           RAMTOP   SCT  00000000     10*
+ROMSUM                           ROMSUM   SCT  00000000     13*
+_jump_app                        P        EXPT 00000000      5     6*
+jump_RAMTOP                      RAMTOP        00000000      7    11*
+*** H8S,H8/300 ASSEMBLER Ver. 3.0B ***  04/03/01 12:20:40                                                                PAGE     3
+
+*** SECTION DATA LIST
+
+SECTION                          ATTRIBUTE    SIZE             START
+
+P                                REL-CODE    0000006          
+RAMTOP                           REL-DATA    0000000          
+ROMSUM                           REL-DATA    0000001          

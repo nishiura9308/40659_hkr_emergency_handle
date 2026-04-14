@@ -1,0 +1,1112 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/386                                        #
+# Front End V4.20N                                     30/Nov/2000  11:27:17 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  .\src\mcppio.c                                      #
+#       List file     =  .\obj\mcppio.lst                                    #
+#       Object file   =  .\obj\mcppio.r01                                    #
+#       ASM file      =  .\obj\mcppio.s01                                    #
+#       Command line  =  .\src\mcpPio.c -o .\obj\mcpPio.r01 -P -gA -s -v1    #
+#                        -rn -ml -I.\inc\ -I..\comminc\ -DSIM=0 -a           #
+#                        .\obj\mcpPio.s01 -l .\obj\mcpPio.lst -q             #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+   \   0000                    NAME    mcppio(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    CSTR(0)
+   \   0000                    RSEG    UDATA0(0)
+   \   0000                    PUBLIC  debug_Display
+   \   0000                    EXTERN  io_output_off
+   \   0000                    EXTERN  io_output_on
+   \   0000                    EXTERN  matrix_led
+   \   0000                    PUBLIC  mcpSwitchIn
+   \   0000                    EXTERN  mcp_sendactive
+   \   0000                    PUBLIC  nowReadIO
+   \   0000                    PUBLIC  offReadIO
+   \   0000                    PUBLIC  onReadIO
+   \   0000                    EXTERN  read_dipsw
+   \   0000                    EXTERN  sendarea
+   \   0000                    EXTERN  sprintf
+   \   0000                    EXTERN  sw_led
+   \   0000                    EXTERN  switch_read
+   \   0000                    EXTERN  ?CL64180L_4_04_L00
+   \   0000                    RSEG    CODE
+   \   0000            debug_Display:
+      1          /********************************************************************
+      2                  【香港地下鉄向け自動列車放送制御装置】
+      3          *-------------------------------------------------------------------*
+      4                  Ｉ／Ｏ入力制御モジュール
+      5          *-------------------------------------------------------------------*
+      6                  Author          TOA Corporation
+      7          
+      8                  Revision        a00. 2000/06/27         K.Honda
+      9                  Revision        a00. 2000/11/07         K.Honda
+     10          
+     11          *********************************************************************/
+     12          
+     13          #include <stdio.h>
+     14          
+     15          #include "IOFUNC.h"
+     16          
+     17          #include "COMMDEF.h"
+     18          
+     19          /*@@@S*/
+     20          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     21                  グローバル変数
+     22          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     23          
+     24          /** スイッチデータ **/
+     25          short   onReadIO;
+     26          short   offReadIO;
+     27          short   nowReadIO;
+     28          
+     29          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     30                  ローカル定数定義
+     31          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     32          
+     33          
+     34          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     35                  ローカル構造体定義
+     36          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     37          
+     38          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     39                  ローカルテーブル
+     40          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     41          
+     42          
+     43          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     44                          外部参照
+     45          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     46          
+     47          extern  char    mcp_sendactive;
+     48          
+     49          /** 送信エリア **/
+     50          extern  struct MCPSEND  sendarea;
+     51          
+     52          /** 表示データ **/
+     53          extern  short   sw_led;                         /*スイッチＬＥＤ*/
+     54          
+     55          #define SW_EMGPRG       0x0001
+     56          #define SW_CABCAB       0x0002
+     57          #define SW_RBM          0x0004
+     58          #define SW_TEST         0x0008
+     59          #define SW_ATC          0x0010
+     60          #define SW_HL           0x0020
+     61          #define SW_EMG          0x0040
+     62          #define SW_SPC          0x0080
+     63          #define SW_REP          0x0100
+     64          #define SW_LEFT         0x0200
+     65          #define SW_RIGHT        0x0400
+     66          #define SW_SEL          0x0800
+     67          #define SW_RST          0x1000
+     68          #define SW_ENT          0x2000
+     69          #define SW_STN          0x4000
+     70          
+     71          #define SWLED_EMGPRG    0x0001
+     72          #define SWLED_CABCAB    0x0002
+     73          #define SWLED_RBM               0x0004
+     74          #define SWLED_TEST              0x0008
+     75          #define SWLED_ATC               0x0010
+     76          #define SWLED_HL                0x0020
+     77          #define SWLED_EMG               0x0040
+     78          #define SWLED_SPC               0x0080
+     79          #define SWLED_REP               0x0100
+     80          #define SWLED_LEFT              0x0200
+     81          #define SWLED_RIGHT             0x0400
+     82          #define SWLED_SEL               0x0800
+     83          #define SWLED_RST               0x1000
+     84          #define SWLED_ENT               0x2000
+     85          #define SWLED_STN               0x4000
+     86          #define SWLED_SPC2              0x8000  /* Same SWLED_SPC */
+     87          
+     88          extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+     89          
+     90          
+     91          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     92                          ローカル変数
+     93          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     94          static  char    readCount;
+     95          static  short   preReadIO;
+     96          
+     97          /*@@@E*/
+     98          void debug_Display( void )
+     99          {
+   \   0000  C5                PUSH    BC
+   \   0001  DDE5              PUSH    IX
+   \   0003  DD210000          LD      IX,0
+   \   0007  DD39              ADD     IX,SP
+   \   0009  F5                PUSH    AF
+    100                                  if( sw_led & SWLED_HL ){
+   \   000A  3A0000            LD      A,(sw_led)
+   \   000D  E620              AND     32
+   \   000F  CA4604            JP      Z,?0009
+   \   0012            ?0008:
+    101                                          sw_led ^= onReadIO;
+   \   0012  210000            LD      HL,sw_led
+   \   0015  ED4B0000          LD      BC,(onReadIO)
+   \   0019  7E                LD      A,(HL)
+   \   001A  A9                XOR     C
+   \   001B  77                LD      (HL),A
+   \   001C  23                INC     HL
+   \   001D  7E                LD      A,(HL)
+   \   001E  A8                XOR     B
+   \   001F  77                LD      (HL),A
+    102                                  if( onReadIO & 0x01 ){
+   \   0020  3A0000            LD      A,(onReadIO)
+   \   0023  E601              AND     1
+   \   0025  CAF400            JP      Z,?0011
+   \   0028            ?0010:
+    103                                          onReadIO &= ~0x01;
+   \   0028  210000            LD      HL,onReadIO
+   \   002B  7E                LD      A,(HL)
+   \   002C  E6FE              AND     254
+   \   002E  77                LD      (HL),A
+   \   002F  23                INC     HL
+   \   0030  7E                LD      A,(HL)
+   \   0031  E6FF              AND     255
+   \   0033  77                LD      (HL),A
+    104                                          {
+    105                                                  int     i;
+    106                                                  for( i=0; i<6; i++ ){
+   \   0034  AF                XOR     A
+   \   0035  DD77FE            LD      (IX-2),A
+   \   0038  DD77FF            LD      (IX-1),A
+   \   003B            ?0013:
+   \   003B  010680            LD      BC,32774
+   \   003E  DD6EFE            LD      L,(IX-2)
+   \   0041  DD66FF            LD      H,(IX-1)
+   \   0044  3E80              LD      A,128
+   \   0046  AC                XOR     H
+   \   0047  67                LD      H,A
+   \   0048  ED42              SBC     HL,BC
+   \   004A  3018              JR      NC,?0012
+   \   004C            ?0014:
+    107                                                          matrix_led[0][i] = 0x20+i;
+   \   004C  210000            LD      HL,matrix_led
+   \   004F  DD4EFE            LD      C,(IX-2)
+   \   0052  DD46FF            LD      B,(IX-1)
+   \   0055  09                ADD     HL,BC
+   \   0056  79                LD      A,C
+   \   0057  C620              ADD     A,32
+   \   0059  77                LD      (HL),A
+   \   005A  DD34FE            INC     (IX-2)
+   \   005D  2003              JR      NZ,?0121
+   \   005F  DD34FF            INC     (IX-1)
+   \   0062            ?0121:
+   \   0062  18D7              JR      ?0013
+   \   0064            ?0012:
+    108                                                  }
+    109                                                  for( i=0; i<6; i++ ){
+   \   0064  AF                XOR     A
+   \   0065  DD77FE            LD      (IX-2),A
+   \   0068  DD77FF            LD      (IX-1),A
+   \   006B            ?0017:
+   \   006B  010680            LD      BC,32774
+   \   006E  DD6EFE            LD      L,(IX-2)
+   \   0071  DD66FF            LD      H,(IX-1)
+   \   0074  3E80              LD      A,128
+   \   0076  AC                XOR     H
+   \   0077  67                LD      H,A
+   \   0078  ED42              SBC     HL,BC
+   \   007A  3018              JR      NC,?0016
+   \   007C            ?0018:
+    110                                                          matrix_led[1][i] = 0x26+i;
+   \   007C  210600            LD      HL,matrix_led+6
+   \   007F  DD4EFE            LD      C,(IX-2)
+   \   0082  DD46FF            LD      B,(IX-1)
+   \   0085  09                ADD     HL,BC
+   \   0086  79                LD      A,C
+   \   0087  C626              ADD     A,38
+   \   0089  77                LD      (HL),A
+   \   008A  DD34FE            INC     (IX-2)
+   \   008D  2003              JR      NZ,?0122
+   \   008F  DD34FF            INC     (IX-1)
+   \   0092            ?0122:
+   \   0092  18D7              JR      ?0017
+   \   0094            ?0016:
+    111                                                  }
+    112                                                  for( i=0; i<6; i++ ){
+   \   0094  AF                XOR     A
+   \   0095  DD77FE            LD      (IX-2),A
+   \   0098  DD77FF            LD      (IX-1),A
+   \   009B            ?0021:
+   \   009B  010680            LD      BC,32774
+   \   009E  DD6EFE            LD      L,(IX-2)
+   \   00A1  DD66FF            LD      H,(IX-1)
+   \   00A4  3E80              LD      A,128
+   \   00A6  AC                XOR     H
+   \   00A7  67                LD      H,A
+   \   00A8  ED42              SBC     HL,BC
+   \   00AA  3018              JR      NC,?0020
+   \   00AC            ?0022:
+    113                                                          matrix_led[2][i] = 0x2C+i;
+   \   00AC  210C00            LD      HL,matrix_led+12
+   \   00AF  DD4EFE            LD      C,(IX-2)
+   \   00B2  DD46FF            LD      B,(IX-1)
+   \   00B5  09                ADD     HL,BC
+   \   00B6  79                LD      A,C
+   \   00B7  C62C              ADD     A,44
+   \   00B9  77                LD      (HL),A
+   \   00BA  DD34FE            INC     (IX-2)
+   \   00BD  2003              JR      NZ,?0123
+   \   00BF  DD34FF            INC     (IX-1)
+   \   00C2            ?0123:
+   \   00C2  18D7              JR      ?0021
+   \   00C4            ?0020:
+    114                                                  }
+    115                                                  for( i=0; i<6; i++ ){
+   \   00C4  AF                XOR     A
+   \   00C5  DD77FE            LD      (IX-2),A
+   \   00C8  DD77FF            LD      (IX-1),A
+   \   00CB            ?0025:
+   \   00CB  010680            LD      BC,32774
+   \   00CE  DD6EFE            LD      L,(IX-2)
+   \   00D1  DD66FF            LD      H,(IX-1)
+   \   00D4  3E80              LD      A,128
+   \   00D6  AC                XOR     H
+   \   00D7  67                LD      H,A
+   \   00D8  ED42              SBC     HL,BC
+   \   00DA  3018              JR      NC,?0024
+   \   00DC            ?0026:
+    116                                                          matrix_led[3][i] = 0x32+i;
+   \   00DC  211200            LD      HL,matrix_led+18
+   \   00DF  DD4EFE            LD      C,(IX-2)
+   \   00E2  DD46FF            LD      B,(IX-1)
+   \   00E5  09                ADD     HL,BC
+   \   00E6  79                LD      A,C
+   \   00E7  C632              ADD     A,50
+   \   00E9  77                LD      (HL),A
+   \   00EA  DD34FE            INC     (IX-2)
+   \   00ED  2003              JR      NZ,?0124
+   \   00EF  DD34FF            INC     (IX-1)
+   \   00F2            ?0124:
+    117                                                  }
+    118                                          }
+   \   00F2  18D7              JR      ?0025
+   \   00F4            ?0024:
+   \   00F4            ?0011:
+    119                                  }
+    120                                  if( onReadIO & 0x02 ){
+   \   00F4  3A0000            LD      A,(onReadIO)
+   \   00F7  E602              AND     2
+   \   00F9  CAC801            JP      Z,?0029
+   \   00FC            ?0028:
+    121                                          onReadIO &= ~0x02;
+   \   00FC  210000            LD      HL,onReadIO
+   \   00FF  7E                LD      A,(HL)
+   \   0100  E6FD              AND     253
+   \   0102  77                LD      (HL),A
+   \   0103  23                INC     HL
+   \   0104  7E                LD      A,(HL)
+   \   0105  E6FF              AND     255
+   \   0107  77                LD      (HL),A
+    122                                          {
+    123                                                  int     i;
+    124                                                  for( i=0; i<6; i++ ){
+   \   0108  AF                XOR     A
+   \   0109  DD77FE            LD      (IX-2),A
+   \   010C  DD77FF            LD      (IX-1),A
+   \   010F            ?0031:
+   \   010F  010680            LD      BC,32774
+   \   0112  DD6EFE            LD      L,(IX-2)
+   \   0115  DD66FF            LD      H,(IX-1)
+   \   0118  3E80              LD      A,128
+   \   011A  AC                XOR     H
+   \   011B  67                LD      H,A
+   \   011C  ED42              SBC     HL,BC
+   \   011E  3018              JR      NC,?0030
+   \   0120            ?0032:
+    125                                                          matrix_led[0][i] = 0x30+i;
+   \   0120  210000            LD      HL,matrix_led
+   \   0123  DD4EFE            LD      C,(IX-2)
+   \   0126  DD46FF            LD      B,(IX-1)
+   \   0129  09                ADD     HL,BC
+   \   012A  79                LD      A,C
+   \   012B  C630              ADD     A,48
+   \   012D  77                LD      (HL),A
+   \   012E  DD34FE            INC     (IX-2)
+   \   0131  2003              JR      NZ,?0125
+   \   0133  DD34FF            INC     (IX-1)
+   \   0136            ?0125:
+   \   0136  18D7              JR      ?0031
+   \   0138            ?0030:
+    126                                                  }
+    127                                                  for( i=0; i<6; i++ ){
+   \   0138  AF                XOR     A
+   \   0139  DD77FE            LD      (IX-2),A
+   \   013C  DD77FF            LD      (IX-1),A
+   \   013F            ?0035:
+   \   013F  010680            LD      BC,32774
+   \   0142  DD6EFE            LD      L,(IX-2)
+   \   0145  DD66FF            LD      H,(IX-1)
+   \   0148  3E80              LD      A,128
+   \   014A  AC                XOR     H
+   \   014B  67                LD      H,A
+   \   014C  ED42              SBC     HL,BC
+   \   014E  3018              JR      NC,?0034
+   \   0150            ?0036:
+    128                                                          matrix_led[1][i] = 0x36+i;
+   \   0150  210600            LD      HL,matrix_led+6
+   \   0153  DD4EFE            LD      C,(IX-2)
+   \   0156  DD46FF            LD      B,(IX-1)
+   \   0159  09                ADD     HL,BC
+   \   015A  79                LD      A,C
+   \   015B  C636              ADD     A,54
+   \   015D  77                LD      (HL),A
+   \   015E  DD34FE            INC     (IX-2)
+   \   0161  2003              JR      NZ,?0126
+   \   0163  DD34FF            INC     (IX-1)
+   \   0166            ?0126:
+   \   0166  18D7              JR      ?0035
+   \   0168            ?0034:
+    129                                                  }
+    130                                                  for( i=0; i<6; i++ ){
+   \   0168  AF                XOR     A
+   \   0169  DD77FE            LD      (IX-2),A
+   \   016C  DD77FF            LD      (IX-1),A
+   \   016F            ?0039:
+   \   016F  010680            LD      BC,32774
+   \   0172  DD6EFE            LD      L,(IX-2)
+   \   0175  DD66FF            LD      H,(IX-1)
+   \   0178  3E80              LD      A,128
+   \   017A  AC                XOR     H
+   \   017B  67                LD      H,A
+   \   017C  ED42              SBC     HL,BC
+   \   017E  3018              JR      NC,?0038
+   \   0180            ?0040:
+    131                                                          matrix_led[2][i] = 0x3C+i;
+   \   0180  210C00            LD      HL,matrix_led+12
+   \   0183  DD4EFE            LD      C,(IX-2)
+   \   0186  DD46FF            LD      B,(IX-1)
+   \   0189  09                ADD     HL,BC
+   \   018A  79                LD      A,C
+   \   018B  C63C              ADD     A,60
+   \   018D  77                LD      (HL),A
+   \   018E  DD34FE            INC     (IX-2)
+   \   0191  2003              JR      NZ,?0127
+   \   0193  DD34FF            INC     (IX-1)
+   \   0196            ?0127:
+   \   0196  18D7              JR      ?0039
+   \   0198            ?0038:
+    132                                                  }
+    133                                                  for( i=0; i<6; i++ ){
+   \   0198  AF                XOR     A
+   \   0199  DD77FE            LD      (IX-2),A
+   \   019C  DD77FF            LD      (IX-1),A
+   \   019F            ?0043:
+   \   019F  010680            LD      BC,32774
+   \   01A2  DD6EFE            LD      L,(IX-2)
+   \   01A5  DD66FF            LD      H,(IX-1)
+   \   01A8  3E80              LD      A,128
+   \   01AA  AC                XOR     H
+   \   01AB  67                LD      H,A
+   \   01AC  ED42              SBC     HL,BC
+   \   01AE  3018              JR      NC,?0042
+   \   01B0            ?0044:
+    134                                                          matrix_led[3][i] = 0x42+i;
+   \   01B0  211200            LD      HL,matrix_led+18
+   \   01B3  DD4EFE            LD      C,(IX-2)
+   \   01B6  DD46FF            LD      B,(IX-1)
+   \   01B9  09                ADD     HL,BC
+   \   01BA  79                LD      A,C
+   \   01BB  C642              ADD     A,66
+   \   01BD  77                LD      (HL),A
+   \   01BE  DD34FE            INC     (IX-2)
+   \   01C1  2003              JR      NZ,?0128
+   \   01C3  DD34FF            INC     (IX-1)
+   \   01C6            ?0128:
+    135                                                  }
+    136                                          }
+   \   01C6  18D7              JR      ?0043
+   \   01C8            ?0042:
+   \   01C8            ?0029:
+    137                                  }
+    138                                  if( onReadIO & 0x04 ){
+   \   01C8  3A0000            LD      A,(onReadIO)
+   \   01CB  E604              AND     4
+   \   01CD  CA9C02            JP      Z,?0047
+   \   01D0            ?0046:
+    139                                          onReadIO &= ~0x04;
+   \   01D0  210000            LD      HL,onReadIO
+   \   01D3  7E                LD      A,(HL)
+   \   01D4  E6FB              AND     251
+   \   01D6  77                LD      (HL),A
+   \   01D7  23                INC     HL
+   \   01D8  7E                LD      A,(HL)
+   \   01D9  E6FF              AND     255
+   \   01DB  77                LD      (HL),A
+    140                                          {
+    141                                                  int     i;
+    142                                                  for( i=0; i<6; i++ ){
+   \   01DC  AF                XOR     A
+   \   01DD  DD77FE            LD      (IX-2),A
+   \   01E0  DD77FF            LD      (IX-1),A
+   \   01E3            ?0049:
+   \   01E3  010680            LD      BC,32774
+   \   01E6  DD6EFE            LD      L,(IX-2)
+   \   01E9  DD66FF            LD      H,(IX-1)
+   \   01EC  3E80              LD      A,128
+   \   01EE  AC                XOR     H
+   \   01EF  67                LD      H,A
+   \   01F0  ED42              SBC     HL,BC
+   \   01F2  3018              JR      NC,?0048
+   \   01F4            ?0050:
+    143                                                          matrix_led[0][i] = 0x50+i;
+   \   01F4  210000            LD      HL,matrix_led
+   \   01F7  DD4EFE            LD      C,(IX-2)
+   \   01FA  DD46FF            LD      B,(IX-1)
+   \   01FD  09                ADD     HL,BC
+   \   01FE  79                LD      A,C
+   \   01FF  C650              ADD     A,80
+   \   0201  77                LD      (HL),A
+   \   0202  DD34FE            INC     (IX-2)
+   \   0205  2003              JR      NZ,?0129
+   \   0207  DD34FF            INC     (IX-1)
+   \   020A            ?0129:
+   \   020A  18D7              JR      ?0049
+   \   020C            ?0048:
+    144                                                  }
+    145                                                  for( i=0; i<6; i++ ){
+   \   020C  AF                XOR     A
+   \   020D  DD77FE            LD      (IX-2),A
+   \   0210  DD77FF            LD      (IX-1),A
+   \   0213            ?0053:
+   \   0213  010680            LD      BC,32774
+   \   0216  DD6EFE            LD      L,(IX-2)
+   \   0219  DD66FF            LD      H,(IX-1)
+   \   021C  3E80              LD      A,128
+   \   021E  AC                XOR     H
+   \   021F  67                LD      H,A
+   \   0220  ED42              SBC     HL,BC
+   \   0222  3018              JR      NC,?0052
+   \   0224            ?0054:
+    146                                                          matrix_led[1][i] = 0x56+i;
+   \   0224  210600            LD      HL,matrix_led+6
+   \   0227  DD4EFE            LD      C,(IX-2)
+   \   022A  DD46FF            LD      B,(IX-1)
+   \   022D  09                ADD     HL,BC
+   \   022E  79                LD      A,C
+   \   022F  C656              ADD     A,86
+   \   0231  77                LD      (HL),A
+   \   0232  DD34FE            INC     (IX-2)
+   \   0235  2003              JR      NZ,?0130
+   \   0237  DD34FF            INC     (IX-1)
+   \   023A            ?0130:
+   \   023A  18D7              JR      ?0053
+   \   023C            ?0052:
+    147                                                  }
+    148                                                  for( i=0; i<6; i++ ){
+   \   023C  AF                XOR     A
+   \   023D  DD77FE            LD      (IX-2),A
+   \   0240  DD77FF            LD      (IX-1),A
+   \   0243            ?0057:
+   \   0243  010680            LD      BC,32774
+   \   0246  DD6EFE            LD      L,(IX-2)
+   \   0249  DD66FF            LD      H,(IX-1)
+   \   024C  3E80              LD      A,128
+   \   024E  AC                XOR     H
+   \   024F  67                LD      H,A
+   \   0250  ED42              SBC     HL,BC
+   \   0252  3018              JR      NC,?0056
+   \   0254            ?0058:
+    149                                                          matrix_led[2][i] = 0x5C+i;
+   \   0254  210C00            LD      HL,matrix_led+12
+   \   0257  DD4EFE            LD      C,(IX-2)
+   \   025A  DD46FF            LD      B,(IX-1)
+   \   025D  09                ADD     HL,BC
+   \   025E  79                LD      A,C
+   \   025F  C65C              ADD     A,92
+   \   0261  77                LD      (HL),A
+   \   0262  DD34FE            INC     (IX-2)
+   \   0265  2003              JR      NZ,?0131
+   \   0267  DD34FF            INC     (IX-1)
+   \   026A            ?0131:
+   \   026A  18D7              JR      ?0057
+   \   026C            ?0056:
+    150                                                  }
+    151                                                  for( i=0; i<6; i++ ){
+   \   026C  AF                XOR     A
+   \   026D  DD77FE            LD      (IX-2),A
+   \   0270  DD77FF            LD      (IX-1),A
+   \   0273            ?0061:
+   \   0273  010680            LD      BC,32774
+   \   0276  DD6EFE            LD      L,(IX-2)
+   \   0279  DD66FF            LD      H,(IX-1)
+   \   027C  3E80              LD      A,128
+   \   027E  AC                XOR     H
+   \   027F  67                LD      H,A
+   \   0280  ED42              SBC     HL,BC
+   \   0282  3018              JR      NC,?0060
+   \   0284            ?0062:
+    152                                                          matrix_led[3][i] = 0x62+i;
+   \   0284  211200            LD      HL,matrix_led+18
+   \   0287  DD4EFE            LD      C,(IX-2)
+   \   028A  DD46FF            LD      B,(IX-1)
+   \   028D  09                ADD     HL,BC
+   \   028E  79                LD      A,C
+   \   028F  C662              ADD     A,98
+   \   0291  77                LD      (HL),A
+   \   0292  DD34FE            INC     (IX-2)
+   \   0295  2003              JR      NZ,?0132
+   \   0297  DD34FF            INC     (IX-1)
+   \   029A            ?0132:
+    153                                                  }
+    154                                          }
+   \   029A  18D7              JR      ?0061
+   \   029C            ?0060:
+   \   029C            ?0047:
+    155                                  }
+    156                                  if( onReadIO & 0x08 ){
+   \   029C  3A0000            LD      A,(onReadIO)
+   \   029F  E608              AND     8
+   \   02A1  CA7003            JP      Z,?0065
+   \   02A4            ?0064:
+    157                                          onReadIO &= ~0x08;
+   \   02A4  210000            LD      HL,onReadIO
+   \   02A7  7E                LD      A,(HL)
+   \   02A8  E6F7              AND     247
+   \   02AA  77                LD      (HL),A
+   \   02AB  23                INC     HL
+   \   02AC  7E                LD      A,(HL)
+   \   02AD  E6FF              AND     255
+   \   02AF  77                LD      (HL),A
+    158                                          {
+    159                                                  int     i;
+    160                                                  for( i=0; i<6; i++ ){
+   \   02B0  AF                XOR     A
+   \   02B1  DD77FE            LD      (IX-2),A
+   \   02B4  DD77FF            LD      (IX-1),A
+   \   02B7            ?0067:
+   \   02B7  010680            LD      BC,32774
+   \   02BA  DD6EFE            LD      L,(IX-2)
+   \   02BD  DD66FF            LD      H,(IX-1)
+   \   02C0  3E80              LD      A,128
+   \   02C2  AC                XOR     H
+   \   02C3  67                LD      H,A
+   \   02C4  ED42              SBC     HL,BC
+   \   02C6  3018              JR      NC,?0066
+   \   02C8            ?0068:
+    161                                                          matrix_led[0][i] = 0x60+i;
+   \   02C8  210000            LD      HL,matrix_led
+   \   02CB  DD4EFE            LD      C,(IX-2)
+   \   02CE  DD46FF            LD      B,(IX-1)
+   \   02D1  09                ADD     HL,BC
+   \   02D2  79                LD      A,C
+   \   02D3  C660              ADD     A,96
+   \   02D5  77                LD      (HL),A
+   \   02D6  DD34FE            INC     (IX-2)
+   \   02D9  2003              JR      NZ,?0133
+   \   02DB  DD34FF            INC     (IX-1)
+   \   02DE            ?0133:
+   \   02DE  18D7              JR      ?0067
+   \   02E0            ?0066:
+    162                                                  }
+    163                                                  for( i=0; i<6; i++ ){
+   \   02E0  AF                XOR     A
+   \   02E1  DD77FE            LD      (IX-2),A
+   \   02E4  DD77FF            LD      (IX-1),A
+   \   02E7            ?0071:
+   \   02E7  010680            LD      BC,32774
+   \   02EA  DD6EFE            LD      L,(IX-2)
+   \   02ED  DD66FF            LD      H,(IX-1)
+   \   02F0  3E80              LD      A,128
+   \   02F2  AC                XOR     H
+   \   02F3  67                LD      H,A
+   \   02F4  ED42              SBC     HL,BC
+   \   02F6  3018              JR      NC,?0070
+   \   02F8            ?0072:
+    164                                                          matrix_led[1][i] = 0x66+i;
+   \   02F8  210600            LD      HL,matrix_led+6
+   \   02FB  DD4EFE            LD      C,(IX-2)
+   \   02FE  DD46FF            LD      B,(IX-1)
+   \   0301  09                ADD     HL,BC
+   \   0302  79                LD      A,C
+   \   0303  C666              ADD     A,102
+   \   0305  77                LD      (HL),A
+   \   0306  DD34FE            INC     (IX-2)
+   \   0309  2003              JR      NZ,?0134
+   \   030B  DD34FF            INC     (IX-1)
+   \   030E            ?0134:
+   \   030E  18D7              JR      ?0071
+   \   0310            ?0070:
+    165                                                  }
+    166                                                  for( i=0; i<6; i++ ){
+   \   0310  AF                XOR     A
+   \   0311  DD77FE            LD      (IX-2),A
+   \   0314  DD77FF            LD      (IX-1),A
+   \   0317            ?0075:
+   \   0317  010680            LD      BC,32774
+   \   031A  DD6EFE            LD      L,(IX-2)
+   \   031D  DD66FF            LD      H,(IX-1)
+   \   0320  3E80              LD      A,128
+   \   0322  AC                XOR     H
+   \   0323  67                LD      H,A
+   \   0324  ED42              SBC     HL,BC
+   \   0326  3018              JR      NC,?0074
+   \   0328            ?0076:
+    167                                                          matrix_led[2][i] = 0x6C+i;
+   \   0328  210C00            LD      HL,matrix_led+12
+   \   032B  DD4EFE            LD      C,(IX-2)
+   \   032E  DD46FF            LD      B,(IX-1)
+   \   0331  09                ADD     HL,BC
+   \   0332  79                LD      A,C
+   \   0333  C66C              ADD     A,108
+   \   0335  77                LD      (HL),A
+   \   0336  DD34FE            INC     (IX-2)
+   \   0339  2003              JR      NZ,?0135
+   \   033B  DD34FF            INC     (IX-1)
+   \   033E            ?0135:
+   \   033E  18D7              JR      ?0075
+   \   0340            ?0074:
+    168                                                  }
+    169                                                  for( i=0; i<6; i++ ){
+   \   0340  AF                XOR     A
+   \   0341  DD77FE            LD      (IX-2),A
+   \   0344  DD77FF            LD      (IX-1),A
+   \   0347            ?0079:
+   \   0347  010680            LD      BC,32774
+   \   034A  DD6EFE            LD      L,(IX-2)
+   \   034D  DD66FF            LD      H,(IX-1)
+   \   0350  3E80              LD      A,128
+   \   0352  AC                XOR     H
+   \   0353  67                LD      H,A
+   \   0354  ED42              SBC     HL,BC
+   \   0356  3018              JR      NC,?0078
+   \   0358            ?0080:
+    170                                                          matrix_led[3][i] = 0x72+i;
+   \   0358  211200            LD      HL,matrix_led+18
+   \   035B  DD4EFE            LD      C,(IX-2)
+   \   035E  DD46FF            LD      B,(IX-1)
+   \   0361  09                ADD     HL,BC
+   \   0362  79                LD      A,C
+   \   0363  C672              ADD     A,114
+   \   0365  77                LD      (HL),A
+   \   0366  DD34FE            INC     (IX-2)
+   \   0369  2003              JR      NZ,?0136
+   \   036B  DD34FF            INC     (IX-1)
+   \   036E            ?0136:
+    171                                                  }
+    172                                          }
+   \   036E  18D7              JR      ?0079
+   \   0370            ?0078:
+   \   0370            ?0065:
+    173                                  }
+    174                                  if( onReadIO & 0x10 ){
+   \   0370  3A0000            LD      A,(onReadIO)
+   \   0373  E610              AND     16
+   \   0375  CA4404            JP      Z,?0083
+   \   0378            ?0082:
+    175                                          onReadIO &= ~0x10;
+   \   0378  210000            LD      HL,onReadIO
+   \   037B  7E                LD      A,(HL)
+   \   037C  E6EF              AND     239
+   \   037E  77                LD      (HL),A
+   \   037F  23                INC     HL
+   \   0380  7E                LD      A,(HL)
+   \   0381  E6FF              AND     255
+   \   0383  77                LD      (HL),A
+    176                                          {
+    177                                                  int     i;
+    178                                                  for( i=0; i<6; i++ ){
+   \   0384  AF                XOR     A
+   \   0385  DD77FE            LD      (IX-2),A
+   \   0388  DD77FF            LD      (IX-1),A
+   \   038B            ?0085:
+   \   038B  010680            LD      BC,32774
+   \   038E  DD6EFE            LD      L,(IX-2)
+   \   0391  DD66FF            LD      H,(IX-1)
+   \   0394  3E80              LD      A,128
+   \   0396  AC                XOR     H
+   \   0397  67                LD      H,A
+   \   0398  ED42              SBC     HL,BC
+   \   039A  3018              JR      NC,?0084
+   \   039C            ?0086:
+    179                                                          matrix_led[0][i] = 0x70+i;
+   \   039C  210000            LD      HL,matrix_led
+   \   039F  DD4EFE            LD      C,(IX-2)
+   \   03A2  DD46FF            LD      B,(IX-1)
+   \   03A5  09                ADD     HL,BC
+   \   03A6  79                LD      A,C
+   \   03A7  C670              ADD     A,112
+   \   03A9  77                LD      (HL),A
+   \   03AA  DD34FE            INC     (IX-2)
+   \   03AD  2003              JR      NZ,?0137
+   \   03AF  DD34FF            INC     (IX-1)
+   \   03B2            ?0137:
+   \   03B2  18D7              JR      ?0085
+   \   03B4            ?0084:
+    180                                                  }
+    181                                                  for( i=0; i<6; i++ ){
+   \   03B4  AF                XOR     A
+   \   03B5  DD77FE            LD      (IX-2),A
+   \   03B8  DD77FF            LD      (IX-1),A
+   \   03BB            ?0089:
+   \   03BB  010680            LD      BC,32774
+   \   03BE  DD6EFE            LD      L,(IX-2)
+   \   03C1  DD66FF            LD      H,(IX-1)
+   \   03C4  3E80              LD      A,128
+   \   03C6  AC                XOR     H
+   \   03C7  67                LD      H,A
+   \   03C8  ED42              SBC     HL,BC
+   \   03CA  3018              JR      NC,?0088
+   \   03CC            ?0090:
+    182                                                          matrix_led[1][i] = 0x76+i;
+   \   03CC  210600            LD      HL,matrix_led+6
+   \   03CF  DD4EFE            LD      C,(IX-2)
+   \   03D2  DD46FF            LD      B,(IX-1)
+   \   03D5  09                ADD     HL,BC
+   \   03D6  79                LD      A,C
+   \   03D7  C676              ADD     A,118
+   \   03D9  77                LD      (HL),A
+   \   03DA  DD34FE            INC     (IX-2)
+   \   03DD  2003              JR      NZ,?0138
+   \   03DF  DD34FF            INC     (IX-1)
+   \   03E2            ?0138:
+   \   03E2  18D7              JR      ?0089
+   \   03E4            ?0088:
+    183                                                  }
+    184                                                  for( i=0; i<6; i++ ){
+   \   03E4  AF                XOR     A
+   \   03E5  DD77FE            LD      (IX-2),A
+   \   03E8  DD77FF            LD      (IX-1),A
+   \   03EB            ?0093:
+   \   03EB  010680            LD      BC,32774
+   \   03EE  DD6EFE            LD      L,(IX-2)
+   \   03F1  DD66FF            LD      H,(IX-1)
+   \   03F4  3E80              LD      A,128
+   \   03F6  AC                XOR     H
+   \   03F7  67                LD      H,A
+   \   03F8  ED42              SBC     HL,BC
+   \   03FA  3018              JR      NC,?0092
+   \   03FC            ?0094:
+    185                                                          matrix_led[2][i] = 0x7C+i;
+   \   03FC  210C00            LD      HL,matrix_led+12
+   \   03FF  DD4EFE            LD      C,(IX-2)
+   \   0402  DD46FF            LD      B,(IX-1)
+   \   0405  09                ADD     HL,BC
+   \   0406  79                LD      A,C
+   \   0407  C67C              ADD     A,124
+   \   0409  77                LD      (HL),A
+   \   040A  DD34FE            INC     (IX-2)
+   \   040D  2003              JR      NZ,?0139
+   \   040F  DD34FF            INC     (IX-1)
+   \   0412            ?0139:
+   \   0412  18D7              JR      ?0093
+   \   0414            ?0092:
+    186                                                  }
+    187                                                  for( i=0; i<6; i++ ){
+   \   0414  AF                XOR     A
+   \   0415  DD77FE            LD      (IX-2),A
+   \   0418  DD77FF            LD      (IX-1),A
+   \   041B            ?0097:
+   \   041B  010680            LD      BC,32774
+   \   041E  DD6EFE            LD      L,(IX-2)
+   \   0421  DD66FF            LD      H,(IX-1)
+   \   0424  3E80              LD      A,128
+   \   0426  AC                XOR     H
+   \   0427  67                LD      H,A
+   \   0428  ED42              SBC     HL,BC
+   \   042A  3018              JR      NC,?0096
+   \   042C            ?0098:
+    188                                                          matrix_led[3][i] = 0x02+i;
+   \   042C  211200            LD      HL,matrix_led+18
+   \   042F  DD4EFE            LD      C,(IX-2)
+   \   0432  DD46FF            LD      B,(IX-1)
+   \   0435  09                ADD     HL,BC
+   \   0436  79                LD      A,C
+   \   0437  C602              ADD     A,2
+   \   0439  77                LD      (HL),A
+   \   043A  DD34FE            INC     (IX-2)
+   \   043D  2003              JR      NZ,?0140
+   \   043F  DD34FF            INC     (IX-1)
+   \   0442            ?0140:
+    189                                                  }
+    190                                          }
+   \   0442  18D7              JR      ?0097
+   \   0444            ?0096:
+   \   0444            ?0083:
+   \   0444  181F              JR      ?0100
+   \   0446            ?0009:
+    191                                  }
+    192                                  }
+    193                                  else if( onReadIO ){
+   \   0446  2A0000            LD      HL,(onReadIO)
+   \   0449  7D                LD      A,L
+   \   044A  B4                OR      H
+   \   044B  2818              JR      Z,?0102
+   \   044D            ?0101:
+    194                                          sprintf( matrix_led[0], "%02X", onReadIO );
+   \   044D  2A0000            LD      HL,(onReadIO)
+   \   0450  E5                PUSH    HL
+   \   0451  210000            LD      HL,?0103
+   \   0454  E5                PUSH    HL
+   \   0455  210000            LD      HL,matrix_led
+   \   0458  E5                PUSH    HL
+   \   0459  CD0000            CALL    sprintf
+   \   045C  F1                POP     AF
+   \   045D  F1                POP     AF
+   \   045E  F1                POP     AF
+    195                                          onReadIO = 0;
+   \   045F  210000            LD      HL,0
+   \   0462  220000            LD      (onReadIO),HL
+   \   0465            ?0102:
+   \   0465            ?0100:
+    196                                  }
+    197          }
+   \   0465  DDF9              LD      SP,IX
+   \   0467  DDE1              POP     IX
+   \   0469  C1                POP     BC
+   \   046A  C9                RET
+   \   046B            mcpSwitchIn:
+    198          
+    199          /************************************************************************
+    200          
+    201                  Function name   << mcpSwitchIn >>
+    202                                                  スイッチ状態入力処理
+    203                  Syntax                  mcpSwitchIn( void );
+    204                  Argument                none
+    205                  Author                  TOA Corporation  K.Honda
+    206                  Revision                a00 2000/06/27
+    207                                          a01 2000/11/07 スイッチ押下状態をＤＶＡＵへ送信するまで蓄積する
+    208          
+    209          *************************************************************************/
+    210          void mcpSwitchIn( void )
+    211          {
+   \   046B  C5                PUSH    BC
+   \   046C  D5                PUSH    DE
+   \   046D  DDE5              PUSH    IX
+   \   046F  DD210000          LD      IX,0
+   \   0473  DD39              ADD     IX,SP
+   \   0475  F5                PUSH    AF
+   \   0476  F5                PUSH    AF
+    212                          short   readIO;
+    213                          union {
+    214                                  short   ddata;
+    215                                  char    bdata[2];
+    216                          } data;
+    217          
+    218                          readIO = switch_read();
+   \   0477  CD0000            CALL    switch_read
+   \   047A  DD75FC            LD      (IX-4),L
+   \   047D  DD74FD            LD      (IX-3),H
+    219          
+    220                          if( mcp_sendactive ){
+   \   0480  3A0000            LD      A,(mcp_sendactive)
+   \   0483  B7                OR      A
+   \   0484  280C              JR      Z,?0105
+   \   0486            ?0104:
+    221                                  mcp_sendactive = 0;
+   \   0486  AF                XOR     A
+   \   0487  320000            LD      (mcp_sendactive),A
+    222                                  sendarea.mcpsw[0] = 0;
+   \   048A  AF                XOR     A
+   \   048B  320300            LD      (sendarea+3),A
+    223                                  sendarea.mcpsw[1] = 0;
+   \   048E  AF                XOR     A
+   \   048F  320400            LD      (sendarea+4),A
+   \   0492            ?0105:
+    224                          }
+    225          
+    226                          if( readIO!=preReadIO ){
+   \   0492  2A0700            LD      HL,(preReadIO)
+   \   0495  DD4EFC            LD      C,(IX-4)
+   \   0498  DD46FD            LD      B,(IX-3)
+   \   049B  A7                AND     A
+   \   049C  ED42              SBC     HL,BC
+   \   049E  2807              JR      Z,?0107
+   \   04A0            ?0106:
+    227                                  readCount = 0;
+   \   04A0  AF                XOR     A
+   \   04A1  320600            LD      (readCount),A
+   \   04A4  C37405            JP      ?0108
+   \   04A7            ?0107:
+    228                          }
+    229                          else if( readCount>=2 ){        /* 50mS 経過しても同一のとき */
+   \   04A7  3A0600            LD      A,(readCount)
+   \   04AA  FE02              CP      2
+   \   04AC  DA7005            JP      C,?0110
+   \   04AF            ?0109:
+    230                                  onReadIO = (nowReadIO ^ readIO) & readIO;
+   \   04AF  2A0400            LD      HL,(nowReadIO)
+   \   04B2  7D                LD      A,L
+   \   04B3  DDAEFC            XOR     (IX-4)
+   \   04B6  4F                LD      C,A
+   \   04B7  7C                LD      A,H
+   \   04B8  DDAEFD            XOR     (IX-3)
+   \   04BB  47                LD      B,A
+   \   04BC  79                LD      A,C
+   \   04BD  DDA6FC            AND     (IX-4)
+   \   04C0  5F                LD      E,A
+   \   04C1  78                LD      A,B
+   \   04C2  DDA6FD            AND     (IX-3)
+   \   04C5  57                LD      D,A
+   \   04C6  ED530000          LD      (onReadIO),DE
+    231                                  offReadIO = (nowReadIO ^ readIO) & nowReadIO;
+   \   04CA  7D                LD      A,L
+   \   04CB  DDAEFC            XOR     (IX-4)
+   \   04CE  4F                LD      C,A
+   \   04CF  7C                LD      A,H
+   \   04D0  DDAEFD            XOR     (IX-3)
+   \   04D3  47                LD      B,A
+   \   04D4  79                LD      A,C
+   \   04D5  A5                AND     L
+   \   04D6  5F                LD      E,A
+   \   04D7  78                LD      A,B
+   \   04D8  A4                AND     H
+   \   04D9  57                LD      D,A
+   \   04DA  ED530200          LD      (offReadIO),DE
+    232                                  nowReadIO = readIO;
+   \   04DE  DD4EFC            LD      C,(IX-4)
+   \   04E1  DD46FD            LD      B,(IX-3)
+   \   04E4  ED430400          LD      (nowReadIO),BC
+    233          
+    234                                  if( readCount<30 ){
+   \   04E8  3A0600            LD      A,(readCount)
+   \   04EB  FE1E              CP      30
+   \   04ED  3010              JR      NC,?0112
+   \   04EF            ?0111:
+    235                                          readCount++;
+   \   04EF  210600            LD      HL,readCount
+   \   04F2  34                INC     (HL)
+    236                                          nowReadIO &= ~SW_ENT;           /* ENT キーのみ 300mS 経過時に有効 */
+   \   04F3  210400            LD      HL,nowReadIO
+   \   04F6  7E                LD      A,(HL)
+   \   04F7  E6FF              AND     255
+   \   04F9  77                LD      (HL),A
+   \   04FA  23                INC     HL
+   \   04FB  7E                LD      A,(HL)
+   \   04FC  E6DF              AND     223
+   \   04FE  77                LD      (HL),A
+   \   04FF            ?0112:
+    237                                  }
+    238          
+    239                                  data.ddata = nowReadIO;
+   \   04FF  2A0400            LD      HL,(nowReadIO)
+   \   0502  DD75FE            LD      (IX-2),L
+   \   0505  DD74FF            LD      (IX-1),H
+    240                                  sendarea.mcpsw[0] |= data.bdata[0];
+   \   0508  3A0300            LD      A,(sendarea+3)
+   \   050B  DDB6FE            OR      (IX-2)
+   \   050E  320300            LD      (sendarea+3),A
+    241                                  sendarea.mcpsw[1] |= data.bdata[1];
+   \   0511  3A0400            LD      A,(sendarea+4)
+   \   0514  DDB6FF            OR      (IX-1)
+   \   0517  320400            LD      (sendarea+4),A
+    242          
+    243                                  if( onReadIO & SW_HL ){
+   \   051A  3A0000            LD      A,(onReadIO)
+   \   051D  E620              AND     32
+   \   051F  283D              JR      Z,?0114
+   \   0521            ?0113:
+    244                                          onReadIO &= ~SW_HL;
+   \   0521  210000            LD      HL,onReadIO
+   \   0524  7E                LD      A,(HL)
+   \   0525  E6DF              AND     223
+   \   0527  77                LD      (HL),A
+   \   0528  23                INC     HL
+   \   0529  7E                LD      A,(HL)
+   \   052A  E6FF              AND     255
+   \   052C  77                LD      (HL),A
+    245                                          sw_led ^= SWLED_HL;
+   \   052D  210000            LD      HL,sw_led
+   \   0530  7E                LD      A,(HL)
+   \   0531  EE20              XOR     32
+   \   0533  77                LD      (HL),A
+   \   0534  23                INC     HL
+   \   0535  7E                LD      A,(HL)
+   \   0536  EE00              XOR     0
+   \   0538  77                LD      (HL),A
+    246                                          if( sw_led & SWLED_HL ){
+   \   0539  3A0000            LD      A,(sw_led)
+   \   053C  E620              AND     32
+   \   053E  2810              JR      Z,?0116
+   \   0540            ?0115:
+    247                                                  io_output_off( 0x00, 0x08 ); /* 高輝度設定 */
+   \   0540  0E08              LD      C,8
+   \   0542  1E00              LD      E,0
+   \   0544  CD0000            CALL    io_output_off
+    248                                                  io_output_on( 0x00, 0x02 ); /* 高輝度設定 */
+   \   0547  0E02              LD      C,2
+   \   0549  1E00              LD      E,0
+   \   054B  CD0000            CALL    io_output_on
+    249                                          }
+    250                                          else {
+   \   054E  180E              JR      ?0117
+   \   0550            ?0116:
+    251                                                  io_output_off( 0x00, 0x02 ); /* 低輝度設定 */
+   \   0550  0E02              LD      C,2
+   \   0552  1E00              LD      E,0
+   \   0554  CD0000            CALL    io_output_off
+    252                                                  io_output_on( 0x00, 0x08 ); /* 低輝度設定 */
+   \   0557  0E08              LD      C,8
+   \   0559  1E00              LD      E,0
+   \   055B  CD0000            CALL    io_output_on
+   \   055E            ?0117:
+   \   055E            ?0114:
+    253                                          }
+    254                                  }
+    255          
+    256                                  if( (read_dipsw() & 0x01)==0 ){
+   \   055E  CD0000            CALL    read_dipsw
+   \   0561  7D                LD      A,L
+   \   0562  E601              AND     1
+   \   0564  47                LD      B,A
+   \   0565  7C                LD      A,H
+   \   0566  E600              AND     0
+   \   0568  B0                OR      B
+   \   0569  2003              JR      NZ,?0119
+   \   056B            ?0118:
+    257                                          debug_Display();
+   \   056B  CD0000            CALL    debug_Display
+   \   056E            ?0119:
+    258                                  }
+    259                          }
+    260                          else {
+   \   056E  1804              JR      ?0120
+   \   0570            ?0110:
+    261                                  readCount++;
+   \   0570  210600            LD      HL,readCount
+   \   0573  34                INC     (HL)
+   \   0574            ?0120:
+   \   0574            ?0108:
+    262                          }
+    263                          preReadIO = readIO;
+   \   0574  DD6EFC            LD      L,(IX-4)
+   \   0577  DD66FD            LD      H,(IX-3)
+   \   057A  220700            LD      (preReadIO),HL
+    264          }
+   \   057D  DDF9              LD      SP,IX
+   \   057F  DDE1              POP     IX
+   \   0581  D1                POP     DE
+   \   0582  C1                POP     BC
+   \   0583  C9                RET
+    265          
+   \   0000                    RSEG    CSTR
+   \   0000            ?0103:
+   \   0000  25303258          DEFB    '%02X'
+   \   0004  00                DEFB    0
+   \   0000                    RSEG    UDATA0
+   \   0000            onReadIO:
+   \   0002                    DEFS    2
+   \   0002            offReadIO:
+   \   0004                    DEFS    2
+   \   0004            nowReadIO:
+   \   0006                    DEFS    2
+   \   0006            readCount:
+   \   0007                    DEFS    1
+   \   0007            preReadIO:
+   \   0009                    DEFS    2
+   \   0009                    END
+
+Errors: none
+Warnings: none
+Code size: 1412
+Constant size: 5
+Static variable size: Data(9) Iram(0)
+

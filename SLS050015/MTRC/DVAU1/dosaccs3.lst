@@ -1,0 +1,1190 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     14-Mar-2023  09:40:50  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dosaccs3.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            ファイル制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/07/27         K.Honda
+                     9:                                                                                                                                            *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include <stdio.h>
+                    13:    #include <string.h>
+                    14:    
+                    15:    #include "dosaccs.h"
+                    16:    #include "fcntl.h"
+                    17:    
+                    18:    #define IOSTREAM MAX_FCB
+                    19:    
+                    20:    #pragma section DOSACCS
+                    21:            char    dosaccs_workbuff[512];          /*ストリームバッファー*/
+                    22:    
+                    23:            ROOTDIR_BUFFER  rootdir_buffer;         /*ルート・ディレクトリー情報*/
+                    24:            FAT_BUFFER              fat_buffer;                     /*ＦＡＴ情報*/
+                    25:            CLUSTER_BUFFER  cluster_buffer;         /*クラスター情報*/
+                    26:    
+                    27:            // ブートチェックエリア
+                    28:            unsigned short  check_date;             /* ブート済み日付 */
+                    29:            unsigned short  check_time;             /* ブート済み時刻 */
+                    30:            unsigned long   check_all_bytes;        /* ブート済みサイズ */
+                    31:    #pragma section DOSACCS2
+                    32:            unsigned short  ide_error;              /* ＰＣカードアクセスエラーフラグ */
+                    33:    
+                    34:            struct _iobuf _iob[IOSTREAM];           /* 標準関数管理エリア */
+                    35:    
+                    36:            unsigned short  now_date;               /*現在日付　ＤＯＳフォーマット*/
+                    37:            unsigned short  now_time;               /*現在時刻　ＤＯＳフォーマット*/
+                    38:    
+                    39:            PARTITION_INFO  root_part;              /* パーティション情報 */
+                    40:    
+                    41:            BPB     root_bpb[MAX_DRIVE];            /* ＢＰＢ管理エリア */
+                    42:            FCB     root_fcb[MAX_FCB];              /* ＦＣＢ管理エリア */
+                    43:    
+                    44:            int             dosaccs_function;       /* 呼び出し関数番号 */
+                    45:            int             dosaccs_fd_result;      /* 結果 */
+                    46:            char    *dosaccs_filename_buffer;       /* ファイル名・バッファーアドレス */
+                    47:            int             dosaccs_access_len_pos; /* バイト数、ポジションデータ */
+                    48:            int             dosaccs_file_attr_seek; /* 属性・シーク位置 */
+                    49:            struct find_t *dosaccs_result;          /* ファイル検索データ */
+                    50:            unsigned dosaccs_drive;                 /* ドライブデータ */
+                    51:            struct _diskfree_t *dosaccs_param;      /* 空きエリア検索データ */
+                    52:            char    *dosaccs_filename2;             /* ファイル名変更用 */
+                    53:    
+                    54:            short   dosaccs_target_run;             /* ターゲット実行中フラグ */
+                    55:    #pragma section
+                    56:    
+                    57:    const int _nfiles = IOSTREAM;                   /* 同時オープン数 */
+                    58:    
+                    59:    extern  void dosaccs_trap( void );              /* トラップ関数 */
+                    60:    
+                    61:    /************************************************************************
+                    62:    
+                    63:            Function name   << _INIT_IOLIB >>
+                    64:                                            Ｉ／Ｏ関数初期設定
+                    65:            Syntax                  _INIT_IOLIB( void );
+                    66:            Argument                none
+                    67:            Author                  TOA Corporation  K.Honda
+                    68:            Revision                a00 2000/07/27
+                    69:    
+                    70:    *************************************************************************/
+                    71:    void _INIT_IOLIB(void)
+    000000              __INIT_IOLIB:                    ; function: _INIT_IOLIB
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    72:    {
+    000004 1AB3                   SUB.L       ER3,ER3
+    000006 7A05                   MOV.L       #__iob:32,ER5
+           <00000000>   
+                    73:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                    74:    　・標準関数の初期設定
+                    75:    　・stdin,stdout,stderr を設定する
+                    76:            ------------------------------------------------------------------[@@@E]*/
+                    77:    FILE *fp;
+                    78:    
+                    79:            dosaccs_target_run = 1;                 // アプリケーション用
+    00000C 79000001               MOV.W       #1:16,R0
+    000010 6BA000                 MOV.W       R0,@_dosaccs_target_run:24
+           <000000>     
+                    80:    
+                    81:            memset( (char *)root_bpb, 0, sizeof(root_bpb) );
+    000016 7A04                   MOV.L       #_memset:32,ER4
+           <00000000>   
+    00001C 1966                   SUB.W       R6,R6
+    00001E 1A80                   SUB.L       ER0,ER0
+    000020 F83E                   MOV.B       #62:8,R0L
+    000022 01006DF0               PUSH.L      ER0
+    000026 7A00                   MOV.L       #_root_bpb:32,ER0
+           <00000000>   
+    00002C 0D61                   MOV.W       R6,R1
+    00002E 5D40                   JSR         @ER4
+    000030 0B97                   ADDS.L      #4,SP
+                    82:            memset( (char *)root_fcb, 0, sizeof(root_fcb) );
+    000032 1A80                   SUB.L       ER0,ER0
+    000034 F8C3                   MOV.B       #-61:8,R0L
+    000036 01006DF0               PUSH.L      ER0
+    00003A 7A00                   MOV.L       #_root_fcb:32,ER0
+           <00000000>   
+    000040 0D61                   MOV.W       R6,R1
+    000042 5D40                   JSR         @ER4
+    000044 0B97                   ADDS.L      #4,SP
+                    83:    
+                    84:            memset( &rootdir_buffer, 0, sizeof(rootdir_buffer) );
+    000046 7A00000004             MOV.L       #1034:32,ER0
+           0A           
+    00004C 01006DF0               PUSH.L      ER0
+    000050 0D61                   MOV.W       R6,R1
+    000052 7A00                   MOV.L       #_rootdir_buffer:32,ER0
+           <00000000>   
+    000058 5D40                   JSR         @ER4
+    00005A 0B97                   ADDS.L      #4,SP
+                    85:            memset( &fat_buffer, 0, sizeof(fat_buffer) );
+    00005C 7A00000008             MOV.L       #2060:32,ER0
+           0C           
+    000062 01006DF0               PUSH.L      ER0
+    000066 0D61                   MOV.W       R6,R1
+    000068 7A00                   MOV.L       #_fat_buffer:32,ER0
+           <00000000>   
+    00006E 5D40                   JSR         @ER4
+    000070 0B97                   ADDS.L      #4,SP
+                    86:            memset( &cluster_buffer, 0, sizeof(cluster_buffer) );
+    000072 7A00000020             MOV.L       #8206:32,ER0
+           0E           
+    000078 01006DF0               PUSH.L      ER0
+    00007C 0D61                   MOV.W       R6,R1
+    00007E 7A00                   MOV.L       #_cluster_buffer:32,ER0
+           <00000000>   
+    000084 5D40                   JSR         @ER4
+    000086 0B97                   ADDS.L      #4,SP
+                    87:    
+                    88:            for( fp = _iob; fp < _iob + _NFILE; fp++ )
+    000088 0FD6                   MOV.L       ER5,ER6
+    00008A 0FD4                   MOV.L       ER5,ER4
+    00008C 7A14000000             ADD.L       #100:32,ER4
+           64           
+    000092 1A80                   SUB.L       ER0,ER0
+    000094 4028                   BRA         L212:8
+    000096              L211:                             
+                    89:             {
+                    90:                    fp->_bufptr = NULL;
+    000096 010069E3               MOV.L       ER3,@ER6
+                    91:                    fp->_bufcnt = 0;
+    00009A 01006FE000             MOV.L       ER0,@(4:16,ER6)
+           04           
+                    92:                    fp->_buflen = 0;
+    0000A0 01006FE000             MOV.L       ER0,@(12:16,ER6)
+           0C           
+                    93:                    fp->_bufbase = NULL;
+    0000A6 01006FE300             MOV.L       ER3,@(8:16,ER6)
+           08           
+                    94:                    fp->_ioflag1 = 0;
+    0000AC 6EE80010               MOV.B       R0L,@(16:16,ER6)
+                    95:                    fp->_ioflag2 = 0;
+    0000B0 6EE80011               MOV.B       R0L,@(17:16,ER6)
+                    96:                    fp->_iofd = 0;
+    0000B4 6EE80012               MOV.B       R0L,@(18:16,ER6)
+    0000B8 7A16000000             ADD.L       #20:32,ER6
+           14           
+    0000BE              L212:                             
+    0000BE 1FC6                   CMP.L       ER4,ER6
+    0000C0 45D4                   BCS         L211:8
+                    97:             }
+                    98:    
+                    99:            freopen( "stdin", "r", stdin );
+    0000C2 01006DF5               PUSH.L      ER5
+    0000C6 7A01                   MOV.L       #L134:32,ER1
+           <00000000>   
+    0000CC 7A00                   MOV.L       #L133:32,ER0
+           <00000000>   
+    0000D2 5E                     JSR         @_freopen:24
+           <000000>     
+    0000D6 0B97                   ADDS.L      #4,SP
+                   100:            stdin->_ioflag1 |= _IOUNBUF;
+    0000D8 6E580010               MOV.B       @(16:16,ER5),R0L
+    0000DC 7038                   BSET.B      #3,R0L
+    0000DE 6ED80010               MOV.B       R0L,@(16:16,ER5)
+                   101:            freopen( "stdout", "w", stdout );
+    0000E2 0FD6                   MOV.L       ER5,ER6
+    0000E4 7A16000000             ADD.L       #20:32,ER6
+           14           
+    0000EA 01006DF6               PUSH.L      ER6
+    0000EE 7A01                   MOV.L       #L136:32,ER1
+           <00000000>   
+    0000F4 7A00                   MOV.L       #L135:32,ER0
+           <00000000>   
+    0000FA 5E                     JSR         @_freopen:24
+           <000000>     
+    0000FE 0B97                   ADDS.L      #4,SP
+                   102:            stdout->_ioflag1 |= _IOUNBUF;
+    000100 1A80                   SUB.L       ER0,ER0
+    000102 F810                   MOV.B       #16:8,R0L
+    000104 0AE0                   ADD.L       ER6,ER0
+    000106 7D007030               BSET.B      #3,@ER0
+                   103:            freopen( "stderr", "w", stderr );
+    00010A 0FD6                   MOV.L       ER5,ER6
+    00010C 7A16000000             ADD.L       #40:32,ER6
+           28           
+    000112 01006DF6               PUSH.L      ER6
+    000116 7A01                   MOV.L       #L138:32,ER1
+           <00000000>   
+    00011C 7A00                   MOV.L       #L137:32,ER0
+           <00000000>   
+    000122 5E                     JSR         @_freopen:24
+           <000000>     
+    000126 0B97                   ADDS.L      #4,SP
+                   104:            stderr->_ioflag1 |= _IOUNBUF;
+    000128 1A80                   SUB.L       ER0,ER0
+    00012A F810                   MOV.B       #16:8,R0L
+    00012C 0AE0                   ADD.L       ER6,ER0
+    00012E 7D007030               BSET.B      #3,@ER0
+                   105:    }
+    000132 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   106:    
+                   107:    /************************************************************************
+                   108:    
+                   109:            Function name   << _CLOSEALL >>
+                   110:                                            Ｉ／Ｏ関数終了
+                   111:            Syntax                  _CLOSEALL( void );
+                   112:            Argument                none
+                   113:            Author                  TOA Corporation  K.Honda
+                   114:            Revision                a00 2000/07/27
+                   115:    
+                   116:    *************************************************************************/
+                   117:    void _CLOSEALL(void)
+    000136              __CLOSEALL:                      ; function: _CLOSEALL
+    000136 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   118:    {
+                   119:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   120:    　・標準関数の終了設定
+                   121:    　・オープン中のすべてのファイルをクローズする
+                   122:            ------------------------------------------------------------------[@@@E]*/
+                   123:    int i;
+                   124:    
+                   125:            for( i=0; i < _NFILE; i++ )
+    00013A 1966                   SUB.W       R6,R6
+    00013C              L213:                             
+                   126:                    if( _iob[i]._ioflag1 & (_IOREAD | _IOWRITE | _IORW ) )
+    00013C 79050014               MOV.W       #20:16,R5
+    000140 01C05265               MULXS.W     R6,ER5
+    000144 7A15                   ADD.L       #__iob:32,ER5
+           <00000000>   
+    00014A 6E580010               MOV.B       @(16:16,ER5),R0L
+    00014E E807                   AND.B       #7:8,R0L
+    000150 4706                   BEQ         L214:8
+                   127:                            fclose( & _iob[i] );
+    000152 0FD0                   MOV.L       ER5,ER0
+    000154 5E                     JSR         @_fclose:24
+           <000000>     
+    000158              L214:                             
+    000158 0B56                   INC.W       #1,R6
+    00015A 79260005               CMP.W       #5:16,R6
+    00015E 4DDC                   BLT         L213:8
+                   128:    }
+    000160 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   129:    
+                   130:    /************************************************************************
+                   131:    
+                   132:            Function name   << get_bpb >>
+                   133:                                            ＢＰＢ情報の取り出し
+                   134:            Syntax                  bpb = get_bpb( drive );
+                   135:            Argument                short drive : i : ドライブ番号
+                   136:                                    BPB bpb     : o : ＢＰＢ情報のアドレス
+                   137:                                                            NULL のとき情報なし
+                   138:            Author                  TOA Corporation  K.Honda
+                   139:            Revision                a00 2000/07/27
+                   140:    
+                   141:    *************************************************************************/
+                   142:    BPB      *get_bpb( short drive )
+    000164              _get_bpb:                        ; function: get_bpb
+    000164 01006DF6               PUSH.L      ER6
+                   143:    {
+    000168 0D06                   MOV.W       R0,R6
+                   144:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   145:    　・ドライブごとのBPB 情報の取り出しを行う
+                   146:    　・ただし、ドライブ番号は０のみ
+                   147:    　・カードの情報が入っていなければ、mountを呼び出し情報を設定する
+                   148:            ------------------------------------------------------------------[@@@E]*/
+                   149:                    if( drive<0 || drive>=MAX_DRIVE )
+    00016A 4D4E                   BLT         L250:8
+    00016C 0D66                   MOV.W       R6,R6
+    00016E 4E4A                   BGT         L250:8
+                   150:                            return( NULL );                 /* ドライブ番号エラー */
+                   151:    
+                   152:                    if( root_bpb[drive].part==NULL ){       /* 未初期化時 */
+    000170 7900003E               MOV.W       #62:16,R0
+    000174 01C05260               MULXS.W     R6,ER0
+    000178 78006A2100             MOV.B       @(_root_bpb:24,ER0),R1H
+           <000000>     
+    000180 78006A2900             MOV.B       @(_root_bpb+1:24,ER0),R1L
+           <000000>     
+    000188 0D19                   MOV.W       R1,E1
+    00018A 78006A2100             MOV.B       @(_root_bpb+2:24,ER0),R1H
+           <000000>     
+    000192 78006A2900             MOV.B       @(_root_bpb+3:24,ER0),R1L
+           <000000>     
+    00019A 0F91                   MOV.L       ER1,ER1
+    00019C 4620                   BNE         L218:8
+                   153:                            dosaccs_drive = drive;
+    00019E 6BA600                 MOV.W       R6,@_dosaccs_drive:24
+           <000000>     
+                   154:                            dosaccs_function = 15;
+    0001A4 7900000F               MOV.W       #15:16,R0
+    0001A8 6BA000                 MOV.W       R0,@_dosaccs_function:24
+           <000000>     
+                   155:                            dosaccs_trap();                 /*カード初期設定*/
+    0001AE 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   156:    
+                   157:                            if( dosaccs_fd_result ){
+    0001B2 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+    0001B8 4704                   BEQ         L219:8
+                   158:                                    return NULL;    /*カード初期化エラー時*/
+    0001BA              L250:                             
+    0001BA 1A80                   SUB.L       ER0,ER0
+    0001BC 4010                   BRA         L217:8
+    0001BE              L219:                             
+    0001BE              L218:                             
+                   159:                            }
+                   160:                    }
+                   161:    
+                   162:                    return( &root_bpb[drive] );
+    0001BE 790E003E               MOV.W       #62:16,E6
+    0001C2 01C052E6               MULXS.W     E6,ER6
+    0001C6 7A00                   MOV.L       #_root_bpb:32,ER0
+           <00000000>   
+    0001CC 0AE0                   ADD.L       ER6,ER0
+                   163:    }
+    0001CE              L217:                             
+    0001CE 01006D76               POP.L       ER6
+    0001D2 5470                   RTS
+                   164:    
+                   165:    /************************************************************************
+                   166:    
+                   167:            Function name   << new_fcb >>
+                   168:                                            新規ＦＣＢの設定
+                   169:            Syntax                  ret = new_fcb( drive );
+                   170:            Argument                short drive : i : ドライブ番号
+                   171:                                    int ret     : o : ＦＣＢ情報の番号
+                   172:                                                            -1 のとき情報なし
+                   173:            Author                  TOA Corporation  K.Honda
+                   174:            Revision                a00 2000/07/27
+                   175:    
+                   176:    *************************************************************************/
+                   177:    int     new_fcb( short drive )
+    0001D4              _new_fcb:                        ; function: new_fcb
+    0001D4 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   178:    {
+    0001D8 1AC4                   SUB.L       ER4,ER4
+    0001DA FC27                   MOV.B       #39:8,R4L
+    0001DC 7A05                   MOV.L       #_root_fcb:32,ER5
+           <00000000>   
+    0001E2 0D0E                   MOV.W       R0,E6
+                   179:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   180:    　・ドライブごとのＦＣＢ 情報の設定を行う
+                   181:    　・ただし、ドライブ番号は０のみ
+                   182:            ------------------------------------------------------------------[@@@E]*/
+                   183:                    int             i;
+                   184:    
+                   185:                    for( i=0; i<MAX_FCB; i++ ){             //空きＦＣＢエリアを検索する
+    0001E4 1966                   SUB.W       R6,R6
+    0001E6 4020                   BRA         L221:8
+    0001E8              L220:                             
+                   186:                            if( root_fcb[i].bpb == NULL )
+    0001E8 0D60                   MOV.W       R6,R0
+    0001EA 01C05240               MULXS.W     R4,ER0
+    0001EE 0AD0                   ADD.L       ER5,ER0
+    0001F0 6E010023               MOV.B       @(35:16,ER0),R1H
+    0001F4 6E090024               MOV.B       @(36:16,ER0),R1L
+    0001F8 0D19                   MOV.W       R1,E1
+    0001FA 6E010025               MOV.B       @(37:16,ER0),R1H
+    0001FE 6E090026               MOV.B       @(38:16,ER0),R1L
+    000202 0F91                   MOV.L       ER1,ER1
+    000204 4708                   BEQ         L223:8
+                   187:                                    break;
+    000206 0B56                   INC.W       #1,R6
+    000208              L221:                             
+    000208 79260005               CMP.W       #5:16,R6
+    00020C 4DDA                   BLT         L220:8
+    00020E              L223:                             
+                   188:                    }
+                   189:                    if( i==MAX_FCB )
+    00020E 79260005               CMP.W       #5:16,R6
+    000212 4606                   BNE         L224:8
+                   190:                            return( -1 );   //空きＦＣＢなし
+    000214 7900FFFF               MOV.W       #-1:16,R0
+    000218 4022                   BRA         L225:8
+    00021A              L224:                             
+                   191:    
+                   192:                    root_fcb[i].bpb = get_bpb( drive );     //ＢＰＢ情報を設定
+    00021A 0DE0                   MOV.W       E6,R0
+    00021C 5E                     JSR         @_get_bpb:24
+           <000000>     
+    000220 0D62                   MOV.W       R6,R2
+    000222 01C05242               MULXS.W     R4,ER2
+    000226 0AD2                   ADD.L       ER5,ER2
+    000228 6EA00025               MOV.B       R0H,@(37:16,ER2)
+    00022C 6EA80026               MOV.B       R0L,@(38:16,ER2)
+    000230 0D80                   MOV.W       E0,R0
+    000232 6EA00023               MOV.B       R0H,@(35:16,ER2)
+    000236 6EA80024               MOV.B       R0L,@(36:16,ER2)
+                   193:    
+                   194:                    return( i );
+    00023A 0D60                   MOV.W       R6,R0
+                   195:    }
+    00023C              L225:                             
+    00023C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   196:    
+                   197:    /************************************************************************
+                   198:    
+                   199:            Function name   << get_fcb >>
+                   200:                                            ＦＣＢの取り出し
+                   201:            Syntax                  fcb = get_fcb( fd );
+                   202:            Argument                int fd      : i : fd番号
+                   203:                                    FCB fcb     : o : ＦＣＢ情報のアドレス
+                   204:                                                            NULL のとき情報なし
+                   205:            Author                  TOA Corporation  K.Honda
+                   206:            Revision                a00 2000/07/27
+                   207:    
+                   208:    *************************************************************************/
+                   209:    FCB     *get_fcb( int fd )
+    000240              _get_fcb:                        ; function: get_fcb
+    000240 01006DF6               PUSH.L      ER6
+                   210:    {
+    000244 0D06                   MOV.W       R0,R6
+                   211:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   212:    　・オープンしているファイルのＦＣＢ 情報の取り出しを行う
+                   213:            ------------------------------------------------------------------[@@@E]*/
+                   214:                    if( fd<0 || fd>=MAX_FCB )
+    000246 4D06                   BLT         L227:8
+    000248 79260005               CMP.W       #5:16,R6
+    00024C 4D04                   BLT         L226:8
+    00024E              L227:                             
+                   215:                            return( NULL );         // ＦＣＢなし
+    00024E 1A80                   SUB.L       ER0,ER0
+    000250 4010                   BRA         L228:8
+    000252              L226:                             
+                   216:    
+                   217:                    return( &root_fcb[fd] );        
+    000252 790E0027               MOV.W       #39:16,E6
+    000256 01C052E6               MULXS.W     E6,ER6
+    00025A 7A00                   MOV.L       #_root_fcb:32,ER0
+           <00000000>   
+    000260 0AE0                   ADD.L       ER6,ER0
+                   218:    }
+    000262              L228:                             
+    000262 01006D76               POP.L       ER6
+    000266 5470                   RTS
+                   219:    
+                   220:    /************************************************************************
+                   221:    
+                   222:            Function name   << free_fcb >>
+                   223:                                            ＦＣＢの開放
+                   224:            Syntax                  free_fcb( fd );
+                   225:            Argument                int fd      : i : fd番号
+                   226:            Author                  TOA Corporation  K.Honda
+                   227:            Revision                a00 2000/07/27
+                   228:    
+                   229:    *************************************************************************/
+                   230:    void    free_fcb( int fd )
+    000268              _free_fcb:                       ; function: free_fcb
+    000268 01006DF6               PUSH.L      ER6
+                   231:    {
+    00026C 0D06                   MOV.W       R0,R6
+                   232:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   233:    　・オープンしているファイルのＦＣＢ 情報を開放する
+                   234:            ------------------------------------------------------------------[@@@E]*/
+                   235:                    if( fd<0 || fd>=MAX_FCB )
+    00026E 4D34                   BLT         L231:8
+    000270 79260005               CMP.W       #5:16,R6
+    000274 4C2E                   BGE         L231:8
+                   236:                            return;
+                   237:                    root_fcb[fd].bpb=NULL;  // ＢＰＢ情報と切り離す
+    000276 790E0027               MOV.W       #39:16,E6
+    00027A 01C052E6               MULXS.W     E6,ER6
+    00027E 1A80                   SUB.L       ER0,ER0
+    000280 F800                   MOV.B       #0:8,R0L
+    000282 78606AA000             MOV.B       R0H,@(_root_fcb+37:24,ER6)
+           <000000>     
+    00028A 78606AA800             MOV.B       R0L,@(_root_fcb+38:24,ER6)
+           <000000>     
+    000292 0D80                   MOV.W       E0,R0
+    000294 78606AA000             MOV.B       R0H,@(_root_fcb+35:24,ER6)
+           <000000>     
+    00029C 78606AA800             MOV.B       R0L,@(_root_fcb+36:24,ER6)
+           <000000>     
+                   238:    }
+    0002A4              L231:                             
+    0002A4 01006D76               POP.L       ER6
+    0002A8 5470                   RTS
+                   239:    
+                   240:    /************************************************************************
+                   241:    
+                   242:            Function name   << open >>
+                   243:                                            ファイルのオープン
+                   244:            Syntax                  fd = open( filename, access, attr );
+                   245:            Argument                char *filename : i : ファイル名
+                   246:                                    int access     : i : オープンモード
+                   247:                                    int attr       : i : ファイル属性
+                   248:                                    int fd         : o : オープンしたfd番号
+                   249:                                                            -1 のときオープンエラー
+                   250:            Author                  TOA Corporation  K.Honda
+                   251:            Revision                a00 2000/07/27
+                   252:    
+                   253:    *************************************************************************/
+                   254:    int     open( char *filename, int access, int file_attr )
+    0002AA              _open:                           ; function: open
+    0002AA 6DF2                   PUSH.W      R2
+                   255:    {
+                   256:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   257:    　・カードのファイルをオープンし、fd番号を返す
+                   258:    　・access は
+                   259:                    O_RDONLY        0 = READ ONLY
+                   260:                    O_WRONLY        1 = WRITE ONLY
+                   261:                    O_RDWR          2 = READ/WRITE mode
+                   262:                    O_APPEND        8 = APPEND mode
+                   263:                    O_CREAT         0x100 = Create open
+                   264:                    O_TRUNC         0x200 = open truncate
+                   265:                    O_EXCL          0x400 = open not already file
+                   266:                    O_TEXT          0x4000 = TEXT mode
+                   267:                    O_BINARY        0x8000 = BINARY mode
+                   268:    　・file_attr は　ダミー（未使用）
+                   269:            ------------------------------------------------------------------[@@@E]*/
+                   270:                    dosaccs_function = 0;
+    0002AC 1922                   SUB.W       R2,R2
+    0002AE 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   271:                    dosaccs_filename_buffer = filename;
+    0002B4 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   272:                    dosaccs_access_len_pos = access;
+    0002BC 6BA100                 MOV.W       R1,@_dosaccs_access_len_pos:24
+           <000000>     
+                   273:                    dosaccs_file_attr_seek = file_attr;
+    0002C2 6BA900                 MOV.W       E1,@_dosaccs_file_attr_seek:24
+           <000000>     
+                   274:                    dosaccs_trap();
+    0002C8 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   275:    
+                   276:                    return dosaccs_fd_result;
+    0002CC 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   277:    }
+    0002D2 6D72                   POP.W       R2
+    0002D4 5470                   RTS
+                   278:    
+                   279:    /************************************************************************
+                   280:    
+                   281:            Function name   << close >>
+                   282:                                            ファイルのクローズ
+                   283:            Syntax                  ret= close( fd );
+                   284:            Argument                int fd  : i : オープンしたfd番号
+                   285:                                    int ret : o : 終了コード
+                   286:                                                    0 = 正常終了
+                   287:                                                    -1 = 異常終了
+                   288:            Author                  TOA Corporation  K.Honda
+                   289:            Revision                a00 2000/07/27
+                   290:    
+                   291:    *************************************************************************/
+                   292:    int     close( int fd )
+    0002D6              _close:                          ; function: close
+                   293:    {
+                   294:                    dosaccs_function = 1;
+    0002D6 79010001               MOV.W       #1:16,R1
+    0002DA 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   295:                    dosaccs_fd_result = fd;
+    0002E0 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   296:                    dosaccs_trap();
+    0002E6 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   297:                    return dosaccs_fd_result;
+    0002EA 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   298:    }
+    0002F0 5470                   RTS
+                   299:    
+                   300:    /************************************************************************
+                   301:    
+                   302:            Function name   << read >>
+                   303:                                            ファイルのリード
+                   304:            Syntax                  readed= read( fd, buff, len );
+                   305:            Argument                int fd     : i : オープンしたfd番号
+                   306:                                    char *buff : i : 読み込みエリア
+                   307:                                    int len    : i : 読み込むバイト数
+                   308:                                    int readed : o : 読み込まれたバイト数
+                   309:            Author                  TOA Corporation  K.Honda
+                   310:            Revision                a00 2000/07/27
+                   311:    
+                   312:    *************************************************************************/
+                   313:    int     read( int fd, unsigned char *buff, int len )
+    0002F2              _read:                           ; function: read
+    0002F2 6DF2                   PUSH.W      R2
+                   314:    {
+                   315:                    dosaccs_function = 2;
+    0002F4 79020002               MOV.W       #2:16,R2
+    0002F8 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   316:                    dosaccs_fd_result = fd;
+    0002FE 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   317:                    dosaccs_filename_buffer = (char *)buff;
+    000304 01006BA100             MOV.L       ER1,@_dosaccs_filename_buffer:24
+           <000000>     
+                   318:                    dosaccs_access_len_pos = len;
+    00030C 6BA800                 MOV.W       E0,@_dosaccs_access_len_pos:24
+           <000000>     
+                   319:                    dosaccs_trap();
+    000312 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   320:                    return dosaccs_fd_result;
+    000316 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   321:    }
+    00031C 6D72                   POP.W       R2
+    00031E 5470                   RTS
+                   322:    
+                   323:    /************************************************************************
+                   324:    
+                   325:            Function name   << write >>
+                   326:                                            ファイルのライト
+                   327:            Syntax                  writed= writed( fd, buff, len );
+                   328:            Argument                int fd     : i : オープンしたfd番号
+                   329:                                    char *buff : i : 書き込むエリア
+                   330:                                    int len    : i : 書き込むバイト数
+                   331:                                    int writed : o : 書き込まれたバイト数
+                   332:            Author                  TOA Corporation  K.Honda
+                   333:            Revision                a00 2000/07/27
+                   334:    
+                   335:    *************************************************************************/
+                   336:    int     write( int fd, unsigned char *buff, int len )
+    000320              _write:                          ; function: write
+    000320 6DF2                   PUSH.W      R2
+                   337:    {
+                   338:                    dosaccs_function = 3;
+    000322 79020003               MOV.W       #3:16,R2
+    000326 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   339:                    dosaccs_fd_result = fd;
+    00032C 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   340:                    dosaccs_filename_buffer = (char *)buff;
+    000332 01006BA100             MOV.L       ER1,@_dosaccs_filename_buffer:24
+           <000000>     
+                   341:                    dosaccs_access_len_pos = len;
+    00033A 6BA800                 MOV.W       E0,@_dosaccs_access_len_pos:24
+           <000000>     
+                   342:                    dosaccs_trap();
+    000340 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   343:                    return dosaccs_fd_result;
+    000344 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   344:    }
+    00034A 6D72                   POP.W       R2
+    00034C 5470                   RTS
+                   345:    
+                   346:    /************************************************************************
+                   347:    
+                   348:            Function name   << lseek >>
+                   349:                                            ファイル位置設定
+                   350:            Syntax                  ret= lseek( fd, pos, seek );
+                   351:            Argument                int fd     : i : オープンしたfd番号
+                   352:                                    long pos   : i : 移動するバイト数
+                   353:                                    int seek   : i : 基点
+                   354:                                    long ret   : o : 移動した位置
+                   355:            Author                  TOA Corporation  K.Honda
+                   356:            Revision                a00 2000/07/27
+                   357:    
+                   358:    *************************************************************************/
+                   359:    long    lseek( int fd, long pos, int seek )
+    00034E              _lseek:                          ; function: lseek
+    00034E 6DF2                   PUSH.W      R2
+                   360:    {
+                   361:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   362:    　・ファイルのＲ／Ｗする位置を変更する
+                   363:    　・seek は
+                   364:            SEEK_CUR  1 = 現在位置
+                   365:            SEEK_END  2 = 最後
+                   366:            SEEK_SET  0 = 最初
+                   367:            ------------------------------------------------------------------[@@@E]*/
+                   368:                    dosaccs_function = 4;
+    000350 79020004               MOV.W       #4:16,R2
+    000354 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   369:                    dosaccs_fd_result = fd;
+    00035A 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   370:                    dosaccs_access_len_pos = pos;
+    000360 6BA100                 MOV.W       R1,@_dosaccs_access_len_pos:24
+           <000000>     
+                   371:                    dosaccs_file_attr_seek = seek;
+    000366 6BA800                 MOV.W       E0,@_dosaccs_file_attr_seek:24
+           <000000>     
+                   372:                    dosaccs_trap();
+    00036C 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   373:                    return dosaccs_fd_result;
+    000370 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+    000376 17F0                   EXTS.L      ER0
+                   374:    }
+    000378 6D72                   POP.W       R2
+    00037A 5470                   RTS
+                   375:    
+                   376:    /************************************************************************
+                   377:    
+                   378:            Function name   << unlink >>
+                   379:                                            ファイル削除
+                   380:            Syntax                  ret= unlink( filename );
+                   381:            Argument                char *filename : i : 削除するファイル名
+                   382:                                    int ret        : o : 処理結果
+                   383:                                                            0=正常終了
+                   384:                                                            -1 = 異常終了
+                   385:            Author                  TOA Corporation  K.Honda
+                   386:            Revision                a00 2000/07/27
+                   387:    
+                   388:    *************************************************************************/
+                   389:    int     unlink( char *filename )
+    00037C              _unlink:                         ; function: unlink
+                   390:    {
+                   391:                    dosaccs_function = 5;
+    00037C 79010005               MOV.W       #5:16,R1
+    000380 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   392:                    dosaccs_filename_buffer = filename;
+    000386 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   393:                    dosaccs_trap();
+    00038E 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   394:                    return dosaccs_fd_result;
+    000392 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   395:    }
+    000398 5470                   RTS
+                   396:    
+                   397:    /************************************************************************
+                   398:    
+                   399:            Function name   << _dos_getdiskfree >>
+                   400:                                            ディスク空き容量
+                   401:            Syntax                  ret= _dos_getdiskfree( drive, param  );
+                   402:            Argument                int drive                  : i : 取り出すドライブ番号(0のみ）
+                   403:                                    struct _disk_free_t param  : o : 処理結果
+                   404:            Author                  TOA Corporation  K.Honda
+                   405:            Revision                a00 2000/07/27
+                   406:    
+                   407:    *************************************************************************/
+                   408:    int _dos_getdiskfree(unsigned drive, struct _diskfree_t *param)
+    00039A              __dos_getdiskfree:               ; function: _dos_getdiskfree
+    00039A 6DF2                   PUSH.W      R2
+                   409:    {
+                   410:                    dosaccs_function = 6;
+    00039C 79020006               MOV.W       #6:16,R2
+    0003A0 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   411:                    dosaccs_drive = drive;
+    0003A6 6BA000                 MOV.W       R0,@_dosaccs_drive:24
+           <000000>     
+                   412:                    dosaccs_param = param;
+    0003AC 01006BA100             MOV.L       ER1,@_dosaccs_param:24
+           <000000>     
+                   413:                    dosaccs_trap();
+    0003B4 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   414:                    return dosaccs_fd_result;
+    0003B8 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   415:    }
+    0003BE 6D72                   POP.W       R2
+    0003C0 5470                   RTS
+                   416:    
+                   417:    /************************************************************************
+                   418:    
+                   419:            Function name   << mkdir >>
+                   420:                                            ディレクトリー作成
+                   421:            Syntax                  ret= mkdir( pathname  );
+                   422:            Argument                char *pathname  : i : 作成するディレクトリー名（フルパス）
+                   423:                                    int ret         : o : 処理結果
+                   424:            Author                  TOA Corporation  K.Honda
+                   425:            Revision                a00 2000/07/27
+                   426:    
+                   427:    *************************************************************************/
+                   428:    int     mkdir( char *filename )
+    0003C2              _mkdir:                          ; function: mkdir
+                   429:    {
+                   430:                    dosaccs_function = 7;
+    0003C2 79010007               MOV.W       #7:16,R1
+    0003C6 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   431:                    dosaccs_filename_buffer = filename;
+    0003CC 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   432:                    dosaccs_trap();
+    0003D4 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   433:                    return dosaccs_fd_result;
+    0003D8 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   434:    }
+    0003DE 5470                   RTS
+                   435:    
+                   436:    /************************************************************************
+                   437:    
+                   438:            Function name   << rmdir >>
+                   439:                                            ディレクトリー削除
+                   440:            Syntax                  ret= rmdir( pathname  );
+                   441:            Argument                char *pathname  : i : 削除するディレクトリー名（フルパス）
+                   442:                                    int ret         : o : 処理結果
+                   443:            Author                  TOA Corporation  K.Honda
+                   444:            Revision                a00 2000/07/27
+                   445:    
+                   446:    *************************************************************************/
+                   447:    int     rmdir( char *filename )
+    0003E0              _rmdir:                          ; function: rmdir
+                   448:    {
+                   449:                    dosaccs_function = 8;
+    0003E0 79010008               MOV.W       #8:16,R1
+    0003E4 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   450:                    dosaccs_filename_buffer = filename;
+    0003EA 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   451:                    dosaccs_trap();
+    0003F2 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   452:                    return dosaccs_fd_result;
+    0003F6 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   453:    }
+    0003FC 5470                   RTS
+                   454:    
+                   455:    /************************************************************************
+                   456:    
+                   457:            Function name   << _dos_findfirst >>
+                   458:                                            最初のファイル検索
+                   459:            Syntax                  ret= _dos_findfirst( filename, attrib, result  );
+                   460:            Argument                char *filename  : i : 検索するワイルドカード
+                   461:                                    unsigned attrib : i : ファイル属性
+                   462:                                    struct find_t result : o : 検索結果
+                   463:            Author                  TOA Corporation  K.Honda
+                   464:            Revision                a00 2000/07/27
+                   465:    
+                   466:    *************************************************************************/
+                   467:    int _dos_findfirst( char *filename, unsigned attrib, struct find_t *result )
+    0003FE              __dos_findfirst:                 ; function: _dos_findfirst
+    0003FE 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   468:    {
+                   469:                    dosaccs_function = 9;
+    000402 79020009               MOV.W       #9:16,R2
+    000406 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   470:                    dosaccs_filename_buffer = filename;
+    00040C 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   471:                    dosaccs_file_attr_seek = attrib;
+    000414 6BA100                 MOV.W       R1,@_dosaccs_file_attr_seek:24
+           <000000>     
+                   472:                    dosaccs_result = result;
+    00041A 01006F7300             MOV.L       @(24:16,SP),ER3
+           18           
+    000420 01006BA300             MOV.L       ER3,@_dosaccs_result:24
+           <000000>     
+                   473:                    dosaccs_trap();
+    000428 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   474:                    return dosaccs_fd_result;
+    00042C 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   475:    }
+    000432 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   476:    
+                   477:    /************************************************************************
+                   478:    
+                   479:            Function name   << _dos_findnext >>
+                   480:                                            次のファイル検索
+                   481:            Syntax                  ret= _dos_findnext( result  );
+                   482:            Argument                struct find_t result : i/o : 検索結果
+                   483:            Author                  TOA Corporation  K.Honda
+                   484:            Revision                a00 2000/07/27
+                   485:    
+                   486:    *************************************************************************/
+                   487:    int _dos_findnext( struct find_t *result )
+    000436              __dos_findnext:                  ; function: _dos_findnext
+                   488:    {
+                   489:                    dosaccs_function = 10;
+    000436 7901000A               MOV.W       #10:16,R1
+    00043A 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   490:                    dosaccs_result = result;
+    000440 01006BA000             MOV.L       ER0,@_dosaccs_result:24
+           <000000>     
+                   491:                    dosaccs_trap();
+    000448 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   492:                    return dosaccs_fd_result;
+    00044C 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   493:    }
+    000452 5470                   RTS
+                   494:    
+                   495:    /************************************************************************
+                   496:    
+                   497:            Function name   << boot_cpu2 >>
+                   498:                                            サブＣＰＵのブート処理
+                   499:            Syntax                  ret= boot_cpu2( filename );
+                   500:            Argument                char *filename  : i : ブートするプログラムファイル名
+                   501:                                    int ret         : o : 処理結果
+                   502:            Author                  TOA Corporation  K.Honda
+                   503:            Revision                a00 2000/07/27
+                   504:    
+                   505:    *************************************************************************/
+                   506:    int boot_cpu2( char *filename )
+    000454              _boot_cpu2:                      ; function: boot_cpu2
+                   507:    {
+                   508:                    dosaccs_filename_buffer = filename;
+    000454 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   509:                    dosaccs_function = 11;
+    00045C 7901000B               MOV.W       #11:16,R1
+    000460 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   510:                    dosaccs_trap();
+    000466 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   511:                    return dosaccs_fd_result;
+    00046A 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   512:    }
+    000470 5470                   RTS
+                   513:    
+                   514:    int _dos_read_rootdir( int fd, DIR_ENTRY *buff, unsigned short entry )
+    000472              __dos_read_rootdir:              ; function: _dos_read_rootdir
+    000472 6DF2                   PUSH.W      R2
+                   515:    {
+                   516:                    dosaccs_fd_result = fd;
+    000474 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   517:                    dosaccs_filename_buffer = (char *)buff;
+    00047A 01006BA100             MOV.L       ER1,@_dosaccs_filename_buffer:24
+           <000000>     
+                   518:                    dosaccs_access_len_pos = entry;
+    000482 6BA800                 MOV.W       E0,@_dosaccs_access_len_pos:24
+           <000000>     
+                   519:                    dosaccs_function = 12;
+    000488 7902000C               MOV.W       #12:16,R2
+    00048C 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   520:                    dosaccs_trap();
+    000492 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   521:                    return dosaccs_fd_result;
+    000496 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   522:    }
+    00049C 6D72                   POP.W       R2
+    00049E 5470                   RTS
+                   523:    
+                   524:    int _dos_read_cluster( int fd, unsigned short cluster )
+    0004A0              __dos_read_cluster:              ; function: _dos_read_cluster
+                   525:    {
+                   526:                    dosaccs_fd_result = fd;
+    0004A0 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   527:                    dosaccs_access_len_pos = cluster;
+    0004A6 6BA800                 MOV.W       E0,@_dosaccs_access_len_pos:24
+           <000000>     
+                   528:                    dosaccs_function = 13;
+    0004AC 7901000D               MOV.W       #13:16,R1
+    0004B0 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   529:                    dosaccs_trap();
+    0004B6 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   530:                    return dosaccs_fd_result;
+    0004BA 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   531:    }
+    0004C0 5470                   RTS
+                   532:    
+                   533:    int _dos_next_cluster( int fd, unsigned short cluster )
+    0004C2              __dos_next_cluster:              ; function: _dos_next_cluster
+                   534:    {
+                   535:                    dosaccs_fd_result = fd;
+    0004C2 6BA000                 MOV.W       R0,@_dosaccs_fd_result:24
+           <000000>     
+                   536:                    dosaccs_access_len_pos = cluster;
+    0004C8 6BA800                 MOV.W       E0,@_dosaccs_access_len_pos:24
+           <000000>     
+                   537:                    dosaccs_function = 14;
+    0004CE 7901000E               MOV.W       #14:16,R1
+    0004D2 6BA100                 MOV.W       R1,@_dosaccs_function:24
+           <000000>     
+                   538:                    dosaccs_trap();
+    0004D8 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   539:                    return dosaccs_fd_result;
+    0004DC 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   540:    }
+    0004E2 5470                   RTS
+                   541:    
+                   542:    int     _dos_card_ok( void )
+    0004E4              __dos_card_ok:                   ; function: _dos_card_ok
+                   543:    {
+                   544:                    if( root_bpb[0].part==NULL ){
+    0004E4 6A2000                 MOV.B       @_root_bpb:24,R0H
+           <000000>     
+    0004EA 6A2800                 MOV.B       @_root_bpb+1:24,R0L
+           <000000>     
+    0004F0 0D08                   MOV.W       R0,E0
+    0004F2 6A2000                 MOV.B       @_root_bpb+2:24,R0H
+           <000000>     
+    0004F8 6A2800                 MOV.B       @_root_bpb+3:24,R0L
+           <000000>     
+    0004FE 0F80                   MOV.L       ER0,ER0
+    000500 4602                   BNE         L247:8
+                   545:                            return( 0 );
+    000502 1900                   SUB.W       R0,R0
+    000504              L247:                             
+                   546:                    }
+                   547:    }
+    000504 5470                   RTS
+                   548:    
+                   549:    /************************************************************************
+                   550:    
+                   551:            Function name   << rename >>
+                   552:                                            ファイル名変更
+                   553:            Syntax                  ret= rename( oldname, newname );
+                   554:            Argument                char *oldname  : i : 変更前のファイル名
+                   555:                                    char *newname  : i : 変更後のファイル名
+                   556:                                    int ret         : o : 処理結果
+                   557:            Author                  TOA Corporation  K.Honda
+                   558:            Revision                a00 2000/07/27
+                   559:    
+                   560:    *************************************************************************/
+                   561:    int     rename( char *srcname, char *destname )
+    000506              _rename:                         ; function: rename
+    000506 6DF2                   PUSH.W      R2
+                   562:    {
+                   563:                    dosaccs_filename_buffer = (char *)srcname;
+    000508 01006BA000             MOV.L       ER0,@_dosaccs_filename_buffer:24
+           <000000>     
+                   564:                    dosaccs_filename2 = (char *)destname;
+    000510 01006BA100             MOV.L       ER1,@_dosaccs_filename2:24
+           <000000>     
+                   565:                    dosaccs_function = 16;
+    000518 79020010               MOV.W       #16:16,R2
+    00051C 6BA200                 MOV.W       R2,@_dosaccs_function:24
+           <000000>     
+                   566:                    dosaccs_trap();
+    000522 5E                     JSR         @_dosaccs_trap:24
+           <000000>     
+                   567:                    return dosaccs_fd_result;
+    000526 6B2000                 MOV.W       @_dosaccs_fd_result:24,R0
+           <000000>     
+                   568:    }
+    00052C 6D72                   POP.W       R2
+    00052E 5470                   RTS
+                   569:    
+  C                                                      ; section
+    000000              __nfiles:                        ; static: _nfiles
+    000000 0005                   .DATA.W     H'0005
+    000002              L133:
+    000002 737464696E             .SDATAZ     "stdin"
+           00           
+    000008              L134:
+    000008 7200                   .SDATAZ     "r"
+    00000A              L135:
+    00000A 7374646F75             .SDATAZ     "stdout"
+           7400         
+    000011              L136:
+    000011              L138:
+    000011 7700                   .SDATAZ     "w"
+    000013              L137:
+    000013 7374646572             .SDATAZ     "stderr"
+           7200         
+  BDOSACCS2                                              ; section
+    000000              __iob:                           ; static: _iob
+    000000 00000064               .RES.W      50
+    000064              _now_date:                       ; static: now_date
+    000064 00000002               .RES.W      1
+    000066              _now_time:                       ; static: now_time
+    000066 00000002               .RES.W      1
+  BDOSACCS                                               ; section
+    000000              _rootdir_buffer:                 ; static: rootdir_buffer
+    000000 0000040A               .RES.B      1034
+    00040A              _fat_buffer:                     ; static: fat_buffer
+    00040A 0000080C               .RES.B      2060
+    000C16              _cluster_buffer:                 ; static: cluster_buffer
+    000C16 0000200E               .RES.B      8206
+    002C24              _dosaccs_workbuff:               ; static: dosaccs_workbuff
+    002C24 00000200               .RES.B      512
+    002E24              _check_date:                     ; static: check_date
+    002E24 00000002               .RES.W      1
+    002E26              _check_time:                     ; static: check_time
+    002E26 00000002               .RES.W      1
+    002E28              _check_all_bytes:                ; static: check_all_bytes
+    002E28 00000004               .RES.L      1
+  BDOSACCS2                                              ; section
+    000068              _ide_error:                      ; static: ide_error
+    000068 00000002               .RES.W      1
+    00006A              _root_part:                      ; static: root_part
+    00006A 00000028               .RES.B      40
+    000092              _root_bpb:                       ; static: root_bpb
+    000092 0000003E               .RES.B      62
+    0000D0              _root_fcb:                       ; static: root_fcb
+    0000D0 000000C3               .RES.B      195
+    000193 00000001               .RES.B      1
+    000194              _dosaccs_function:               ; static: dosaccs_function
+    000194 00000002               .RES.W      1
+    000196              _dosaccs_fd_result:              ; static: dosaccs_fd_result
+    000196 00000002               .RES.W      1
+    000198              _dosaccs_filename_buffer:        ; static: dosaccs_filename_buffer
+    000198 00000004               .RES.L      1
+    00019C              _dosaccs_access_len_pos:         ; static: dosaccs_access_len_pos
+    00019C 00000002               .RES.W      1
+    00019E              _dosaccs_file_attr_seek:         ; static: dosaccs_file_attr_seek
+    00019E 00000002               .RES.W      1
+    0001A0              _dosaccs_result:                 ; static: dosaccs_result
+    0001A0 00000004               .RES.L      1
+    0001A4              _dosaccs_drive:                  ; static: dosaccs_drive
+    0001A4 00000002               .RES.W      1
+    0001A6              _dosaccs_param:                  ; static: dosaccs_param
+    0001A6 00000004               .RES.L      1
+    0001AA              _dosaccs_filename2:              ; static: dosaccs_filename2
+    0001AA 00000004               .RES.L      1
+    0001AE              _dosaccs_target_run:             ; static: dosaccs_target_run
+    0001AE 00000002               .RES.W      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     14-Mar-2023  09:40:50  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000530 Byte(s)
+CONSTANT SECTION(C):                                0x0000001A Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+BSS      SECTION(BDOSACCS):                         0x00002E2C Byte(s)
+BSS      SECTION(BDOSACCS2):                        0x000001B0 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000530 Byte(s)
+TOTAL CONSTANT SECTION: 0x0000001A Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00002FDC Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00003526 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        6 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       48 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         78 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dosaccs3.c -object=.\obj\dosaccs3.obj
+CPU         : 300ha:24

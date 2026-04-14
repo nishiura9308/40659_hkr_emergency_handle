@@ -1,0 +1,779 @@
+;./*[STARTUP.ASM]******************************************************
+;	【香港地下鉄　自動放送制御】
+;*-------------------------------------------------------------------*
+;		Ｈ／Ｗ初期化・スタートアップモジュール
+;*-------------------------------------------------------------------*
+;    Author	TOA Corporation   K.Honda
+;
+;    Revison	a00. 2000/06/27
+;		a01. 2000/09/07
+;********************************************************************/
+;;	module	'香港地下鉄 AAU MCP S/W'
+	NAME	CSTARTUP
+
+$.\INC\MCPHW.INC
+
+#undef	__TID__
+#define	__TID__ 0x10
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	外部参照
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	外部モジュールからアクセス可能なシンボル定義
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	データ
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	RSEG	ADATA:DATA
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	プログラム部
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	ASEG
+	ORG	0
+
+;./***********************************************************************
+;.*									*
+;.*			Ｓ／Ｗ実行先頭					*
+;.*	Author		TOA Corporation  h.nisiura			*
+;.*	Revision	a00 1995/12/05 					*
+;.*									*
+;.************************************************************************/
+	public	PRGBEGIN			;. Boot Up address
+ROMTOP:				;. Ｓ／Ｗの実行開始
+	nop
+	nop
+	nop
+PRGBEGIN:
+	di
+	jp	BOOTSTRUP	;. ＣＰＵ起動処理
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	INT0割り込み
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	page
+	org	0038h
+	nop
+	nop
+	nop
+	jp	dummy
+	;
+	page
+;./***********************************************************************
+;.*									*
+;.*		HD64180 割込ベクタテーブル				*
+;.*	Author		TOA Corporation  h.nisiura			*
+;.*	Revision	a00 1995/12/05 					*
+;.*									*
+;.************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	extern	timer_0_ir
+	extern	timer_1_ir
+	extern	csio_ir
+	extern	asci_0_ir
+
+	org	0040h
+	defw	dummy			;. dummy		(INT1)
+	defw	dummy			;. dummy		(INT2)
+	defw	timer_0_ir		;. 10msタイマ割込	(TIMER ch0)
+	defw	timer_1_ir		;. 1msタイマ割込	(TIMER ch1)
+	defw	dummy			;. dummy		(DMA ch0)
+	defw	dummy			;. dummy		(DMA ch1)
+	defw	csio_ir			;. CS I/O		(CSI/O)
+	defw	asci_0_ir		;. DVAU Voice Bus Comm. (ASCI ch0)
+	defw	dummy			;. dummy		(ASCI ch1)
+	defw	dummy			;. dummy		(INPUT CP)
+	defw	dummy			;. dummy		(OUTPUT CON)
+	defw	dummy			;. dummy		(TIMER 2)
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	org	0066h
+	nop
+	nop
+	nop
+	jp	nmi_ir			;. ＷＤＴ異常		(NMI)
+
+	org	3FFFh
+	defb	0AFh
+
+
+	RSEG	RCODE:CODE
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	ROMデータ
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	prg_name
+prg_name:
+	defb	'H','o','n','g','k','o','n','g',' ','S','u','b','w','a','y',' '
+	defb	'V','e','r','.','1','.','0','2',' '
+	defb	'2','0','0','0','/','1','2','/','0','6',' '
+	public	prg_version
+prg_version:
+	defw	0102h
+
+	page
+;/***********************************************************************
+;*									*
+;*	Function name	<< dummy >>					*
+;*			ダミー割り込み					*
+;*	Syntax		dummy();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  t.ehara			*
+;*	Revision	a00 1992/11/20 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ダミー割り込み（デバッグ用）。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+dummy:
+	ld	hl,PRGBEGIN
+	push	hl
+	
+	
+	ei
+	reti
+
+	page
+;/***********************************************************************
+;*									*
+;*	Function name	<< nmi_ir >>					*
+;*			ＷＤＴ異常割り込み				*
+;*	Syntax		nmi_intr();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.Takehisa			*
+;*	Revision	a00 1993/04/30 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; nmi_intr_routine を呼び出す。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;;	extern	nmi_intr_routine
+nmi_ir:
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+	
+	
+;;	call	nmi_intr_routine
+	ld	a, c
+	cp	1
+	jp	nz, nmi_ir_999
+							;. Ｓ／Ｗリセット
+	ld	hl, 0
+	push	hl
+	retn
+
+nmi_ir_999:						;. 通常復帰
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	retn
+
+
+	page
+;/***********************************************************************
+;*									*
+;*	Function name	<< int1_ir >>					*
+;*			INT1 割り込み					*
+;*	Syntax		int1_ir();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.Takehisa			*
+;*	Revision	a00 1993/04/30 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; int1_intr_routine を呼び出す。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+int1_ir:
+	di
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+	
+;.	call	int1_intr_routine
+	
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ei
+	reti
+
+
+	page
+;/***********************************************************************
+;*									*
+;*	Function name	<< int2_ir >>					*
+;*			INT2 割り込み					*
+;*	Syntax		int2_ir();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.Takehisa			*
+;*	Revision	a00 1993/04/30 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; int2_intr_routine を呼び出す。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+int2_ir:
+	di
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+	
+;.	call	int2_intr_routine
+	
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ei
+	reti
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< BOOTSTRUP >>					*
+;*			ＣＰＵ起動処理					*
+;*	Syntax		BUUOSTRUP();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  t.takehisa			*
+;*	Revision	a00 1993/09/07 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ＣＰＵ起動処理。
+;   ダミーＲＥＴＩ命令発効。
+;　 ＣＰＵ及び周辺の初期化。
+;   ソフトウェア（変数、バンクＲＡＭ等）イニシャライズ。
+;   Ｃのプログラムへジャンプ。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	extern	main				;.(Function) Ｓ／Ｗメイン制御
+
+BOOTSTRUP:
+	ld	sp,RAMBOT+30
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	;.**********************************
+	;.	ＣＰＵごまかし処理
+	;.**********************************
+	ld	hl, BOOTSTRUP10
+	push	hl
+	reti
+BOOTSTRUP10:
+	ld	hl, BOOTSTRUP11
+	push	hl
+	reti
+BOOTSTRUP11:
+	ld	hl, BOOTSTRUP12
+	push	hl
+	reti
+BOOTSTRUP12:
+	ld	hl, BOOTSTRUP13
+	push	hl
+	reti
+BOOTSTRUP13:
+	ld	hl, BOOTSTRUP14
+	push	hl
+	reti
+BOOTSTRUP14:
+	ld	hl, BOOTSTRUP15
+	push	hl
+	reti
+BOOTSTRUP15:
+	ld	hl, BOOTSTRUP16
+	push	hl
+	reti
+BOOTSTRUP16:
+
+	nop
+	nop
+	nop
+
+	ld	sp,RAMBOT +30
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< x180_init >>					*
+;*			ＩＣ初期化処理					*
+;*	Syntax		x180_init();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  h.nisiura			*
+;*	Revision	a00 1995/12/05 					*
+;*			a01 2000/09/07 メモリーウェイトを０にする	*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; Ｈ／Ｗ（ＣＰＵ）を初期化する。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+x180_init:
+	di
+	;.・・・・・・・・・・・・・・・・・・・・・
+	;.　Ｉﾚｼﾞｽﾀを00hにする
+	;.・・・・・・・・・・・・・・・・・・・・・
+					;. ----- 初期化開始 -----
+	ld	a,00h
+	ld	i,a			;. 割込ベクタレジスタ
+
+	;・・・・・・・・・・・・・・・・・・・・・
+	; I/O , REF, INT  の初期化
+	;・・・・・・・・・・・・・・・・・・・・・
+	;　I/Oｺﾝﾄﾛｰﾙ･ﾚｼﾞｽﾀ　     =  0h
+	;　ﾘﾌﾚｯｼｭ･ｺﾝﾄﾛｰﾙ･ﾚｼﾞｽﾀ   =  0h
+	;  ｲﾝﾀﾗﾌﾟﾄ･ﾍﾞｸﾀ･ﾛｰ･ﾚｼﾞｽﾀ = 40h
+	;  INT/TRAPｺﾝﾄﾛｰﾙ･ﾚｼﾞｽﾀ  = 02h
+	;・・・・・・・・・・・・・・・・・・・・・
+	ld	a,0
+	out0	(ICR),a			;. I/O コントロールレジスタ
+	out0	(RCR),a			;. リフレッシュコントロールレジスタ
+	ld	a,40h			;. 割込ベクタ ローレジスタ
+	out0	(IL),a
+	ld	a,02h			;. INT/TRAP control register
+	out0	(ITC),a			;. INT0=off, INT1=on, INT2=off
+
+	ld	a,00h
+	out0	(DCNTL),a	; Non Wait Memory,I/O
+
+	;・・・・・・・・・・・・・・・・・・・・・
+	; ＭＭＵ設定
+	;・・・・・・・・・・・・・・・・・・・・・
+	;      論理ﾒﾓﾘ空間マッピング図   ・ ＭＭＵﾚｼﾞｽﾀ設定
+	;・・・・・・・・・・・・・・・・・・・・・
+	; FFFFh・・・・・・・・          ・・CBR ・・・・ 
+	;      ・Program   ・ 16 K bytes ・・14h(20000)・     CBR  = 14h
+	;      ・    RAM   ・            ・・・・・・・・ 
+	; C000h・・・・・・・・          ・・BBR ・・・・ 
+	; ￣*2                             ・00h(08000)・     BBR  = 00h
+	;      ・          ・            ・・・・・・・・ 
+	;      ・          ・            ・・CBAR・・・・ 
+	;      ・          ・              ・*2  ・*1  ・ 
+	;      ・          ・            ・・  Ch・  8h・     CBAR = C8h
+	;      ・・・・・・・・          ・・・・・・・・ 
+	;      ・          ・            ・
+	;      ・Bank  RAM ・ 16 K bytes ・
+	; 8000h・・・・・・・・          ・
+	; ￣*1 ・          ・            ・
+	;      ・          ・            ・
+	;      ・          ・            ・
+	;      ・          ・            ・
+	;      ・          ・ 32 K bytes ・
+	;      ・Program   ・            ・
+	;      ・    ROM   ・            ・
+	; 0000h・・・・・・・・          ・
+	;・・・・・・・・・・・・・・・・・・・・・
+	ld	a, 0C8h			;. 0000h～7FFFh	コモンエリア０	00000h-07FFFh
+						;. 8000h～BFFFh	バンクエリア	08000h-0BFFFh
+						;. C000h～FFFFh	コモンエリア１	20000h-23FFFh
+	out0	(CBAR), a		;. ＭＭＵコモン／バンク・エリアレジスタ
+	ld	a, 014h			;. コモンエリア１物理アドレス 20000h
+	out0	(CBR), a		;. ＭＭＵコモン・ベース・レジスタ
+	ld	a, 000h			;. バンクエリア　物理アドレス 08000h
+	out0	(BBR), a		;. ＭＭＵバンク・ベース・レジスタ
+
+	call	init_ic			;. ＩＣ初期化処理
+
+	im 	1			;. 割込モード  1
+					;. ----- 初期化終了 -----
+
+	jp	main			;. Jump to Main Module( C language )
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< init_ic >>					*
+;*			ＩＣの初期化					*
+;*	Syntax		init_ic();					*
+;*	Argument	None						*
+;*	Author		TOA Corporation  T.Takehisa			*
+;*	Revision	a00 1993/09/07 					*
+;*									*
+;************************************************************************/
+	extern	timer_0_initialize
+	extern	timer_1_initialize
+	extern	asci_0_initialize
+	extern	csio_initialize
+	public	init_ic				;.(Function)
+init_ic:
+;.・・・・・・・・・・・・・・・・・・・・・
+; ＣＰＵ内蔵ペリフェラル、外部IC初期化
+;.・・・・・・・・・・・・・・・・・・・・・
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+	
+	call	timer_0_initialize	;. TIMER 0 初期化
+	call	timer_1_initialize	;. TIMER 1 初期化
+	call	asci_0_initialize	;. ASCI  0 初期化
+	call	csio_initialize		;. CSI/O 初期化
+
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< read_dipsw >>				*
+;*			jumper Switch Read
+;*	Syntax		reg.C = read_dipsw();			*
+;*	Argument	Reg. BC		o: Switch Data		*
+;*	Author		TOA Corporation  K.Honda
+;*	Revision	a00 2000/06/26 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	read_dipsw		;.(Function)
+read_dipsw:
+	push	af
+
+	in0	a, (IDRG)		;. Read Dipsw
+	and	3Fh
+	ld	l,a
+	ld	h, 0
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< watch_dog_reset >>			*
+;*			ウォッチドッグリセット
+;*	Syntax		watch_dog_reset( void );
+;*	Argument	none						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;
+	public	watch_dog_reset	;.(Function)
+watch_dog_reset:
+	push	af
+
+	in0		a,(EXT_PORT7)
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< _Bankchange >>				*
+;*			バンク切り換え					*
+;*	Syntax		_Bankchange(bank_no);				*
+;*	Argument	short	bank_no	i	:バンクＮｏ．		*
+;*						 no       address	*
+;*						  0 :  0000h -  3fffh	*
+;*						  1 :  4000h -  7fffh	*
+;*						  2 :  8000h -  bfffh	*
+;*						  3 :  c000h -  ffffh	*
+;*						  4 : 10000h - 13fffh	*
+;*						  5 : 14000h - 17fffh	*
+;*						  6 : 18000h - 1bfffh	*
+;*						  7 : 1c000h - 1ffffh	*
+;*						  8 : 20000h - 23fffh	*
+;*						  9 : 24000h - 27fffh	*
+;*						 10 : 28000h - 2bfffh	*
+;*						 11 : 2c000h - 2ffffh	*
+;*						 12 : 30000h - 33fffh	*
+;*						 13 : 34000h - 37fffh	*
+;*						 14 : 38000h - 3bfffh	*
+;*						 15 : 3c000h - 3ffffh	*
+;*	Author		TOA Corporation  K.Honda
+;*	Revision	a00 2000/06/27 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+
+	public	_Bankchange	;.(Function)
+_Bankchange:
+	push	af
+	push	bc
+	push	hl
+
+	ld		b,0
+	ld		c,l			;. ﾊﾞﾝｸNo.
+	ld		hl,BBR_tbl		;. ﾊﾞﾝｸﾃ-ﾌﾞﾙADR.
+	add		hl,bc
+	ld		a,(hl)
+	out0	(BBR),a			;. BBRｾｯﾄ
+
+	pop	hl
+	pop	bc
+	pop	hl
+	ret
+
+BBR_tbl:				;. ﾊﾞﾝｸﾃ-ﾌﾞﾙ
+	defb	0F8h		;. 0F8h+08h = 00h
+	defb	0FCh		;. 0FCh+08h = 04h
+	defb	000h		;. 000h+08h = 08h
+	defb	004h		;. 004h+08h = 0Ch
+	defb	008h		;. 008h+08h = 10h
+	defb	00Ch		;. 00Ch+08h = 14h
+	defb	010h		;. 010h+08h = 18h
+	defb	014h		;. 014h+08h = 1Ch
+	defb	018h		;. 018h+08h = 20h
+	defb	01Ch		;. 01Ch+08h = 24h
+	defb	020h		;. 020h+08h = 28h
+	defb	024h		;. 024h+08h = 2Ch
+	defb	028h		;. 028h+08h = 30h
+	defb	02Ch		;. 02Ch+08h = 34h
+	defb	030h		;. 030h+08h = 38h
+	defb	034h		;. 034h+08h = 3Ch
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< __enable >>					*
+;*			割り込みの許可					*
+;*	Syntax		__enable()					*
+;*	Argument	None						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/21 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;　割り込み許可
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	__enable	;.(Function)
+__enable:
+	ei
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< __disable >>					*
+;*			割り込みの禁止					*
+;*	Syntax		__disable()					*
+;*	Argument	None						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/21 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;　割り込み禁止
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	__disable	;.(Function)
+__disable:
+	di
+	ret
+
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< ram_check >>				*
+;*			ALL RAM Area read after write check
+;*	Syntax		ram_check();			*
+;*	Argument	return is OK, HALT is NG
+;*	Author		TOA Corporation  K.Honda
+;*	Revision	a00 2000/06/26 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	ram_check		;.(Function)
+ram_check:
+	push	af
+
+	ld		l,8
+ram_check100:
+	push	hl
+	call	_Bankchange
+
+	ld		ix,08000h
+	ld		bc,04000h
+ram_check200:
+	ld		l,(ix+0)
+	ld		(ix+0),055h
+	nop
+	nop
+	nop
+	ld		a,(ix+0)
+	cp		055h
+	jp		nz,ram_check900
+
+	ld		(ix+0),l
+	inc		ix
+	dec		bc
+	ld		a,b
+	or		c
+	jp		nz,ram_check200
+
+	ld		ix,08000h
+	ld		bc,04000h
+ram_check300:
+	ld		l,(ix+0)
+	ld		(ix+0),0AAh
+	nop
+	nop
+	nop
+	ld		a,(ix+0)
+	cp		0AAh
+	jp		nz,ram_check900
+
+	ld		(ix+0),l
+	inc		ix
+	dec		bc
+	ld		a,b
+	or		c
+	jp		nz,ram_check300
+
+	ld		ix,08000h
+	ld		bc,04000h
+ram_check400:
+	ld		l,(ix+0)
+	ld		(ix+0),0FFh
+	nop
+	nop
+	nop
+	ld		a,(ix+0)
+	cp		0FFh
+	jp		nz,ram_check900
+
+	ld		(ix+0),l
+	inc		ix
+	dec		bc
+	ld		a,b
+	or		c
+	jp		nz,ram_check400
+
+	ld		ix,08000h
+	ld		bc,04000h
+ram_check500:
+	ld		l,(ix+0)
+	ld		(ix+0),000h
+	nop
+	nop
+	nop
+	ld		a,(ix+0)
+	cp		000h
+	jp		nz,ram_check900
+
+	ld		(ix+0),l
+	inc		ix
+	dec		bc
+	ld		a,b
+	or		c
+	jp		nz,ram_check500
+
+	pop		hl
+;;	inc		l
+;;	ld		a,l
+;;	cp		16
+;;	jp		nz,ram_check100
+
+	ld		hl,0
+
+	pop		af
+	ret
+
+ram_check900:
+
+	ld		hl,1
+
+	pop		af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< rom_check >>				*
+;*			ALL ROM Area Calc SUM
+;*	Syntax		rom_check();			*
+;*	Argument	Return is OK, NG is HALT
+;*	Author		TOA Corporation  K.Honda
+;*	Revision	a00 2000/06/26 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	rom_check		;.(Function)
+rom_check:
+	push	af
+
+	ld		h,0
+	ld		l,0
+rom_check100:
+	push	hl
+	call	_Bankchange
+
+	ld		ix,08000h
+	ld		bc,04000h
+rom_check200:
+	ld		a,h
+	add		a,(ix+0)
+	ld		h,a
+
+	inc		ix
+	dec		bc
+	ld		a,b
+	or		c
+	jp		nz,rom_check200
+
+	pop		hl
+	inc		l
+	ld		a,l
+	cp		16
+	jp		nz,rom_check100
+
+	ld		a,h
+	cp		000h
+	jp		nz,rom_check900
+
+	ld		hl,0
+
+	pop		af
+	ret
+
+rom_check900:
+	ld		hl,1
+
+	pop		af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< HALTCPU >>				*
+;*			HALT CPU 
+;*	Syntax		HALTCPU();			*
+;*	Argument	Return is OK, NG is HALT
+;*	Author		TOA Corporation  K.Honda
+;*	Revision	a00 2000/06/26 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	HALTCPU		;.(Function)
+HALTCPU:
+	DI
+	HALT
+
+	END
+

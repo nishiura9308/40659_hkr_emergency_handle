@@ -1,0 +1,1233 @@
+	NAME	mcpcomm(16)
+	RSEG	CODE(0)
+	RSEG	UDATA0(0)
+	EXTERN	__disable
+	EXTERN	__enable
+	PUBLIC	address
+	PUBLIC	asci_0_recv_ir
+	EXTERN	asci_0_rx_disable
+	EXTERN	asci_0_rx_enable
+	PUBLIC	asci_0_send_ir
+	EXTERN	asci_0_transmit
+	EXTERN	asci_0_tx_disable
+	EXTERN	asci_0_tx_enable
+	EXTERN	matrix_blink
+	EXTERN	matrix_led
+	PUBLIC	mcpReceive
+	PUBLIC	mcpSend
+	PUBLIC	mcp_active
+	PUBLIC	mcp_sendactive
+	PUBLIC	sendarea
+	EXTERN	sw_blink
+	EXTERN	sw_led
+	EXTERN	?CL64180L_4_04_L00
+	EXTERN	?US_RSH_L02
+	EXTERN	?MEMSET_L11
+	RSEG	CODE
+asci_0_send_ir:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        編成間通信制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	
+; 10.	*********************************************************************/
+; 11.	
+; 12.	#include <string.h>
+; 13.	
+; 14.	#include "IOFUNC.h"
+; 15.	
+; 16.	#include "COMMDEF.h"
+; 17.	
+; 18.	/*@@@S*/
+; 19.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 20.	        グローバル変数
+; 21.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 22.	
+; 23.	/** 自アドレス **/
+; 24.	unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+; 25.	                                                                   下位４ビット＝ＤＩＰＳＷアドレス */
+; 26.	
+; 27.	/** 送信エリア **/
+; 28.	struct MCPSEND  sendarea;
+; 29.	
+; 30.	char    mcp_active;
+; 31.	
+; 32.	char    mcp_sendactive;
+; 33.	
+; 34.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 35.	        定数定義
+; 36.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 37.	#define         STX                     (0x02)                          /* テキスト開始                 */
+; 38.	#define         ETX                     (0x03)                          /* テキスト終了                 */
+; 39.	#define         DLE                     (0x10)                          /* ＤＬＥ拡張                   */
+; 40.	
+; 41.	#define COMM_WAIT_STX           0               /* ＳＴＸ待ち */
+; 42.	#define COMM_WAIT_ETX           1               /* ＥＴＸ待ち */
+; 43.	#define COMM_WAIT_BCC           2               /* ＢＣＣ待ち */
+; 44.	
+; 45.	
+; 46.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 47.	        構造体定義
+; 48.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 49.	
+; 50.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 51.	        テーブル
+; 52.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 53.	
+; 54.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 55.	                外部参照
+; 56.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 57.	
+; 58.	/** 表示データ **/
+; 59.	extern  short   sw_led;                         /*スイッチＬＥＤ*/
+; 60.	#define SWLED_EMGPRG    0x0001
+; 61.	#define SWLED_CABCAB    0x0002
+; 62.	#define SWLED_RBM               0x0004
+; 63.	#define SWLED_TEST              0x0008
+; 64.	#define SWLED_ATC               0x0010
+; 65.	#define SWLED_HL                0x0020
+; 66.	#define SWLED_EMG               0x0040
+; 67.	#define SWLED_SPC               0x0080
+; 68.	#define SWLED_REP               0x0100
+; 69.	#define SWLED_LEFT              0x0200
+; 70.	#define SWLED_RIGHT             0x0400
+; 71.	#define SWLED_SEL               0x0800
+; 72.	#define SWLED_RST               0x1000
+; 73.	#define SWLED_ENT               0x2000
+; 74.	#define SWLED_STN               0x4000
+; 75.	#define SWLED_SPC2              0x8000  /* Same SWLED_SPC */
+; 76.	
+; 77.	
+; 78.	extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+; 79.	extern  short   sw_blink;                       /*スイッチ点滅データ*/
+; 80.	extern  char    matrix_blink[4];        /*６ｘ４マトリックス点滅データ*/
+; 81.	
+; 82.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 83.	                ローカル変数
+; 84.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 85.	static  unsigned char   recvbuff[64];           /*受信バッファー*/
+; 86.	static  unsigned char   recvlen;                        /*受信バイト数*/
+; 87.	static  unsigned char   recvphase;                      /*受信フェーズ*/
+; 88.	static  unsigned char   recvdle;                        /*受信ＤＬＥフラグ*/
+; 89.	static  unsigned char   recvbcc;                        /*受信ＢＣＣ計算エリア*/
+; 90.	static  unsigned char   sendbuff[64];           /*送信バッファー*/
+; 91.	static  unsigned char   sendlen;                        /*送信バイト数*/
+; 92.	static  unsigned char   sendcnt;                        /*送信カウンター*/
+; 93.	
+; 94.	/*@@@E*/
+; 95.	/************************************************************************
+; 96.	
+; 97.	        Function name   << asci_0_send_ir >>
+; 98.	                                        送信割り込み処理
+; 99.	        Syntax                  asci_0_send_ir( void );
+; 100.	        Argument                none
+; 101.	        Author                  TOA Corporation  K.Honda
+; 102.	        Revision                a00 2000/06/27
+; 103.	
+; 104.	*************************************************************************/
+; 105.	void asci_0_send_ir( void )
+; 106.	{
+	PUSH	BC
+	PUSH	DE
+; 107.	                if( sendcnt==sendlen ){ /*すべて送信したとき*/
+	LD	A,(sendlen)
+	LD	B,A
+	LD	A,(sendcnt)
+	CP	B
+	JR	NZ,?0001
+?0000:
+; 108.	                        asci_0_tx_disable();            /*受信へ切り替え*/
+	CALL	asci_0_tx_disable
+; 109.	                        return;
+; 110.	                }
+	JR	?0002
+?0001:
+; 111.	
+; 112.	                asci_0_transmit( sendbuff[sendcnt++] ); /*１バイトの送信*/
+	LD	HL,sendcnt
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	E,(HL)
+	CALL	asci_0_transmit
+; 113.	}
+?0002:
+	POP	DE
+	POP	BC
+	RET
+mcpSend:
+; 114.	
+; 115.	/************************************************************************
+; 116.	
+; 117.	        Function name   << mcpSend >>
+; 118.	                                        送信準備処理
+; 119.	        Syntax                  mcpSend( void );
+; 120.	        Argument                none
+; 121.	        Author                  TOA Corporation  K.Honda
+; 122.	        Revision                a00 2000/06/27
+; 123.	
+; 124.	*************************************************************************/
+; 125.	void mcpSend( void )
+; 126.	{
+	PUSH	BC
+	PUSH	DE
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	AF
+	PUSH	AF
+	PUSH	AF
+; 127.	                unsigned char   *p;                     /*送信データポインター*/
+; 128.	                unsigned char   sendbcc;        /*送信ＢＣＣ計算エリア*/
+; 129.	                int             i;
+; 130.	                unsigned char   len;
+; 131.	
+; 132.	                asci_0_tx_enable(1);            /*送信開始  RTS=ON*/
+	LD	E,1
+	CALL	asci_0_tx_enable
+; 133.	
+; 134.	                mcp_sendactive = 1;
+	LD	A,1
+	LD	(mcp_sendactive),A
+; 135.	
+; 136.	                sendarea.adr = address;
+	LD	HL,(address)
+	LD	(sendarea),HL
+; 137.	
+; 138.	                sendcnt = 0;                                    /* 送信ポインター０クリア */
+	XOR	A
+	LD	(sendcnt),A
+; 139.	                sendlen = 0;                                    /* 送信バイト数０クリア*/
+	XOR	A
+	LD	(sendlen),A
+; 140.	
+; 141.	                        /* DLE+STX を設定*/
+; 142.	                sendbuff[sendlen++] = DLE;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 143.	                sendbuff[sendlen++] = STX;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),2
+; 144.	
+; 145.	                sendbcc = 0;                                    /* 送信ＢＣＣの計算クリア */
+	LD	(IX-4),0
+; 146.	                p = (unsigned char *)&sendarea;                 /* 送信エリアの内容をそのまま送信 */
+	LD	(IX-6),LOW(sendarea)
+	LD	(IX-5),HIGH(sendarea)
+; 147.	
+; 148.	                len = sizeof(sendarea);
+	LD	(IX-1),8
+; 149.	                sendbcc ^= len;                                         /* 送信ＢＣＣの計算 */
+	LD	A,(IX-4)
+	XOR	(IX-1)
+	LD	(IX-4),A
+; 150.	                if( len==STX || len==ETX || len==DLE ){
+	LD	B,(IX-1)
+	DEC	B
+	DEC	B
+	JR	Z,?0003
+	LD	A,(IX-1)
+	CP	3
+	JR	Z,?0003
+	LD	A,(IX-1)
+	CP	16
+	JR	NZ,?0004
+?0005:
+?0006:
+?0003:
+; 151.	                        sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 152.	                        sendbuff[sendlen++] = len + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	A,(IX-1)
+	ADD	A,64
+	LD	(HL),A
+; 153.	                }
+; 154.	                else {
+	JR	?0007
+?0004:
+; 155.	                        sendbuff[sendlen++] = len;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	B,(IX-1)
+	LD	(HL),B
+?0007:
+; 156.	                }
+; 157.	
+; 158.	                for( i=0; i<sizeof(sendarea); i++, p++ ){
+	XOR	A
+	LD	(IX-3),A
+	LD	(IX-2),A
+?0009:
+	LD	BC,32776
+	LD	L,(IX-3)
+	LD	H,(IX-2)
+	LD	A,128
+	XOR	H
+	LD	H,A
+	SBC	HL,BC
+	JR	NC,?0008
+?0010:
+; 159.	                        sendbcc ^= *p;                          /* 送信ＢＣＣの計算 */
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(IX-4)
+	XOR	(HL)
+	LD	(IX-4),A
+; 160.	                        if( *p==STX || *p==ETX || *p==DLE ){
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	B,(HL)
+	DEC	B
+	DEC	B
+	JR	Z,?0012
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	CP	3
+	JR	Z,?0012
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	CP	16
+	JR	NZ,?0013
+?0014:
+?0015:
+?0012:
+; 161.	                                sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 162.	                                sendbuff[sendlen++] = *p + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	PUSH	HL
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	A,(HL)
+	ADD	A,64
+	POP	HL
+	LD	(HL),A
+; 163.	                        }
+; 164.	                        else {
+	JR	?0016
+?0013:
+; 165.	                                sendbuff[sendlen++] = *p;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	PUSH	HL
+	LD	L,(IX-6)
+	LD	H,(IX-5)
+	LD	B,(HL)
+	POP	HL
+	LD	(HL),B
+?0016:
+	INC	(IX-3)
+	JR	NZ,?0069
+	INC	(IX-2)
+?0069:
+	INC	(IX-6)
+	JR	NZ,?0070
+	INC	(IX-5)
+?0070:
+	JP	?0009
+?0008:
+; 166.	                        }
+; 167.	                }
+; 168.	
+; 169.	                        /* DLE+ETX を設定*/
+; 170.	                sendbuff[sendlen++] = DLE;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 171.	                sendbuff[sendlen++] = ETX;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),3
+; 172.	                sendbcc ^= ETX;                 /* 送信ＢＣＣの計算*/
+	LD	A,(IX-4)
+	XOR	3
+	LD	(IX-4),A
+; 173.	
+; 174.	                if( sendbcc==STX || sendbcc==ETX || sendbcc==DLE ){
+	DEC	A
+	DEC	A
+	JR	Z,?0017
+	LD	A,(IX-4)
+	CP	3
+	JR	Z,?0017
+	LD	A,(IX-4)
+	CP	16
+	JR	NZ,?0018
+?0019:
+?0020:
+?0017:
+; 175.	                        sendbuff[sendlen++] = DLE;                      /* ＢＣＣのＤＬＥ拡張 */
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),16
+; 176.	                        sendbuff[sendlen++] = sendbcc + 0x40;
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	A,(IX-4)
+	ADD	A,64
+	LD	(HL),A
+; 177.	                }
+; 178.	                else {
+	JR	?0021
+?0018:
+; 179.	                        sendbuff[sendlen++] = sendbcc;          /* ＢＣＣの設定 */
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	B,(IX-4)
+	LD	(HL),B
+?0021:
+; 180.	                }
+; 181.	
+; 182.	                sendbuff[sendlen++] = 0;                /*ＲＴＳ切り替えタイミング用ダミー*/
+	LD	HL,sendlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,sendbuff
+	ADD	HL,BC
+	LD	(HL),0
+; 183.	
+; 184.	                __disable();
+	CALL	__disable
+; 185.	
+; 186.	                asci_0_tx_enable(0);            /*送信開始  RTS=ON*/
+	LD	E,0
+	CALL	asci_0_tx_enable
+; 187.	
+; 188.	                asci_0_send_ir();               /*最初の１バイトを送信*/
+	CALL	asci_0_send_ir
+; 189.	}
+	LD	SP,IX
+	POP	IX
+	POP	DE
+	POP	BC
+	RET
+mcpReceive:
+; 190.	
+; 191.	/************************************************************************
+; 192.	
+; 193.	        Function name   << mcpReceive >>
+; 194.	                                        受信処理
+; 195.	        Syntax                  mcpReceive( unsigned char *data, char len );
+; 196.	        Argument                none
+; 197.	        Author                  TOA Corporation  K.Honda
+; 198.	        Revision                a00 2000/06/27
+; 199.	
+; 200.	*************************************************************************/
+; 201.	char mcpReceive( unsigned char *data, char len )
+; 202.	{
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+	PUSH	AF
+	PUSH	AF
+; 203.	                struct POLLING  *p;
+; 204.	                unsigned short  leddata;
+; 205.	
+; 206.	                p = (struct POLLING *)data;
+	LD	(IX-8),E
+	LD	(IX-7),D
+; 207.	
+; 208.	                if( len!=sizeof(*p) ){
+	LD	A,C
+	CP	59
+	JR	Z,?0023
+?0022:
+; 209.	                        /*受信バイト数が異常のときは処理しない*/
+; 210.	                        return 0;
+	XOR	A
+; 211.	                }
+	JP	?0041
+?0023:
+; 212.	
+; 213.	                /** 必要なデータをコピーする **/
+; 214.	
+; 215.	                mcp_active = (p->door>>6) & 0x03;
+	LD	HL,9
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	LD	A,(HL)
+	RLCA
+	RLCA
+	AND	3
+	AND	3
+	LD	(mcp_active),A
+; 216.	                if( sendarea.mcpsw[2] & 0x20 ){
+	LD	A,(sendarea+5)
+	AND	32
+	JP	Z,?0025
+?0024:
+; 217.	                        if( mcp_active & 0x02 ){
+	LD	A,(mcp_active)
+	AND	2
+	JR	Z,?0027
+?0026:
+; 218.	                                memcpy( &leddata, p->display, 2 );
+	LD	BC,2
+	PUSH	BC
+	LD	HL,4
+	ADD	HL,SP
+	LD	E,L
+	LD	D,H
+	LD	HL,19
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 219.	                                sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+	LD	HL,(sw_led)
+	LD	A,L
+	AND	32
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	A,(IX-6)
+	AND	223
+	LD	E,A
+	LD	A,(IX-5)
+	AND	255
+	LD	D,A
+	LD	A,C
+	OR	E
+	LD	L,A
+	LD	A,B
+	OR	D
+	LD	H,A
+	LD	(sw_led),HL
+; 220.	                                memcpy( matrix_led, &p->display[2], 4*6 );                      /* Matrix-LED */
+	LD	BC,24
+	PUSH	BC
+	LD	DE,matrix_led
+	LD	HL,21
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 221.	                                memcpy( &sw_blink, &p->display[2+4*6], 2 );                     /* SW-Blink */
+	LD	BC,2
+	PUSH	BC
+	LD	DE,sw_blink
+	LD	HL,45
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 222.	                                memcpy( matrix_blink, &p->display[2+4*6+2], 4 );        /* Matrix Blink */
+	LD	BC,4
+	PUSH	BC
+	LD	DE,matrix_blink
+	LD	HL,47
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 223.	                        }
+; 224.	                        else {
+	JR	?0028
+?0027:
+; 225.	                                memcpy( &leddata, p->display, 2 );
+	LD	BC,2
+	PUSH	BC
+	LD	HL,4
+	ADD	HL,SP
+	LD	E,L
+	LD	D,H
+	LD	HL,19
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 226.	                                leddata &= SWLED_CABCAB;
+	LD	HL,2
+	ADD	HL,SP
+	LD	A,(HL)
+	AND	2
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	0
+	LD	(HL),A
+; 227.	                                sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+	LD	HL,(sw_led)
+	LD	A,L
+	AND	32
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	A,(IX-6)
+	AND	223
+	LD	E,A
+	LD	A,(IX-5)
+	AND	255
+	LD	D,A
+	LD	A,C
+	OR	E
+	LD	L,A
+	LD	A,B
+	OR	D
+	LD	H,A
+	LD	(sw_led),HL
+; 228.	                                memset( matrix_led, 0, 4*6 );                   /* Matrix-LED */
+	LD	BC,24
+	LD	DE,matrix_led
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 229.	                                sw_blink = 0;
+	LD	HL,0
+	LD	(sw_blink),HL
+; 230.	                                memset( matrix_blink, 0, 4 );   /* Matrix Blink */
+	LD	BC,4
+	LD	DE,matrix_blink
+	LD	HL,0
+	CALL	?MEMSET_L11
+?0028:
+; 231.	                        }
+; 232.	                }
+; 233.	                else {
+	JP	?0029
+?0025:
+; 234.	                        if( mcp_active & 0x01 ){
+	LD	A,(mcp_active)
+	AND	1
+	JR	Z,?0031
+?0030:
+; 235.	                                memcpy( &leddata, p->display, 2 );
+	LD	BC,2
+	PUSH	BC
+	LD	HL,4
+	ADD	HL,SP
+	LD	E,L
+	LD	D,H
+	LD	HL,19
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 236.	                                sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+	LD	HL,(sw_led)
+	LD	A,L
+	AND	32
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	A,(IX-6)
+	AND	223
+	LD	E,A
+	LD	A,(IX-5)
+	AND	255
+	LD	D,A
+	LD	A,C
+	OR	E
+	LD	L,A
+	LD	A,B
+	OR	D
+	LD	H,A
+	LD	(sw_led),HL
+; 237.	                                memcpy( matrix_led, &p->display[2], 4*6 );                      /* Matrix-LED */
+	LD	BC,24
+	PUSH	BC
+	LD	DE,matrix_led
+	LD	HL,21
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 238.	                                memcpy( &sw_blink, &p->display[2+4*6], 2 );                     /* SW-Blink */
+	LD	BC,2
+	PUSH	BC
+	LD	DE,sw_blink
+	LD	HL,45
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 239.	                                memcpy( matrix_blink, &p->display[2+4*6+2], 4 );        /* Matrix Blink */
+	LD	BC,4
+	PUSH	BC
+	LD	DE,matrix_blink
+	LD	HL,47
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 240.	                        }
+; 241.	                        else {
+	JR	?0032
+?0031:
+; 242.	                                memcpy( &leddata, p->display, 2 );
+	LD	BC,2
+	PUSH	BC
+	LD	HL,4
+	ADD	HL,SP
+	LD	E,L
+	LD	D,H
+	LD	HL,19
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	POP	BC
+	LDIR
+; 243.	                                leddata &= SWLED_CABCAB;
+	LD	HL,2
+	ADD	HL,SP
+	LD	A,(HL)
+	AND	2
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	0
+	LD	(HL),A
+; 244.	                                sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+	LD	HL,(sw_led)
+	LD	A,L
+	AND	32
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	A,(IX-6)
+	AND	223
+	LD	E,A
+	LD	A,(IX-5)
+	AND	255
+	LD	D,A
+	LD	A,C
+	OR	E
+	LD	L,A
+	LD	A,B
+	OR	D
+	LD	H,A
+	LD	(sw_led),HL
+; 245.	                                memset( matrix_led, 0, 4*6 );                   /* Matrix-LED */
+	LD	BC,24
+	LD	DE,matrix_led
+	LD	HL,0
+	CALL	?MEMSET_L11
+; 246.	                                sw_blink = 0;
+	LD	HL,0
+	LD	(sw_blink),HL
+; 247.	                                memset( matrix_blink, 0, 4 );   /* Matrix Blink */
+	LD	BC,4
+	LD	DE,matrix_blink
+	LD	HL,0
+	CALL	?MEMSET_L11
+?0032:
+?0029:
+; 248.	                        }
+; 249.	                }
+; 250.	
+; 251.	                if( p->kind=='S' ){             /* 車両番号の登録 */
+	LD	L,(IX-8)
+	LD	H,(IX-7)
+	INC	HL
+	INC	HL
+	LD	A,(HL)
+	CP	83
+	JP	NZ,?0034
+?0033:
+; 252.	                        /*
+; 253.	                                address
+; 254.	                                        -------------- +1 -------------  ------------- +0 -------------
+; 255.	                 64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+; 256.	                        H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+; 257.	                                        -- Car No.--    ----- AD -----   -----Car No.--  -- Car No.----
+; 258.	                                            3210                             BA98             7654
+; 259.	
+; 260.	                                carNo
+; 261.	                                        -------------- +1 -------------  ------------- +0 -------------
+; 262.	                 64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+; 263.	                        H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+; 264.	                                        -- Car No.--    -- Car No.  --                  -- Car No.----
+; 265.	                                            7654           3210                              BA98
+; 266.	                        */
+; 267.	                        address &= 0x0F00;
+	LD	HL,address
+	LD	A,(HL)
+	AND	0
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	AND	15
+	LD	(HL),A
+; 268.	                        address |= ((p->carno & 0x00F00)<<4)  & 0x0F000;        /* car No. 3210 */
+	LD	HL,4
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	0
+	LD	E,A
+	INC	HL
+	LD	A,(HL)
+	AND	15
+	LD	D,A
+	EX	DE,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	A,L
+	AND	0
+	LD	E,A
+	LD	A,H
+	AND	240
+	LD	D,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	E
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	D
+	LD	(HL),A
+; 269.	                        address |= ((p->carno & 0x0F000)>>12) & 0x0000F;        /* car No. 7654 */
+	LD	HL,4
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	0
+	LD	E,A
+	INC	HL
+	LD	A,(HL)
+	AND	240
+	LD	D,A
+	LD	B,12
+	CALL	?US_RSH_L02
+	LD	A,E
+	AND	15
+	LD	C,A
+	LD	A,D
+	AND	0
+	LD	B,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	C
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	B
+	LD	(HL),A
+; 270.	                        address |= ((p->carno & 0x0000F)<<4)  & 0x000F0;        /* car No. BA98 */
+	LD	HL,4
+	LD	C,(IX-8)
+	LD	B,(IX-7)
+	ADD	HL,BC
+	LD	A,(HL)
+	AND	15
+	LD	C,A
+	INC	HL
+	LD	A,(HL)
+	AND	0
+	LD	B,A
+	LD	L,C
+	LD	H,B
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	ADD	HL,HL
+	LD	A,L
+	AND	240
+	LD	C,A
+	LD	A,H
+	AND	0
+	LD	B,A
+	LD	HL,address
+	LD	A,(HL)
+	OR	C
+	LD	(HL),A
+	INC	HL
+	LD	A,(HL)
+	OR	B
+	LD	(HL),A
+?0034:
+; 271.	                }
+; 272.	
+; 273.	                if( p->kind=='N' ){             /* 一時的処置 */
+	LD	L,(IX-8)
+	LD	H,(IX-7)
+	INC	HL
+	INC	HL
+	LD	A,(HL)
+	CP	78
+	JR	NZ,?0036
+?0035:
+; 274.	                        if( (address & 0x0F00) == p->adr ){
+	LD	HL,(address)
+	LD	A,L
+	AND	0
+	LD	C,A
+	LD	A,H
+	AND	15
+	LD	B,A
+	LD	L,(IX-8)
+	LD	H,(IX-7)
+	LD	D,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,D
+	AND	A
+	SBC	HL,BC
+	JR	NZ,?0038
+?0037:
+; 275.	                                return 1;
+	LD	A,1
+; 276.	                        }
+	JR	?0041
+?0038:
+?0036:
+; 277.	                }
+; 278.	                /** 応答が必要な場合、送信をおこなう */
+; 279.	                if( address == p->adr ){
+	LD	L,(IX-8)
+	LD	H,(IX-7)
+	LD	B,(HL)
+	INC	HL
+	LD	H,(HL)
+	LD	L,B
+	LD	BC,(address)
+	AND	A
+	SBC	HL,BC
+	JR	NZ,?0040
+?0039:
+; 280.	                        return 1;
+	LD	A,1
+; 281.	                }
+	JR	?0041
+?0040:
+; 282.	                return 0;
+	XOR	A
+; 283.	}
+?0041:
+	LD	SP,IX
+	POP	IX
+	RET
+asci_0_recv_ir:
+; 284.	
+; 285.	
+; 286.	/************************************************************************
+; 287.	
+; 288.	        Function name   << asci_0_recv_ir >>
+; 289.	                                        受信割り込み処理
+; 290.	        Syntax                  asci_0_recv_ir( char data, char status );
+; 291.	        Argument                none
+; 292.	        Author                  TOA Corporation  K.Honda
+; 293.	        Revision                a00 2000/06/27
+; 294.	
+; 295.	*************************************************************************/
+; 296.	void asci_0_recv_ir( char data, char status )
+; 297.	{
+	PUSH	IX
+	LD	IX,0
+	ADD	IX,SP
+	PUSH	BC
+	PUSH	DE
+; 298.	/*.     ---------------------　処理詳細説明  ----------------------------       */
+; 299.	/*  フェーズ毎に受信データを取り込む                                                                    */
+; 300.	/*. ------------------------------------------------------------------  */
+; 301.	status=0;
+	LD	(IX-2),0
+; 302.	                if( data == DLE ){              /* ＤＬＥ受信 */
+	LD	A,E
+	CP	16
+	JR	NZ,?0043
+?0042:
+; 303.	                        recvdle = 1;
+	LD	A,1
+	LD	(recvdle),A
+; 304.	                        return;
+; 305.	                }
+	JP	?0068
+?0043:
+; 306.	                if( data == STX ){              /* ＳＴＸ受信 */
+	LD	B,(IX-4)
+	DEC	B
+	DEC	B
+	JR	NZ,?0045
+?0044:
+; 307.	                        if( recvdle ){          /*  DLE+STX */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0047
+?0046:
+; 308.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 309.	                                recvphase = COMM_WAIT_ETX;
+	LD	A,1
+	LD	(recvphase),A
+; 310.	                                recvlen = 0;
+	XOR	A
+	LD	(recvlen),A
+; 311.	                                recvbcc = 0;
+	XOR	A
+	LD	(recvbcc),A
+?0047:
+; 312.	                        }
+; 313.	                        return;
+; 314.	                }
+	JP	?0068
+?0045:
+; 315.	        
+; 316.	                switch( recvphase ){
+	LD	A,(recvphase)
+	CP	0
+	JR	NZ,?0050
+?0049:
+; 317.	                case COMM_WAIT_STX:             /* ＳＴＸ待ち */
+; 318.	                        break;
+	JP	?0048
+?0050:
+	CP	1
+	JR	NZ,?0058
+; 319.	        
+; 320.	                case COMM_WAIT_ETX:
+; 321.	                        if( recvdle ){          /* ＤＬＥ処理 */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0052
+?0051:
+; 322.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 323.	                                if( data == ETX ){              /* ＥＴＸの受信 ( DLE+ETX ) */
+	LD	A,(IX-4)
+	CP	3
+	JR	NZ,?0054
+?0053:
+; 324.	                                        recvbcc ^= data;
+	LD	A,(recvbcc)
+	XOR	(IX-4)
+	LD	(recvbcc),A
+; 325.	                                        recvphase = COMM_WAIT_BCC;
+	LD	A,2
+	LD	(recvphase),A
+; 326.	                                        break;
+	JP	?0048
+?0054:
+; 327.	                                }
+; 328.	                                data = data - 0x40;     /* データのＤＬＥ拡張 */
+	LD	A,(IX-4)
+	ADD	A,192
+	LD	(IX-4),A
+?0052:
+; 329.	                        }
+; 330.	        
+; 331.	                        if( recvlen<sizeof(recvbuff) ){
+	LD	A,(recvlen)
+	CP	64
+	JR	NC,?0056
+?0055:
+; 332.	                                recvbcc ^= data;
+	LD	A,(recvbcc)
+	XOR	(IX-4)
+	LD	(recvbcc),A
+; 333.	                                recvbuff[recvlen++] = data;
+	LD	HL,recvlen
+	LD	C,(HL)
+	INC	(HL)
+	LD	B,0
+	LD	HL,recvbuff
+	ADD	HL,BC
+	LD	B,(IX-4)
+	LD	(HL),B
+; 334.	                        }
+; 335.	                        else {
+	JR	?0057
+?0056:
+; 336.	                                recvphase = COMM_WAIT_STX;
+	XOR	A
+	LD	(recvphase),A
+?0057:
+; 337.	                        }
+; 338.	                        break;
+	JR	?0048
+?0058:
+	CP	2
+	JR	NZ,?0048
+; 339.	        
+; 340.	                case COMM_WAIT_BCC:
+; 341.	                        if( recvdle ){          /* ＤＬＥ処理 */
+	LD	A,(recvdle)
+	OR	A
+	JR	Z,?0060
+?0059:
+; 342.	                                recvdle = 0;
+	XOR	A
+	LD	(recvdle),A
+; 343.	                                data = data - 0x40;     /* データのＤＬＥ拡張 */
+	LD	A,(IX-4)
+	ADD	A,192
+	LD	(IX-4),A
+?0060:
+; 344.	                        }
+; 345.	                        recvbcc ^= data;
+	LD	A,(recvbcc)
+	XOR	(IX-4)
+	LD	(recvbcc),A
+; 346.	                        if( recvbcc==0 ){
+	OR	A
+	JR	NZ,?0062
+?0061:
+; 347.	                                if( recvlen==recvbuff[0]+1 ){
+	LD	BC,(recvbuff)
+	LD	B,0
+	INC	BC
+	LD	DE,(recvlen)
+	LD	D,0
+	LD	L,C
+	LD	H,B
+	AND	A
+	SBC	HL,DE
+	JR	NZ,?0064
+?0063:
+; 348.	                                        asci_0_rx_disable();
+	CALL	asci_0_rx_disable
+; 349.	                                        __enable();
+	CALL	__enable
+; 350.	                                        if( mcpReceive( &recvbuff[1], recvlen-1 ) ){
+	LD	A,(recvlen)
+	ADD	A,255
+	LD	C,A
+	LD	DE,recvbuff+1
+	CALL	mcpReceive
+	OR	A
+	JR	Z,?0066
+?0065:
+; 351.	                                                mcpSend();
+	CALL	mcpSend
+; 352.	                                        }
+; 353.	                                        else {
+	JR	?0067
+?0066:
+; 354.	                                                __disable();
+	CALL	__disable
+; 355.	                                                asci_0_rx_enable();
+	CALL	asci_0_rx_enable
+?0067:
+?0064:
+?0062:
+; 356.	                                        }
+; 357.	                                }
+; 358.	                        }
+; 359.	                        recvphase = COMM_WAIT_STX;
+	XOR	A
+	LD	(recvphase),A
+; 360.	                        break;
+	JR	?0048
+?0048:
+; 361.	                }
+; 362.	}
+?0068:
+	LD	SP,IX
+	POP	IX
+	RET
+; 363.	
+	RSEG	UDATA0
+address:
+	DEFS	2
+sendarea:
+	DEFS	8
+mcp_active:
+	DEFS	1
+mcp_sendactive:
+	DEFS	1
+recvbuff:
+	DEFS	64
+recvlen:
+	DEFS	1
+recvphase:
+	DEFS	1
+recvdle:
+	DEFS	1
+recvbcc:
+	DEFS	1
+sendbuff:
+	DEFS	64
+sendlen:
+	DEFS	1
+sendcnt:
+	DEFS	1
+	END

@@ -1,0 +1,356 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:45  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvaumain.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "vect.h"
+                    15:    #include    "iodefine.h"
+                    16:    
+                    17:    #include        "table.h"
+                    18:    
+                    19:    /*@@@S*/
+                    20:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    21:            ƒOƒ[ƒoƒ‹•Ï”
+                    22:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    23:            
+                    24:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    25:            ƒ[ƒJƒ‹’è”’è‹`
+                    26:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    27:    
+                    28:    
+                    29:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    30:            ƒ[ƒJƒ‹\‘¢‘Ì’è‹`
+                    31:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    32:    
+                    33:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    34:            ƒ[ƒJƒ‹ƒe[ƒuƒ‹
+                    35:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    36:    
+                    37:    
+                    38:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    39:                    ŠO•”ŽQÆ
+                    40:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    41:    extern  void dvaIOOut( unsigned long onbit, unsigned long offbit );
+                    42:    extern  int RAMCheck( void );
+                    43:    extern  int DUALRAMCheck( void );
+                    44:    extern  int ROMCheck( void );
+                    45:    extern  int boot( char *filename );
+                    46:    extern  void jump_app( void );
+                    47:    
+                    48:    extern  char    watchDogCount;
+                    49:    extern  char    watchDogFlag;
+                    50:    extern  char    watchDogON;
+                    51:    
+                    52:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    53:                    ƒ[ƒJƒ‹•Ï”
+                    54:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    55:    
+                    56:    /*@@@E*/
+                    57:    /************************************************************************
+                    58:    *                                                                                                                                               *
+                    59:    *       Function name   << main >>                                                                                      *
+                    60:    *                                       ƒƒCƒ“ŠÖ”                                                                                      *
+                    61:    *       Syntax                  main( void );                                                                           *
+                    62:    *       Argument                none                                                                                            *
+                    63:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    64:    *       Revision                a00 2000/06/27                                                                          *
+                    65:    *                                                                                                                                               *
+                    66:    *************************************************************************/
+                    67:    void main( void )
+    000000              _main:                           ; function: main
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    68:    {
+    000004 19EE                   SUB.W       E6,E6
+    000006 1AC4                   SUB.L       ER4,ER4
+    000008 7A050000FF             MOV.L       #65535:32,ER5
+           FF           
+                    69:                    int             i;
+                    70:    
+                    71:                    dvaIOOut( 0, 0xFFFF );
+    00000E 0FD1                   MOV.L       ER5,ER1
+    000010 0FC0                   MOV.L       ER4,ER0
+    000012 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                    72:    
+                    73:    //              if( P4.DR.BIT.B0==0 ){
+                    74:                            if( RAMCheck() ){
+    000016 5E                     JSR         @_RAMCheck:24
+           <000000>     
+    00001A 0D00                   MOV.W       R0,R0
+    00001C 4720                   BEQ         L164:8
+                    75:                                    set_imask_ccr(1);
+    00001E 0480                   ORC.B       #-128:8,CCR
+                    76:                                    printf("RAM Check Error\r\n");
+    000020 7A00                   MOV.L       #L140:32,ER0
+           <00000000>   
+    000026 01006DF0               PUSH.L      ER0
+    00002A 5E                     JSR         @_printf:24
+           <000000>     
+    00002E 0B97                   ADDS.L      #4,SP
+                    77:                                    dvaIOOut( OUTSIGNAL_LED0, 0xFFFF );
+    000030 0FD1                   MOV.L       ER5,ER1
+    000032 1A80                   SUB.L       ER0,ER0
+    000034 F801                   MOV.B       #1:8,R0L
+    000036 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                    78:                                    Halt();
+    00003A 5E                     JSR         @_Halt:24
+           <000000>     
+    00003E              L164:                             
+                    79:                            }
+                    80:    //              }
+                    81:    
+                    82:    //              if( P4.DR.BIT.B0==0 ){
+                    83:                            if( ROMCheck() ){
+    00003E 5E                     JSR         @_ROMCheck:24
+           <000000>     
+    000042 0D00                   MOV.W       R0,R0
+    000044 4720                   BEQ         L165:8
+                    84:                                    set_imask_ccr(1);
+    000046 0480                   ORC.B       #-128:8,CCR
+                    85:                                    printf("ROM Check Error\r\n");
+    000048 7A00                   MOV.L       #L143:32,ER0
+           <00000000>   
+    00004E 01006DF0               PUSH.L      ER0
+    000052 5E                     JSR         @_printf:24
+           <000000>     
+    000056 0B97                   ADDS.L      #4,SP
+                    86:                                    dvaIOOut( OUTSIGNAL_LED1, 0xFFFF );
+    000058 0FD1                   MOV.L       ER5,ER1
+    00005A 1A80                   SUB.L       ER0,ER0
+    00005C F802                   MOV.B       #2:8,R0L
+    00005E 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                    87:                                    Halt();
+    000062 5E                     JSR         @_Halt:24
+           <000000>     
+    000066              L165:                             
+                    88:                            }
+                    89:    //              }
+                    90:    
+                    91:    //              if( P4.DR.BIT.B0==0 ){
+                    92:                            if( DUALRAMCheck() ){
+    000066 5E                     JSR         @_DUALRAMCheck:24
+           <000000>     
+    00006A 0D00                   MOV.W       R0,R0
+    00006C 4720                   BEQ         L166:8
+                    93:                                    set_imask_ccr(1);
+    00006E 0480                   ORC.B       #-128:8,CCR
+                    94:                                    printf("DUALRAM Check Error\r\n");
+    000070 7A00                   MOV.L       #L145:32,ER0
+           <00000000>   
+    000076 01006DF0               PUSH.L      ER0
+    00007A 5E                     JSR         @_printf:24
+           <000000>     
+    00007E 0B97                   ADDS.L      #4,SP
+                    95:                                    dvaIOOut( OUTSIGNAL_LED2, 0xFFFF );
+    000080 0FD1                   MOV.L       ER5,ER1
+    000082 1A80                   SUB.L       ER0,ER0
+    000084 F804                   MOV.B       #4:8,R0L
+    000086 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                    96:                                    Halt();
+    00008A 5E                     JSR         @_Halt:24
+           <000000>     
+    00008E              L166:                             
+                    97:                            }
+                    98:    //              }
+                    99:    
+                   100:                    memset( (char *)&DUALBOOT, 0, sizeof(DUALBOOT) );
+    00008E 1A80                   SUB.L       ER0,ER0
+    000090 F008                   MOV.B       #8:8,R0H
+    000092 01006DF0               PUSH.L      ER0
+    000096 0DE1                   MOV.W       E6,R1
+    000098 7A00001800             MOV.L       #1572864:32,ER0
+           00           
+    00009E 5E                     JSR         @_memset:24
+           <000000>     
+    0000A2 0B97                   ADDS.L      #4,SP
+                   101:    
+                   102:                    set_imask_ccr(0);
+    0000A4 067F                   ANDC.B      #127:8,CCR
+                   103:    
+                   104:    //              if( P4.DR.BIT.B2==0 ){
+                   105:                            for( i=0; i<5; i++ ){
+    0000A6 0DE6                   MOV.W       E6,R6
+    0000A8 4010                   BRA         L168:8
+    0000AA              L167:                             
+                   106:                                    if( boot_cpu2( "A:\\DVAU2.MOT" )==0 ){
+    0000AA 7A00                   MOV.L       #L149:32,ER0
+           <00000000>   
+    0000B0 5E                     JSR         @_boot_cpu2:24
+           <000000>     
+    0000B4 0D00                   MOV.W       R0,R0
+    0000B6 4708                   BEQ         L170:8
+                   107:                                            break;
+    0000B8 0B56                   INC.W       #1,R6
+    0000BA              L168:                             
+    0000BA 79260005               CMP.W       #5:16,R6
+    0000BE 4DEA                   BLT         L167:8
+    0000C0              L170:                             
+                   108:                                    }
+                   109:                            }
+                   110:                            if( i>=5 ){
+    0000C0 79260005               CMP.W       #5:16,R6
+    0000C4 4D20                   BLT         L171:8
+                   111:                                    set_imask_ccr(1);
+    0000C6 0480                   ORC.B       #-128:8,CCR
+                   112:                                    printf("Boot DVAU2 Error\r\n");
+    0000C8 7A00                   MOV.L       #L152:32,ER0
+           <00000000>   
+    0000CE 01006DF0               PUSH.L      ER0
+    0000D2 5E                     JSR         @_printf:24
+           <000000>     
+    0000D6 0B97                   ADDS.L      #4,SP
+                   113:                                    dvaIOOut( OUTSIGNAL_LED3, 0 );
+    0000D8 0FC1                   MOV.L       ER4,ER1
+    0000DA 1A80                   SUB.L       ER0,ER0
+    0000DC F808                   MOV.B       #8:8,R0L
+    0000DE 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   114:                                    Halt();
+    0000E2 5E                     JSR         @_Halt:24
+           <000000>     
+    0000E6              L171:                             
+                   115:                            }
+                   116:                            memset( (char *)DUALBOOT.data, 0, sizeof(DUALBOOT.data) );
+    0000E6 7A00000007             MOV.L       #2030:32,ER0
+           EE           
+    0000EC 01006DF0               PUSH.L      ER0
+    0000F0 7A00001800             MOV.L       #1572872:32,ER0
+           08           
+    0000F6 0DE1                   MOV.W       E6,R1
+    0000F8 5E                     JSR         @_memset:24
+           <000000>     
+    0000FC 0B97                   ADDS.L      #4,SP
+                   117:    //              }
+                   118:    
+                   119:                    if( boot( "A:\\DVAU1.MOT" ) ){
+    0000FE 7A00                   MOV.L       #L153:32,ER0
+           <00000000>   
+    000104 5E                     JSR         @_boot:24
+           <000000>     
+    000108 0D00                   MOV.W       R0,R0
+    00010A 4720                   BEQ         L172:8
+                   120:                            set_imask_ccr(1);
+    00010C 0480                   ORC.B       #-128:8,CCR
+                   121:                            printf("Boot DVAU1 Error\r\n");
+    00010E 7A00                   MOV.L       #L155:32,ER0
+           <00000000>   
+    000114 01006DF0               PUSH.L      ER0
+    000118 5E                     JSR         @_printf:24
+           <000000>     
+    00011C 0B97                   ADDS.L      #4,SP
+                   122:                            dvaIOOut( OUTSIGNAL_LED4, 0 );
+    00011E 0FC1                   MOV.L       ER4,ER1
+    000120 1A80                   SUB.L       ER0,ER0
+    000122 F810                   MOV.B       #16:8,R0L
+    000124 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   123:                            Halt();
+    000128 5E                     JSR         @_Halt:24
+           <000000>     
+    00012C              L172:                             
+                   124:                    }
+                   125:                    dvaIOOut( 0, 0xFFFF );
+    00012C 0FD1                   MOV.L       ER5,ER1
+    00012E 0FC0                   MOV.L       ER4,ER0
+    000130 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   126:    
+                   127:                    WatchDogReset();
+    000134 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+                   128:    
+                   129:                    jump_app();
+    000138 5E                     JSR         @_jump_app:24
+           <000000>     
+                   130:    }
+    00013C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   131:    
+  C                                                      ; section
+    000000              L140:
+    000000 52414D2043             .SDATAZ     "RAM Check Error"<H'0D><H'0A>
+           6865636B20   
+           4572726F72   
+           0D0A00       
+    000012              L143:
+    000012 524F4D2043             .SDATAZ     "ROM Check Error"<H'0D><H'0A>
+           6865636B20   
+           4572726F72   
+           0D0A00       
+    000024              L145:
+    000024 4455414C52             .SDATAZ     "DUALRAM Check Error"<H'0D><H'0A>
+           414D204368   
+           65636B2045   
+           72726F720D   
+           0A00         
+    00003A              L149:
+    00003A 413A5C4456             .SDATAZ     "A:\DVAU2.MOT"
+           4155322E4D   
+           4F5400       
+    000047              L152:
+    000047 426F6F7420             .SDATAZ     "Boot DVAU2 Error"<H'0D><H'0A>
+           4456415532   
+           204572726F   
+           720D0A00     
+    00005A              L153:
+    00005A 413A5C4456             .SDATAZ     "A:\DVAU1.MOT"
+           4155312E4D   
+           4F5400       
+    000067              L155:
+    000067 426F6F7420             .SDATAZ     "Boot DVAU1 Error"<H'0D><H'0A>
+           4456415531   
+           204572726F   
+           720D0A00     
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:45  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000140 Byte(s)
+CONSTANT SECTION(C):                                0x0000007A Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000140 Byte(s)
+TOTAL CONSTANT SECTION: 0x0000007A Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000001BA Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       13 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        1 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         29 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\dvaumain.c -object=.\obj\dvaumain.obj
+CPU         : 300ha:24

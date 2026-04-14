@@ -1,0 +1,209 @@
+;./*[paaCommA.ASM]*********************************************************
+;	【香港地下鉄　自動放送制御】
+;*-------------------------------------------------------------------*
+;	64180、64x180内蔵ＡＳＣＩ制御モジュール
+;*-------------------------------------------------------------------*
+;    Author	TOA Corporation   K.Honda
+;
+;    Revison	a00. 2000/06/27
+;********************************************************************/
+	module	'香港地下鉄 AAU PAA S/W'
+$.\INC\PAAHW.INC
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	プログラム部
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	RSEG	RCODE:CODE
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< asci_0_initialize >>				*
+;*			ASCI 0 の初期設定				*
+;*	Syntax		asci_0_initialize();				*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/08 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;	Boudrate         : 9600 bps.
+;	Character Length : 8 bits.
+;	Parity bit       : EVEN
+;	Stop Bit Length  : 1 stop bit.
+;	Trans , Receiver : Tx & Rx Enable.
+;	Interrupt        : Rx Enable, Tx Disable
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	asci_0_initialize		;.(Function)
+asci_0_initialize:			;.(Function)
+	ld	a,06h			;. ----- ASCI initial	-----
+	out0	(CNTLA0),a		;. ASCI control register A  ch 0
+					;. Start + 8bit + parity + Stop(1)
+	ld	a,02h
+	out0	(CNTLB0),a              ;. ASCI control register B  ch 0
+									;. Even Parity x16 Clock, /4 Speed Select =9600bps
+	ld	a,08h
+	out0	(STAT0),a               ;. ASCI status register     ch 0
+									;. Recive Int. Enable
+	ld	a,76h						;. TX enable, RX enable, RTS OFF
+	out0	(CNTLA0),a		;. ASCI control register A  ch 0
+
+	ret
+
+
+
+;/***********************************************************************
+;*																		*
+;*	Function name	<< asci_0_tx_disable >>								*
+;*			ASCI0送信禁止												*
+;*			ASCI0受信許可												*
+;*	Syntax		asci_0_tx_disable();									*
+;*	Argument	none													*
+;*	Author		TOA Corporation  K.Honda								*
+;*	Revision	a00 2000/06/27 											*
+;*																		*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 送信割り込み禁止(TIE=0)。
+; 受信許可(RE=1)。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	asci_0_tx_disable		;.(Function)
+asci_0_tx_disable:			;.(Function)
+	in0		a,(CNTLA0)		;. CNT A
+	set		4,a			;. RTS= 0 ( RTS OFF )
+	set		6,a			;. RE = 1 ( Rx Enable )
+	out0	(CNTLA0),a
+	in0		a,(STAT0)		;. Status
+	res		0,a			;. TIE = 0 ( Tx Interrupt Disable )
+	set		3,a			;. RIE = 1 ( Rx Interrupt Enable )
+	out0	(STAT0),a
+	ret
+
+;/***********************************************************************
+;*																		*
+;*	Function name	<< asci_0_tx_enable >>								*
+;*			ASCI0送信許可												*
+;*			ASCI0受信禁止												*
+;*	Syntax		asci_0_tx_enable();										*
+;*	Argument	none													*
+;*	Author		TOA Corporation  K.Honda								*
+;*	Revision	a00 2000/06/27 											*
+;*																		*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 送信割り込み許可(TIE=1)。
+; 受信禁止(RE=0)。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	asci_0_tx_enable		;.(Function)
+asci_0_tx_enable:			;.(Function)
+	in0		a,(CNTLA0)		;. CNT A
+	res		4,a			;. RTS= 1 ( RTS ON )
+	res		6,a			;. RE = 0 ( Rx Disable )
+	out0	(CNTLA0),a
+	in0		a,(STAT0)		;. Status
+	set		0,a			;. TIE = 1 ( Tx Interrupt Enable )
+	res		3,a			;. RIE = 0 ( Rx Interrupt Disable )
+	out0	(STAT0),a
+	ret
+
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< asci_0_transmit >>				*
+;*			ASCI 0 １バイト送信				*
+;*	Syntax		asci_0_transmit(ch);				*
+;*	Argument	char	ch	i	:送信データ		*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/08 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ASCI0 へ１バイト送信
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	asci_0_transmit			;.(Function)
+asci_0_transmit
+	ld	a,e
+	out0	(TDR0),a
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< asci_0_ir >>					*
+;*			ASCI 0 送受信割り込みエントリ			*
+;*	Syntax		asci_0_ir();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/08 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;	ＤＶＡＵ通信割り込み
+;		call asci_0_recv_ir( short int data )
+;				data	下位８ビット＝受信データ
+;						上位８ビット＝ステータス
+;
+;		call asci_0_send_ir( void )
+;
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	asci_0_ir
+	extern	asci_0_recv_ir			;.(Function)
+	extern	asci_0_send_ir			;.(Function)
+asci_0_ir:
+	di				;. 割り込み禁止
+	ex	af,af'			;. ﾚｼﾞｽﾀペアを裏ﾚｼﾞｽﾀに切り替え
+	exx
+	push	ix			;. INDEX ﾚｼﾞｽﾀセーブ
+	push	iy
+
+	;.・・・・・・・・・・・・・・・・
+	;. 割り込み要因判定
+	;.・・・・・・・・・・・・・・・・
+	in0	a,(STAT0)		;. ｽﾃｰﾀｽ読み込み
+	bit	7,a
+	jp	nz,asci_0_ir10		;. 受信割り込み
+	bit	1,a
+	jp	nz,asci_0_ir20		;. 送信割り込み
+	jp	asci_0_ir100
+	
+	;.・・・・・・・・・・・・・・・・
+	;. 受信割り込み処理
+	;.・・・・・・・・・・・・・・・・
+asci_0_ir10:				;.
+	ld	b,0
+	ld	c,a				;.ステータス設定
+	in0	a, (RDR0)		;.データ読み込み
+	ld	d, 0
+	ld	e, a
+
+	ld	a,c
+	and	070h
+	jp	z, asci_0_receive_10
+	
+	;.・・・・・・・・・・・・・・・・　エラーﾘｾｯﾄ
+	in0	a, (CNTLA0)
+	res	3, a
+	out0	(CNTLA0), a
+
+asci_0_receive_10:
+	call	asci_0_recv_ir		;.　受信割り込み処理呼び出し（Ｃ言語）
+	jp	asci_0_ir100
+	
+	;.・・・・・・・・・・・・・・・・
+	;. 送信割り込み処理
+	;.・・・・・・・・・・・・・・・・
+asci_0_ir20:				;.
+	call	asci_0_send_ir		;.　送信割り込み処理呼び出し（Ｃ言語）
+	jp	asci_0_ir100
+	
+asci_0_ir100:
+
+	pop	iy
+	pop	ix
+	ex	af,af'
+	exx
+	ei				;. 割り込み許可（多重割り込み）
+	reti
+
+	END
+

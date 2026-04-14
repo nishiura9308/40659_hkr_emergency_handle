@@ -1,0 +1,604 @@
+[Root]
+Most Recent Package=Maintenance Terminal
+
+
+[Package|Mentenance Terminal|Root]
+SubWizProgID=PDWizard.SetupPkgSubWiz
+BuildFolder=z:\MTRC\MENTE\Package
+
+[Package|Mentenance Terminal|Configure DAO ISAMs]
+Applicable=No
+
+[Package|Mentenance Terminal|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|Mentenance Terminal|Files Found]
+TMSSIM.exe=Z:\MTRC\MENTE\TMSSIM.exe
+
+[Package|Mentenance Terminal|Files Released]
+
+[Package|Mentenance Terminal|Missing Dependency Information]
+
+[Package|Mentenance Terminal|Out-of-Date Dependency Information]
+Z:\MTRC\MENTE\TMSSIM.exe=
+
+[Package|Mentenance Terminal|Files Added]
+z:\mtrc\mente\tmssim.exe=
+Z:\MTRC\MENTE\ANNOUNCE.DAT=
+
+[Package|Mentenance Terminal|Files Removed]
+
+[Package|Mentenance Terminal|Files In Project]
+C:\WINNT\system32\MSVBVM60.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+C:\WINNT\system32\VB6JP.DLL=Yes
+C:\WINNT\system32\MSCOMM32.OCX=Yes
+C:\WINNT\system32\MSCOMJP.DLL=Yes
+C:\WINNT\system32\MSCOMCTL.OCX=Yes
+C:\WINNT\system32\MSCMCJP.DLL=Yes
+C:\WINNT\system32\COMDLG32.OCX=Yes
+C:\WINNT\system32\CMDLGJP.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP.EXE=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP1.EXE=Yes
+C:\WINNT\system32\VB6STKIT.DLL=Yes
+D:\DevStudio6\VB98\Wizards\PDWizard\ST6UNST.EXE=Yes
+Z:\MTRC\MENTE\MENTEPC.exe=Yes
+Z:\MTRC\MENTE\TMSSIM.exe=Yes
+Z:\MTRC\MENTE\ROUTE15.DAT=Yes
+Z:\MTRC\MENTE\ROUTE10.DAT=Yes
+Z:\MTRC\MENTE\ROUTE11.DAT=Yes
+Z:\MTRC\MENTE\ROUTE12.DAT=Yes
+Z:\MTRC\MENTE\ROUTE13.DAT=Yes
+Z:\MTRC\MENTE\ROUTE14.DAT=Yes
+Z:\MTRC\MENTE\CONFIG.DAT=Yes
+Z:\MTRC\MENTE\LINE10.NAM=Yes
+Z:\MTRC\MENTE\LINE11.NAM=Yes
+Z:\MTRC\MENTE\LINE12.NAM=Yes
+Z:\MTRC\MENTE\LINE13.NAM=Yes
+Z:\MTRC\MENTE\LINE14.NAM=Yes
+Z:\MTRC\MENTE\LINE15.NAM=Yes
+Z:\MTRC\MENTE\ROUTE.NAM=Yes
+Z:\MTRC\MENTE\STATION.NAM=Yes
+Z:\MTRC\MENTE\STN10.NAM=Yes
+Z:\MTRC\MENTE\STN11.NAM=Yes
+Z:\MTRC\MENTE\STN12.NAM=Yes
+Z:\MTRC\MENTE\STN13.NAM=Yes
+Z:\MTRC\MENTE\ANNOUNCE.DAT=Yes
+
+[Package|Mentenance Terminal|Configure Registry Files]
+Applicable=No
+
+[Package|Mentenance Terminal|Configure Remote Servers]
+Applicable=No
+
+[Package|Mentenance Terminal|Install Locations]
+D:\MTRC\MENTE\MENTEPC.exe=$(AppPath)
+C:\WINNT\system32\MSVBVM60.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINNT\system32\VB6JP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMM32.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCOMJP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCMCJP.DLL=$(WinSysPath)
+C:\WINNT\system32\COMDLG32.OCX=$(WinSysPath)
+C:\WINNT\system32\CMDLGJP.DLL=$(WinSysPath)
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINNT\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+D:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+D:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+D:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+D:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+D:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+D:\MTRC\MENTE\STATION.NAM=$(AppPath)
+D:\MTRC\MENTE\STN10.NAM=$(AppPath)
+D:\MTRC\MENTE\STN11.NAM=$(AppPath)
+D:\MTRC\MENTE\STN12.NAM=$(AppPath)
+D:\MTRC\MENTE\STN13.NAM=$(AppPath)
+Z:\MTRC\MENTE\MENTEPC.exe=$(AppPath)
+Z:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+Z:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+Z:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+Z:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+Z:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+Z:\MTRC\MENTE\STATION.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN10.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN11.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN12.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN13.NAM=$(AppPath)
+Z:\MTRC\MENTE\ANNOUNCE.DAT=$(AppPath)
+
+[Package|Mentenance Terminal|Configure Shared Files]
+Applicable=Yes
+D:\MTRC\MENTE\MENTEPC.exe=No
+D:\MTRC\MENTE\TMSSIM.exe=No
+D:\MTRC\MENTE\ROUTE15.DAT=No
+D:\MTRC\MENTE\ROUTE10.DAT=No
+D:\MTRC\MENTE\ROUTE11.DAT=No
+D:\MTRC\MENTE\ROUTE12.DAT=No
+D:\MTRC\MENTE\ROUTE13.DAT=No
+D:\MTRC\MENTE\ROUTE14.DAT=No
+D:\MTRC\MENTE\CONFIG.DAT=No
+D:\MTRC\MENTE\LINE10.NAM=No
+D:\MTRC\MENTE\LINE11.NAM=No
+D:\MTRC\MENTE\LINE12.NAM=No
+D:\MTRC\MENTE\LINE13.NAM=No
+D:\MTRC\MENTE\LINE14.NAM=No
+D:\MTRC\MENTE\LINE15.NAM=No
+D:\MTRC\MENTE\ROUTE.NAM=No
+D:\MTRC\MENTE\STATION.NAM=No
+D:\MTRC\MENTE\STN10.NAM=No
+D:\MTRC\MENTE\STN11.NAM=No
+D:\MTRC\MENTE\STN12.NAM=No
+D:\MTRC\MENTE\STN13.NAM=No
+Z:\MTRC\MENTE\MENTEPC.exe=No
+Z:\MTRC\MENTE\TMSSIM.exe=No
+Z:\MTRC\MENTE\ROUTE15.DAT=Yes
+Z:\MTRC\MENTE\ROUTE10.DAT=Yes
+Z:\MTRC\MENTE\ROUTE11.DAT=Yes
+Z:\MTRC\MENTE\ROUTE12.DAT=Yes
+Z:\MTRC\MENTE\ROUTE13.DAT=Yes
+Z:\MTRC\MENTE\ROUTE14.DAT=Yes
+Z:\MTRC\MENTE\CONFIG.DAT=Yes
+Z:\MTRC\MENTE\LINE10.NAM=Yes
+Z:\MTRC\MENTE\LINE11.NAM=Yes
+Z:\MTRC\MENTE\LINE12.NAM=Yes
+Z:\MTRC\MENTE\LINE13.NAM=Yes
+Z:\MTRC\MENTE\LINE14.NAM=Yes
+Z:\MTRC\MENTE\LINE15.NAM=Yes
+Z:\MTRC\MENTE\ROUTE.NAM=Yes
+Z:\MTRC\MENTE\STATION.NAM=Yes
+Z:\MTRC\MENTE\STN10.NAM=Yes
+Z:\MTRC\MENTE\STN11.NAM=Yes
+Z:\MTRC\MENTE\STN12.NAM=Yes
+Z:\MTRC\MENTE\STN13.NAM=Yes
+Z:\MTRC\MENTE\ANNOUNCE.DAT=Yes
+
+[Package|Mentenance Terminal|Distribution]
+Type=multi
+Size=1.2 MB
+Title=Mentenance Terminal for DVAU
+
+[Package|Mentenance Terminal|Package]
+PackageFolder=z:\MTRC\MENTE\Package
+ProjectFolder=Z:\MTRC\MENTE
+ServerSideCab=
+File1=z:\MTRC\MENTE\Package\setup.exe
+File2=z:\MTRC\MENTE\Package\Setup.Lst
+File3=z:\MTRC\MENTE\Package\MENTEP1.CAB
+File4=z:\MTRC\MENTE\Package\MENTEP2.CAB
+Handler1=PDWizard.FloppyDplySubWiz
+Handler2=PDWizard.FolderDplySubWiz
+Handler3=PDWizard.WebPostDplySubWiz
+
+[Package|Mentenance Terminal|IconGroups]
+Group0=Mentenance Terminal for DVAU
+PrivateGroup0=-1
+Parent0=$(Programs)
+
+[Package|Mentenance Terminal|Mentenance Terminal for DVAU]
+Icon1=TMSSIM.exe
+Title1=TMS Simulator
+StartIn1=$(AppPath)
+Key1=Icon3
+Icon2=MENTEPC.exe
+Title2=Mentenance Terminal
+StartIn2=$(AppPath)
+Key2=Icon1
+
+
+[Package|Maintenance Terminal|Root]
+SubWizProgID=PDWizard.SetupPkgSubWiz
+BuildFolder=C:\Prg\25031\NISSIN\MTRC\MENTE\Package
+
+[Package|Maintenance Terminal|Configure DAO ISAMs]
+Applicable=No
+
+[Package|Maintenance Terminal|Configure DAO ODBC]
+JetWorkspace=
+ODBCDirect=
+
+[Package|Maintenance Terminal|Files Found]
+VB6STKIT.DLL=C:\WINDOWS\SYSTEM32\VB6STKIT.DLL
+TMSSIM.exe=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\TMSSIM.exe
+ANNOUNCE.DAT=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ANNOUNCE.DAT
+
+[Package|Maintenance Terminal|Files Released]
+
+[Package|Maintenance Terminal|Missing Dependency Information]
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\TMSSIM.exe=
+
+[Package|Maintenance Terminal|Out-of-Date Dependency Information]
+Z:\MTRC\MENTE\TMSSIM.exe=
+
+[Package|Maintenance Terminal|Files Added]
+tmssim.exe=
+announce.dat=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Announce.bef=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE13.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.BEF=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\MAINTENANCE.INI=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE30.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE31.DAT=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE10.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE11.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE12.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE14.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE15.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line30.nam=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line31.nam=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STATION.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN10.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN11.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN12.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN13.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN14.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN15.NAM=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn30.nam=
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn31.nam=
+
+[Package|Maintenance Terminal|Files Removed]
+z:\mtrc\mente\announce.dat=
+
+[Package|Maintenance Terminal|Files In Project]
+C:\Prg\25031\NISSIN\MTRC\MENTE\MAINTENANCE.EXE=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\TMSSIM.exe=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ANNOUNCE.DAT=Yes
+C:\WINDOWS\SYSTEM\MSVBVM60.DLL=Yes
+C:\WINDOWS\SYSTEM\OLEAUT32.DLL=Yes
+C:\WINDOWS\SYSTEM\OLEPRO32.DLL=Yes
+C:\WINDOWS\SYSTEM\ASYCFILT.DLL=Yes
+C:\WINDOWS\SYSTEM\STDOLE2.TLB=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=Yes
+C:\WINDOWS\SYSTEM\MSCOMM32.OCX=Yes
+C:\WINDOWS\SYSTEM\MSCOMCTL.OCX=Yes
+C:\WINDOWS\SYSTEM\COMDLG32.OCX=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=Yes
+C:\WINDOWS\SYSTEM\VB6STKIT.DLL=Yes
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Announce.bef=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE13.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.BEF=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\MAINTENANCE.INI=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE30.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE31.DAT=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE10.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE11.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE12.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE14.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE15.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line30.nam=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line31.nam=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STATION.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN10.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN11.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN12.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN13.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN14.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN15.NAM=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn30.nam=Yes
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn31.nam=Yes
+
+[Package|Maintenance Terminal|Configure Registry Files]
+Applicable=No
+
+[Package|Maintenance Terminal|Configure Remote Servers]
+Applicable=No
+
+[Package|Maintenance Terminal|Install Locations]
+D:\MTRC\MENTE\MENTEPC.exe=$(AppPath)
+C:\WINNT\system32\MSVBVM60.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINNT\system32\VB6JP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMM32.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCOMJP.DLL=$(WinSysPath)
+C:\WINNT\system32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINNT\system32\MSCMCJP.DLL=$(WinSysPath)
+C:\WINNT\system32\COMDLG32.OCX=$(WinSysPath)
+C:\WINNT\system32\CMDLGJP.DLL=$(WinSysPath)
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+D:\DevStudio6\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINNT\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+D:\DevStudio6\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+D:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+D:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+D:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+D:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+D:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+D:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+D:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+D:\MTRC\MENTE\STATION.NAM=$(AppPath)
+D:\MTRC\MENTE\STN10.NAM=$(AppPath)
+D:\MTRC\MENTE\STN11.NAM=$(AppPath)
+D:\MTRC\MENTE\STN12.NAM=$(AppPath)
+D:\MTRC\MENTE\STN13.NAM=$(AppPath)
+Z:\MTRC\MENTE\MENTEPC.exe=$(AppPath)
+Z:\MTRC\MENTE\TMSSIM.exe=$(AppPath)
+Z:\MTRC\MENTE\ROUTE15.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE10.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE11.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE12.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE13.DAT=$(AppPath)
+Z:\MTRC\MENTE\ROUTE14.DAT=$(AppPath)
+Z:\MTRC\MENTE\CONFIG.DAT=$(AppPath)
+Z:\MTRC\MENTE\LINE10.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE11.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE12.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE13.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE14.NAM=$(AppPath)
+Z:\MTRC\MENTE\LINE15.NAM=$(AppPath)
+Z:\MTRC\MENTE\ROUTE.NAM=$(AppPath)
+Z:\MTRC\MENTE\STATION.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN10.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN11.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN12.NAM=$(AppPath)
+Z:\MTRC\MENTE\STN13.NAM=$(AppPath)
+Z:\MTRC\MENTE\ANNOUNCE.DAT=$(AppPath)
+Z:\MTRC\Mente\MAINTENANCE.EXE=$(AppPath)
+C:\WINDOWS\SYSTEM32\msvbvm60.dll=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM32\VB6JP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMM32.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMJP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\MSCMCJP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\COMDLG32.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\CMDLGJP.DLL=$(WinSysPath)
+C:\WINDOWS\SYSTEM32\VB6STKIT.DLL=$(WinSysPathSysFile)
+C:\Prg\25031\NISSIN\MTRC\MENTE\MAINTENANCE.EXE=$(AppPath)
+D:\WINNT\system32\msvbvm60.dll=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\OLEAUT32.DLL=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\OLEPRO32.DLL=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\ASYCFILT.DLL=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\STDOLE2.TLB=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+D:\WINNT\system32\VB6JP.DLL=$(WinSysPath)
+D:\WINNT\system32\MSCOMM32.OCX=$(WinSysPath)
+D:\WINNT\system32\MSCOMJP.DLL=$(WinSysPath)
+D:\WINNT\system32\MSCOMCTL.OCX=$(WinSysPath)
+D:\WINNT\system32\MSCMCJP.DLL=$(WinSysPath)
+D:\WINNT\system32\COMDLG32.OCX=$(WinSysPath)
+D:\WINNT\system32\CMDLGJP.DLL=$(WinSysPath)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+D:\WINNT\system32\VB6STKIT.DLL=$(WinSysPathSysFile)
+D:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\TMSSIM.exe=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ANNOUNCE.DAT=$(AppPath)
+C:\WINDOWS\SYSTEM\MSVBVM60.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM\OLEAUT32.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM\OLEPRO32.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM\ASYCFILT.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM\STDOLE2.TLB=$(WinSysPathSysFile)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\Redist\COMCAT.DLL=$(WinSysPathSysFile)
+C:\WINDOWS\SYSTEM\MSCOMM32.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM\MSCOMCTL.OCX=$(WinSysPath)
+C:\WINDOWS\SYSTEM\COMDLG32.OCX=$(WinSysPath)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP.EXE=$(AppPath)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\SETUP1.EXE=$(WinPath)
+C:\WINDOWS\SYSTEM\VB6STKIT.DLL=$(WinSysPathSysFile)
+C:\Program Files\Microsoft Visual Studio\VB98\Wizards\PDWizard\ST6UNST.EXE=$(WinPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Announce.bef=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE13.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.BEF=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\MAINTENANCE.INI=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE30.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE31.DAT=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE10.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE11.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE12.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE14.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE15.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line30.nam=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line31.nam=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STATION.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN10.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN11.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN12.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN13.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN14.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN15.NAM=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn30.nam=$(AppPath)
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn31.nam=$(AppPath)
+
+[Package|Maintenance Terminal|Configure Shared Files]
+Applicable=Yes
+D:\MTRC\MENTE\MENTEPC.exe=No
+D:\MTRC\MENTE\TMSSIM.exe=No
+D:\MTRC\MENTE\ROUTE15.DAT=No
+D:\MTRC\MENTE\ROUTE10.DAT=No
+D:\MTRC\MENTE\ROUTE11.DAT=No
+D:\MTRC\MENTE\ROUTE12.DAT=No
+D:\MTRC\MENTE\ROUTE13.DAT=No
+D:\MTRC\MENTE\ROUTE14.DAT=No
+D:\MTRC\MENTE\CONFIG.DAT=No
+D:\MTRC\MENTE\LINE10.NAM=No
+D:\MTRC\MENTE\LINE11.NAM=No
+D:\MTRC\MENTE\LINE12.NAM=No
+D:\MTRC\MENTE\LINE13.NAM=No
+D:\MTRC\MENTE\LINE14.NAM=No
+D:\MTRC\MENTE\LINE15.NAM=No
+D:\MTRC\MENTE\ROUTE.NAM=No
+D:\MTRC\MENTE\STATION.NAM=No
+D:\MTRC\MENTE\STN10.NAM=No
+D:\MTRC\MENTE\STN11.NAM=No
+D:\MTRC\MENTE\STN12.NAM=No
+D:\MTRC\MENTE\STN13.NAM=No
+Z:\MTRC\MENTE\MENTEPC.exe=No
+Z:\MTRC\MENTE\TMSSIM.exe=No
+Z:\MTRC\MENTE\ROUTE15.DAT=Yes
+Z:\MTRC\MENTE\ROUTE10.DAT=Yes
+Z:\MTRC\MENTE\ROUTE11.DAT=Yes
+Z:\MTRC\MENTE\ROUTE12.DAT=Yes
+Z:\MTRC\MENTE\ROUTE13.DAT=Yes
+Z:\MTRC\MENTE\ROUTE14.DAT=Yes
+Z:\MTRC\MENTE\CONFIG.DAT=Yes
+Z:\MTRC\MENTE\LINE10.NAM=Yes
+Z:\MTRC\MENTE\LINE11.NAM=Yes
+Z:\MTRC\MENTE\LINE12.NAM=Yes
+Z:\MTRC\MENTE\LINE13.NAM=Yes
+Z:\MTRC\MENTE\LINE14.NAM=Yes
+Z:\MTRC\MENTE\LINE15.NAM=Yes
+Z:\MTRC\MENTE\ROUTE.NAM=Yes
+Z:\MTRC\MENTE\STATION.NAM=Yes
+Z:\MTRC\MENTE\STN10.NAM=Yes
+Z:\MTRC\MENTE\STN11.NAM=Yes
+Z:\MTRC\MENTE\STN12.NAM=Yes
+Z:\MTRC\MENTE\STN13.NAM=Yes
+Z:\MTRC\MENTE\ANNOUNCE.DAT=Yes
+Z:\MTRC\Mente\MAINTENANCE.EXE=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\MAINTENANCE.EXE=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\TMSSIM.exe=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ANNOUNCE.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Announce.bef=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE13.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.BEF=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\MAINTENANCE.INI=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\CONFIG.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE10.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE11.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE12.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE13.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE14.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE15.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE30.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE31.DAT=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE10.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE11.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE12.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE14.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\LINE15.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line30.nam=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Line31.nam=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\ROUTE.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STATION.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN10.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN11.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN12.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN13.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN14.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\STN15.NAM=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn30.nam=No
+C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Support\Stn31.nam=No
+
+[Package|Maintenance Terminal|Distribution]
+Type=multi
+Size=1.44 MB
+Title=Maintenance Terminal for DVAU
+
+[Package|Maintenance Terminal|Package]
+PackageFolder=C:\Prg\25031\NISSIN\MTRC\MENTE\Package
+ProjectFolder=C:\Prg\25031\NISSIN\MTRC\MENTE
+ServerSideCab=
+File1=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\setup.exe
+File2=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\Setup.Lst
+File3=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\MAINTE1.CAB
+File4=C:\Prg\25031\NISSIN\MTRC\MENTE\Package\MAINTE2.CAB
+Handler1=PDWizard.FloppyDplySubWiz
+Handler2=PDWizard.FolderDplySubWiz
+Handler3=PDWizard.WebPostDplySubWiz
+
+[Package|Maintenance Terminal|IconGroups]
+Group0=Mentenance Terminal for DVAU
+PrivateGroup0=False
+Parent0=$(Programs)
+
+[Package|Maintenance Terminal|Mentenance Terminal for DVAU]
+Icon1=TMSSIM.exe
+Title1=TMS Simulator
+StartIn1=$(AppPath)
+Key1=Icon3
+Icon2=MAINTENANCE.EXE
+Title2=Maintenance Terminal
+StartIn2=$(AppPath)
+Key2=Icon1

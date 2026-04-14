@@ -1,0 +1,96 @@
+# ==========================================================================
+#	◇◇◇　香港地下鉄自動放送　◇◇◇
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .r01 .c .msa
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ ICC ]]
+CC = iccz80
+AS = az80
+LN = xlink
+
+# [[ Compiler Option ]]
+CFLAGS = -P -gA -s -v1 -rn -ml -I$(INC) -I$(COMMINC) -DSIM=0 
+
+# [[ Assambler Option ]]
+AFLAGS = -v1 -X -S+ 
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# msa -> r01 using ICC Assenbler
+{.\src}.msa.r01:
+	$(AS) $(AFLAGS) $< -o $* -l $* 
+
+# .c -> r01 using ICC Compiler
+{.\src}.c.r01:
+	$(CC) $< -o $*.r01 $(CFLAGS) -a $*.s01 -l $*.lst -q
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+SRC		= .\src^\
+OBJ		= .\obj^\
+INC		= .\inc^\
+COMMINC	= ..\comminc^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	PAA
+
+A_OBJS	=	$(OBJ)paaInitA.r01 $(OBJ)paaTimeA.r01 $(OBJ)paaCommA.r01 $(OBJ)paaPioA.r01 
+
+C_OBJS	=	$(OBJ)paaMain.r01 $(OBJ)paaInit.r01 $(OBJ)paaPio.r01 $(OBJ)paaTimer.r01 \
+		$(OBJ)paaExec.r01 $(OBJ)paaComm.r01
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# R01 －＞ HEX ファイル
+#
+$(PGM).hex	: $(OBJS)
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -f LINK.CMD -o $(PGM).hex -l $(PGM).map -t -xes
+
+
+#初期設定（アセンブラーレベル）
+$(OBJ)paaInitA.r01 : $(SRC)paaInitA.msa $(INC)PAAHW.INC
+
+#タイマー割り込み処理（アセンブラーレベル）
+$(OBJ)paaTimeA.r01 : $(SRC)paaTimeA.msa $(INC)PAAHW.INC
+
+#非同期通信処理（アセンブラーレベル）
+$(OBJ)paaCommA.r01 : $(SRC)paaCommA.msa $(INC)PAAHW.INC
+
+#Ｉ／Ｏ処理（アセンブラーレベル）
+$(OBJ)paaPioA.r01 : $(SRC)paaPioA.msa $(INC)PAAHW.INC
+
+#初期設定
+$(OBJ)paaInit.r01 : $(SRC)paaInit.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#タイマー割り込み処理
+$(OBJ)paaTimer.r01 : $(SRC)paaTimer.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#編成間通信処理
+$(OBJ)paaComm.r01 : $(SRC)paaComm.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#Ｉ／Ｏ処理
+$(OBJ)paaPio.r01 : $(SRC)paaPio.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#編成間バスモード処理
+$(OBJ)paaExec.r01 : $(SRC)paaExec.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#メインルーティン
+$(OBJ)paaMain.r01 : $(SRC)paaMain.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+

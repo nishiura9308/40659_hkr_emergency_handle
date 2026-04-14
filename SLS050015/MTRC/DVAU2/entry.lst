@@ -1,0 +1,86 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     10-Sep-2004  17:15:03  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\entry.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  PEntryProgram                                          ; section
+                     1:    /********************************************************************
+                     2:    *       ÅyçÅç`ínâ∫ìSå¸ÇØé©ìÆóÒé‘ï˙ëóêßå‰ëïíuÅz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       í êMêßå‰ÉÇÉWÉÖÅ[Éã                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <machine.h>
+                    13:    
+                    14:    #pragma stacksize       4096
+                    15:    
+                    16:    #pragma entry EntryFunction
+                    17:    
+                    18:    #pragma section EntryProgram
+                    19:    
+                    20:    void EntryFunction( void )
+    000000              _EntryFunction:                  ; function: EntryFunction
+    000000 7A07                   MOV.L       #STARTOF S+SIZEOF S:32,SP
+           <00000000>   
+                    21:    {
+                    22:             set_imask_ccr(1);
+    000006 0480                   ORC.B       #-128:8,CCR
+                    23:    
+                    24:            HardwareSetup();                                // Use Hardware Setup
+    000008 5E                     JSR         @_HardwareSetup:24
+           <000000>     
+                    25:    
+                    26:            main();
+    00000C 5E                     JSR         @_main:24
+           <000000>     
+                    27:    
+                    28:            sleep();
+    000010 0180                   SLEEP
+                    29:    }
+    000012 5470                   RTS
+  S                                                      ; section
+    000000 00001000               .RES.W      2048
+                    30:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     10-Sep-2004  17:15:03  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000000 Byte(s)
+PROGRAM  SECTION(PEntryProgram):                    0x00000014 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+STACK    SECTION(S):                                0x00001000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000014 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+TOTAL STACK    SECTION: 0x00001000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00001014 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        2 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        1 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:          3 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\,..\dva2boot\inc\ .\src\entry.c -object=.\obj\entry.obj
+CPU         : 300ha:24

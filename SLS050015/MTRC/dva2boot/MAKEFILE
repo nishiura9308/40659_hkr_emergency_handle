@@ -1,0 +1,97 @@
+# ==========================================================================
+#	◇◇◇　香港地下鉄自動放送　◇◇◇
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .mot .obj .c .src
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ H8 ]]
+CC = ch38.exe
+AS = asm38.exe
+LN = optlnk38.exe
+CONV = cnvs.exe
+
+# [[ Compiler Option ]]
+CFLAGS = -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=$(INC),$(COMMINC)
+
+# [[ Assambler Option ]]
+AFLAGS = -cpu=300ha:24 -debug -list -chgincpath -errorpath
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# src -> obj using ICC Assenbler
+{.\src}.src.obj:
+	$(AS) $< $(AFLAGS) -object=$* 
+
+# .c -> obj using ICC Compiler
+{.\src}.c.obj:
+	$(CC) $(CFLAGS) $< -object=$*.obj
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+SRC		= .\src^\
+OBJ		= .\obj^\
+INC		= .\inc^\
+COMMINC	= ..\comminc^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	DVA2BOOT
+
+A_OBJS	=	$(OBJ)lowlvl.obj $(OBJ)jump.obj
+C_OBJS	=	$(OBJ)DBSCT.obj $(OBJ)sbrk.obj \
+		$(OBJ)vecttbl.obj $(OBJ)resetprg.obj \
+		$(OBJ)dvaumain.obj $(OBJ)dvainit.obj $(OBJ)boot.obj
+
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# OBJ －＞ MOT ファイル
+#
+$(PGM).mot	: $(OBJS) LINK.CMD
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -SubCommand=LINK.CMD
+	$(CONV) ".\DVA2BOOT.abs" ".\DVA2BOOT.mot"
+
+
+#システム供給
+$(OBJ)dbsct.obj : $(SRC)dbsct.c
+
+#システム供給
+$(OBJ)sbrk.obj : $(SRC)sbrk.c $(INC)sbrk.h
+
+#割り込みベクター定義
+$(OBJ)vecttbl.obj : $(SRC)vecttbl.c $(INC)vect.h
+
+#リセット開始処理
+$(OBJ)resetprg.obj : $(SRC)resetprg.c $(INC)iodefine.h 
+
+#ブート処理
+$(OBJ)boot.obj : $(SRC)boot.c $(INC)iodefine.h $(COMMINC)table.h
+
+#ブートＲＯＭ呼び出し
+$(OBJ)lowlvl.obj : $(SRC)lowlvl.src
+
+#ＡＰＰ呼び出し
+$(OBJ)jump.obj : $(SRC)jump.src
+
+
+#メインルーティン
+$(OBJ)dvaumain.obj : $(SRC)dvaumain.c $(INC)iodefine.h $(COMMINC)table.h
+
+#初期設定
+$(OBJ)dvainit.obj : $(SRC)dvainit.c $(INC)vect.h $(INC)iodefine.h
+
+

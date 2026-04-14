@@ -1,0 +1,202 @@
+	NAME	paatimer(16)
+	RSEG	CODE(0)
+	EXTERN	amp1Active
+	EXTERN	amp2Active
+	EXTERN	ampFailCount1
+	EXTERN	ampFailCount2
+	EXTERN	ledCount
+	EXTERN	noise_checkCount
+	EXTERN	nowReadIO
+	EXTERN	paaSignalIn
+	EXTERN	testCount
+	PUBLIC	timer_0_func
+	PUBLIC	timer_1_func
+	EXTERN	?CL64180L_4_04_L00
+	RSEG	CODE
+timer_0_func:
+; 1.	/********************************************************************
+; 2.	        【香港地下鉄向け自動列車放送制御装置】
+; 3.	*-------------------------------------------------------------------*
+; 4.	        時間制御モジュール
+; 5.	*-------------------------------------------------------------------*
+; 6.	        Author          TOA Corporation
+; 7.	
+; 8.	        Revision        a00. 2000/06/27         K.Honda
+; 9.	
+; 10.	*********************************************************************/
+; 11.	
+; 12.	#include "IOFUNC.h"
+; 13.	
+; 14.	#include "COMMDEF.h"
+; 15.	
+; 16.	/*@@@S*/
+; 17.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 18.	        グローバル変数
+; 19.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 20.	
+; 21.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 22.	        ローカル定数定義
+; 23.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 24.	
+; 25.	
+; 26.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 27.	        ローカル構造体定義
+; 28.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 29.	
+; 30.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 31.	        ローカルテーブル
+; 32.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 33.	
+; 34.	
+; 35.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 36.	                外部参照
+; 37.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 38.	extern  short   noise_checkCount;               /* 騒音検出カウンター */
+; 39.	extern  char    amp1Active;
+; 40.	extern  char    amp2Active;
+; 41.	extern  short   ampFailCount1;          /* アンプフェイルカウンターＣＨ。１ */
+; 42.	extern  short   ampFailCount2;          /* アンプフェイルカウンターＣＨ。２ */
+; 43.	extern  short   testCount;                      /* テスト用カウンター */
+; 44.	extern  char    ledCount;                       /* ＬＥＤ点滅カウンター */
+; 45.	
+; 46.	/** スイッチデータ **/
+; 47.	extern  short   nowReadIO;
+; 48.	#define IN_24V  0x1000
+; 49.	#define AMPON1  0x0400
+; 50.	#define AMPON2  0x0800
+; 51.	#define MICON   0x0020
+; 52.	
+; 53.	/*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; 54.	                ローカル変数
+; 55.	・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+; 56.	
+; 57.	
+; 58.	/*@@@E*/
+; 59.	/************************************************************************
+; 60.	
+; 61.	        Function name   << timer_0_func >>
+; 62.	                                        １０ｍＳタイマー割り込み処理
+; 63.	        Syntax                  timer_0_func( void );
+; 64.	        Argument                none
+; 65.	        Author                  TOA Corporation  K.Honda
+; 66.	        Revision                a00 2000/06/27
+; 67.	
+; 68.	*************************************************************************/
+; 69.	void timer_0_func( void )
+; 70.	{
+	PUSH	BC
+; 71.	extern  void paaSignalIn( void );
+; 72.	extern  void paaSignalOut( void );
+; 73.	
+; 74.	                paaSignalIn();
+	CALL	paaSignalIn
+; 75.	
+; 76.	                noise_checkCount++;             /* 騒音検出カウンター */
+	LD	HL,(noise_checkCount)
+	INC	HL
+	LD	(noise_checkCount),HL
+; 77.	
+; 78.	                if( nowReadIO & IN_24V ){               /* DC24V ON?*/
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	16
+	OR	B
+	JR	Z,?0001
+?0000:
+; 79.	                        if( amp1Active )
+	LD	A,(amp1Active)
+	OR	A
+	JR	Z,?0003
+?0002:
+; 80.	                                ampFailCount1++;
+	LD	HL,(ampFailCount1)
+	INC	HL
+	LD	(ampFailCount1),HL
+?0003:
+; 81.	                        if( amp2Active )
+	LD	A,(amp2Active)
+	OR	A
+	JR	Z,?0005
+?0004:
+; 82.	                                ampFailCount2++;
+	LD	HL,(ampFailCount2)
+	INC	HL
+	LD	(ampFailCount2),HL
+?0005:
+; 83.	                }
+; 84.	                else {
+	JR	?0006
+?0001:
+; 85.	                        ampFailCount1=0;
+	LD	HL,0
+	LD	(ampFailCount1),HL
+; 86.	                        ampFailCount2=0;
+	LD	HL,0
+	LD	(ampFailCount2),HL
+?0006:
+; 87.	                }
+; 88.	
+; 89.	                /* アンプがＯＮになれば　正常 */
+; 90.	                if( nowReadIO & AMPON1 ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	4
+	OR	B
+	JR	Z,?0008
+?0007:
+; 91.	                        ampFailCount1 = 0;
+	LD	HL,0
+	LD	(ampFailCount1),HL
+?0008:
+; 92.	                }
+; 93.	                if( nowReadIO & AMPON2 ){
+	LD	HL,(nowReadIO)
+	LD	A,L
+	AND	0
+	LD	B,A
+	LD	A,H
+	AND	8
+	OR	B
+	JR	Z,?0010
+?0009:
+; 94.	                        ampFailCount2 = 0;
+	LD	HL,0
+	LD	(ampFailCount2),HL
+?0010:
+; 95.	                }
+; 96.	
+; 97.	                testCount++;
+	LD	HL,(testCount)
+	INC	HL
+	LD	(testCount),HL
+; 98.	                ledCount++;
+	LD	HL,ledCount
+	INC	(HL)
+; 99.	}
+	POP	BC
+	RET
+timer_1_func:
+; 100.	
+; 101.	/************************************************************************
+; 102.	
+; 103.	        Function name   << timer_1_func >>
+; 104.	                                        １ｍＳタイマー割り込み処理
+; 105.	        Syntax                  timer_1_func( void );
+; 106.	        Argument                none
+; 107.	        Author                  TOA Corporation  K.Honda
+; 108.	        Revision                a00 2000/06/27
+; 109.	
+; 110.	*************************************************************************/
+; 111.	void timer_1_func( void )
+; 112.	{
+; 113.	
+; 114.	}
+	RET
+; 115.	
+	END

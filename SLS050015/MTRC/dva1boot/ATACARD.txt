@@ -1,0 +1,112 @@
+	CE2#	CE1#	A0		Offset	Data Bus
+*	 L		 L		L		0H,8H	D15-D0		Word Data
+*	 L		 L		H		1H,9H	D15-D0		Word Data
+	 H		 L		L		0H,8H	D7-D0		Even Byte Data
+	 H		 L		H		9H		D7-D0		Odd Byte Data
+*	 L		 H		X		8H,9H	D15-D8		Odd Byte Data
+	 H		 L		H		1H,0Dh	D7-D0		Error/Feature 
+*	 L		 H		X		0H,1H	D15-D8		Error/Feature
+*	 L		 L		X		0CH,0DH	D15-D8		Error/Feature
+
+			* = This Board is Not used
+
+	I/O Mapped Addressing
+
+				Primary	Secondary	Contiguous	IORD#=0			IOWR#=0
+		REG#	A9::0	A9::0			A3::0
+		 L		1F0h	170h			0h		Even Read Data	Even Write Data
+		 L		1F1h	171h			1h		Error Register	Feature
+		 L		1F2h	172h			2h		Sector Count	Sector Count
+		 L		1F3h	173h			3h		Sector Number	Sector Number
+		 L		1F4h	174h			4h		Cylinder Low	Cylinder Low
+		 L		1F5h	175h			5h		Cylinder High	Cylinder High
+		 L		1F6h	176h			6h		Drive/Head		Drive/Head
+		 L		1F7h	177h			7h		Status			Command
+		 L		---		---				8h		Duplicate		Duplicate
+		 										Even Read Data	Even Write Data
+		 L		---		---				9h		Duplicate		Duplicate
+		 										Odd Read Data	Odd Write Data
+		 L		---		---				0Dh		Duplicate Error	Duplicate Feature
+		 L		3F6h	376h			0Eh		Alternate Status Device Control
+		 L		3F7h	377h			0Fh		Drive Address	Reserved
+
+
+	Memory Mapped
+		REG#	A10	A9::4	A3	A2	A1	A0		OE#=0			WE#=0
+		 H		 L	   X	L	L	L	L		Read Data		Write Data
+		 H		 L	   X	L	L	L	H		Error			Feature
+		 H		 L	   X	L	L	H	L		Sector Count	Sector Count
+		 H		 L	   X	L	L	H	H		Sector Number	Sector Number
+		 H		 L	   X	L	H	L	L		Cylinder Low	Cylynder Low
+		 H		 L	   X	L	H	L	H		Cylinder High	Cylynder High
+		 H		 L	   X	L	H	H	L		Drive/Head		Drive/Head
+		 H		 L	   X	L	H	H	H		Status			Command
+		 H		 L	   X	H	L	L	L		Duplicate Even	Duplicate Even
+		 										Read Data		Write Data
+		 H		 L	   X	H	L	L	H		Duplicate Odd	Duplicate Odd
+		 										Read Data		Write Data
+		 H		 L	   X	H	L	H	L		
+		 H		 L	   X	H	L	H	H		
+		 H		 L	   X	H	H	L	L
+		 H		 L	   X	H	H	L	H
+		 H		 L	   X	H	H	H	L		Alt Status		Device Ctl
+		 H		 L	   X	H	H	H	H		Drive Address	Reserved
+
+		 H		 H	   X	X	X	X	L		Even Read Data	Even Write Data
+		 H		 H	   X	X	X	X	H		Odd Read Data	Odd Write Data
+
+
+
+	Command Block Cylinder-Head-Sector Addressing
+
+		+1	Feautre
+		+2	Sector Count
+		+3	Sector Number
+		+4	Cylinder Low
+		+5	Cylinder High
+		+6	101<Drv><Head>
+		+7	Command
+
+	Command Block Logical Block Addressing
+	
+		+1	Feature
+		+2	Sector Count
+		+3	LBN A7-A0
+		+4	LBN A15-A8
+		+5	LBN	A23-A16
+		+6	111<Drv><LBN A27-A24>
+		+7	Command
+		
+		LBA = ( C*HpC + H ) * SpH + S-1		: Logical Block Address
+		C = LBA/( HpC * SpH )				: Cylinder Number
+		H = (LBA/SpH) mod HpC				: Head Number
+		S = (LBA mod SpH)+1					: Sector Number
+									HpC	: Heads per Cylinder
+									SpH	: Sectors per Head(Track)
+
+
+	Drive/Head Register
+		b7   b6   b5   b4   b3   b2   b1   b0
+		 1   LBA   1   DRV  --- HEAD/LBA ----
+		 		LBA = 1..LBA mode, 0..CHS mode
+
+	Status And Alternate Status
+		b7   b6   b5   b4   b3   b2   b1   b0
+		BSY  DRDY DWF  DSC  DRQ  CORR IDX  ERR
+
+			IDX = ANSI ATA Standard
+			DWF = Drive Write Failute
+
+	Device Control Register
+		b7   b6   b5   b4   b3   b2   b1   b0
+		--   --   --   --   --  SRST nlEN  --
+
+			nlEN = I/O interface mode only, negated unless enable
+			SRST = Software Reset Bit
+
+	Drive Address Register
+		b7   b6   b5   b4   b3   b2   b1   b0
+		--  nWTG nHS3 nHS2 nHS1 nHS0 nDS1 nDS0
+
+			nWTG = 0... While a write operation is in progress.
+

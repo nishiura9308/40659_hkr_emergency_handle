@@ -1,0 +1,344 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/386                                        #
+# Front End V4.20N                                     30/Nov/2000  11:27:17 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  .\src\mcpmain.c                                     #
+#       List file     =  .\obj\mcpmain.lst                                   #
+#       Object file   =  .\obj\mcpmain.r01                                   #
+#       ASM file      =  .\obj\mcpmain.s01                                   #
+#       Command line  =  .\src\mcpMain.c -o .\obj\mcpMain.r01 -P -gA -s -v1  #
+#                        -rn -ml -I.\inc\ -I..\comminc\ -DSIM=0 -a           #
+#                        .\obj\mcpMain.s01 -l .\obj\mcpMain.lst -q           #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+   \   0000                    NAME    mcpmain(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    UDATA0(0)
+   \   0000                    EXTERN  __enable
+   \   0000                    EXTERN  address
+   \   0000                    EXTERN  blinkPositionData
+   \   0000                    EXTERN  io_output_off
+   \   0000                    EXTERN  io_output_on
+   \   0000                    PUBLIC  main
+   \   0000                    EXTERN  matrix_blink
+   \   0000                    EXTERN  matrix_led
+   \   0000                    EXTERN  mcpDynamicScanDisplay
+   \   0000                    EXTERN  mcpInitialize
+   \   0000                    EXTERN  now_matrix_blink
+   \   0000                    EXTERN  now_matrix_led
+   \   0000                    EXTERN  now_sw_blink
+   \   0000                    EXTERN  now_sw_led
+   \   0000                    EXTERN  prg_version
+   \   0000                    EXTERN  rawData
+   \   0000                    EXTERN  read_dipsw
+   \   0000                    EXTERN  sendarea
+   \   0000                    EXTERN  sw_blink
+   \   0000                    EXTERN  sw_led
+   \   0000                    EXTERN  watch_dog_reset
+   \   0000                    EXTERN  ?CL64180L_4_04_L00
+   \   0000                    EXTERN  ?MEMSET_L11
+   \   0000                    RSEG    CODE
+   \   0000            main:
+      1          /********************************************************************
+      2                  【香港地下鉄向け自動列車放送制御装置】
+      3          *-------------------------------------------------------------------*
+      4                  メイン制御モジュール
+      5          *-------------------------------------------------------------------*
+      6                  Author          TOA Corporation
+      7          
+      8                  Revision        a00. 2000/06/27         K.Honda
+      9          
+     10          *********************************************************************/
+     11          
+     12          #include        <stdio.h>
+     13          #include        <string.h>
+     14          
+     15          #include "IOFUNC.h"
+     16          
+     17          #include "COMMDEF.h"
+     18          
+     19          /*@@@S*/
+     20          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     21                  グローバル変数
+     22          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     23          
+     24          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     25                  ローカル定数定義
+     26          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     27          #define SWLED_HL                0x0020
+     28          
+     29          
+     30          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     31                  ローカル構造体定義
+     32          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     33          
+     34          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     35                  ローカルテーブル
+     36          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     37          
+     38          
+     39          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     40                          外部参照
+     41          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     42          extern  void mcpInitialize( void );
+     43          extern  void mcpDynamicScanDisplay( void );
+     44          
+     45          /** 自アドレス **/
+     46          extern  unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+     47                                                                                             下位４ビット＝ＤＩＰＳＷアドレス */
+     48          
+     49          /** 送信エリア **/
+     50          extern  struct MCPSEND  sendarea;
+     51          
+     52          /** スイッチデータ **/
+     53          extern  short   sw_led;                         /*スイッチＬＥＤ*/
+     54          extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+     55          extern  short   sw_blink;                       /*スイッチ点滅データ*/
+     56          extern  char    matrix_blink[4];        /*６ｘ４マトリックス点滅データ*/
+     57          
+     58          extern  short   now_sw_led;                             /*現在表示中、スイッチＬＥＤ*/
+     59          extern  char    now_matrix_led[4][6];   /*現在表示中、６ｘ４マトリックスＬＥＤ*/
+     60          extern  short   now_sw_blink;
+     61          extern  char    now_matrix_blink[4];
+     62          
+     63          extern  char    rawData[16][10];                        /* ＲＡＷデータ */
+     64          extern  char    blinkPositionData[16][10];      /*点滅位置データ*/
+     65          
+     66          
+     67          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     68                          ローカル変数
+     69          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     70          static  char    readCount;
+     71          static  short   preReadIO;
+     72          
+     73          /*@@@E*/
+     74          /************************************************************************
+     75          
+     76                  Function name   << main >>
+     77                                                  メイン関数
+     78                  Syntax                  main( void );
+     79                  Argument                none
+     80                  Author                  TOA Corporation  K.Honda
+     81                  Revision                a00 2000/06/27
+     82          
+     83          *************************************************************************/
+     84          void main( void )
+     85          {
+   \   0000  DDE5              PUSH    IX
+   \   0002  DD210000          LD      IX,0
+   \   0006  DD39              ADD     IX,SP
+   \   0008  F5                PUSH    AF
+   \   0009  F5                PUSH    AF
+   \   000A  F5                PUSH    AF
+     86                          int             dipsw;
+     87                          union {
+     88                                  unsigned short  WORD;
+     89                                  unsigned char   BYTE[2];
+     90                          } swapdata;
+     91                          unsigned char   data;
+     92          
+     93                          io_output_off( 0x00, 0xFF );    /* ALL I/O OFF(LED off) */
+   \   000B  0EFF              LD      C,255
+   \   000D  1E00              LD      E,0
+   \   000F  CD0000            CALL    io_output_off
+     94                          io_output_on( 0x00, 0x05 );
+   \   0012  0E05              LD      C,5
+   \   0014  1E00              LD      E,0
+   \   0016  CD0000            CALL    io_output_on
+     95          
+     96                          mcpInitialize();
+   \   0019  CD0000            CALL    mcpInitialize
+     97          
+     98                          io_output_on( 0x00, 0x80 );             /* Watch Dog Enable */
+   \   001C  0E80              LD      C,128
+   \   001E  1E00              LD      E,0
+   \   0020  CD0000            CALL    io_output_on
+     99          
+    100                          dipsw = read_dipsw();
+   \   0023  CD0000            CALL    read_dipsw
+   \   0026  DD75FA            LD      (IX-6),L
+   \   0029  DD74FB            LD      (IX-5),H
+    101          
+    102                          address &= 0x0F0FF;
+   \   002C  210000            LD      HL,address
+   \   002F  7E                LD      A,(HL)
+   \   0030  E6FF              AND     255
+   \   0032  77                LD      (HL),A
+   \   0033  23                INC     HL
+   \   0034  7E                LD      A,(HL)
+   \   0035  E6F0              AND     240
+   \   0037  77                LD      (HL),A
+    103                          if( (dipsw & 0x20)==0 ){                /* ODD Car */
+   \   0038  DD7EFA            LD      A,(IX-6)
+   \   003B  E620              AND     32
+   \   003D  47                LD      B,A
+   \   003E  DD7EFB            LD      A,(IX-5)
+   \   0041  E600              AND     0
+   \   0043  B0                OR      B
+   \   0044  200E              JR      NZ,?0009
+   \   0046            ?0008:
+    104                                  address |= 0x0A00;
+   \   0046  210000            LD      HL,address
+   \   0049  7E                LD      A,(HL)
+   \   004A  F600              OR      0
+   \   004C  77                LD      (HL),A
+   \   004D  23                INC     HL
+   \   004E  7E                LD      A,(HL)
+   \   004F  F60A              OR      10
+   \   0051  77                LD      (HL),A
+    105                          }
+    106                          else {                                  /* Even Car */
+   \   0052  180C              JR      ?0010
+   \   0054            ?0009:
+    107                                  address |= 0x0B00;
+   \   0054  210000            LD      HL,address
+   \   0057  7E                LD      A,(HL)
+   \   0058  F600              OR      0
+   \   005A  77                LD      (HL),A
+   \   005B  23                INC     HL
+   \   005C  7E                LD      A,(HL)
+   \   005D  F60B              OR      11
+   \   005F  77                LD      (HL),A
+   \   0060            ?0010:
+    108                          }
+    109          
+    110                          sendarea.mcpsw[0] = 0;
+   \   0060  AF                XOR     A
+   \   0061  320300            LD      (sendarea+3),A
+    111                          sendarea.mcpsw[1] = 0;
+   \   0064  AF                XOR     A
+   \   0065  320400            LD      (sendarea+4),A
+    112                          sendarea.mcpsw[2] = (char)dipsw;
+   \   0068  DD46FA            LD      B,(IX-6)
+   \   006B  78                LD      A,B
+   \   006C  320500            LD      (sendarea+5),A
+    113          
+    114                          swapdata.WORD = prg_version;
+   \   006F  2A0000            LD      HL,(prg_version)
+   \   0072  DD75FC            LD      (IX-4),L
+   \   0075  DD74FD            LD      (IX-3),H
+    115                          data = swapdata.BYTE[0];
+   \   0078  DD46FC            LD      B,(IX-4)
+   \   007B  DD70FE            LD      (IX-2),B
+    116                          swapdata.BYTE[0] = swapdata.BYTE[1];
+   \   007E  DD4EFD            LD      C,(IX-3)
+   \   0081  DD71FC            LD      (IX-4),C
+    117                          swapdata.BYTE[1] = data;
+   \   0084  DD70FD            LD      (IX-3),B
+    118                          sendarea.version = swapdata.WORD;
+   \   0087  DD6EFC            LD      L,(IX-4)
+   \   008A  DD66FD            LD      H,(IX-3)
+   \   008D  220600            LD      (sendarea+6),HL
+    119          
+    120          
+    121                          sw_led &= SWLED_HL;
+   \   0090  210000            LD      HL,sw_led
+   \   0093  7E                LD      A,(HL)
+   \   0094  E620              AND     32
+   \   0096  77                LD      (HL),A
+   \   0097  23                INC     HL
+   \   0098  7E                LD      A,(HL)
+   \   0099  E600              AND     0
+   \   009B  77                LD      (HL),A
+    122                          memset( matrix_led, 0, sizeof(matrix_led) );
+   \   009C  011800            LD      BC,24
+   \   009F  110000            LD      DE,matrix_led
+   \   00A2  210000            LD      HL,0
+   \   00A5  CD0000            CALL    ?MEMSET_L11
+    123                          sw_blink = 0;
+   \   00A8  210000            LD      HL,0
+   \   00AB  220000            LD      (sw_blink),HL
+    124                          memset( matrix_blink, 0, sizeof(matrix_blink) );
+   \   00AE  010400            LD      BC,4
+   \   00B1  110000            LD      DE,matrix_blink
+   \   00B4  210000            LD      HL,0
+   \   00B7  CD0000            CALL    ?MEMSET_L11
+    125                          now_sw_led = 0xFFFF;
+   \   00BA  21FFFF            LD      HL,65535
+   \   00BD  220000            LD      (now_sw_led),HL
+    126                          now_sw_blink = 0xFFFF;
+   \   00C0  21FFFF            LD      HL,65535
+   \   00C3  220000            LD      (now_sw_blink),HL
+    127                          memset( now_matrix_led, 0xFF, sizeof(now_matrix_led) );
+   \   00C6  011800            LD      BC,24
+   \   00C9  110000            LD      DE,now_matrix_led
+   \   00CC  21FF00            LD      HL,255
+   \   00CF  CD0000            CALL    ?MEMSET_L11
+    128                          memset( now_matrix_blink, 0xFF, sizeof(now_matrix_blink) );
+   \   00D2  010400            LD      BC,4
+   \   00D5  110000            LD      DE,now_matrix_blink
+   \   00D8  21FF00            LD      HL,255
+   \   00DB  CD0000            CALL    ?MEMSET_L11
+    129          
+    130                          memset( rawData, 0, sizeof(rawData) );
+   \   00DE  01A000            LD      BC,160
+   \   00E1  110000            LD      DE,rawData
+   \   00E4  210000            LD      HL,0
+   \   00E7  CD0000            CALL    ?MEMSET_L11
+    131                          memset( blinkPositionData, 0, sizeof(blinkPositionData) );
+   \   00EA  01A000            LD      BC,160
+   \   00ED  110000            LD      DE,blinkPositionData
+   \   00F0  210000            LD      HL,0
+   \   00F3  CD0000            CALL    ?MEMSET_L11
+    132          
+    133                          if( sw_led & SWLED_HL ){
+   \   00F6  3A0000            LD      A,(sw_led)
+   \   00F9  E620              AND     32
+   \   00FB  2810              JR      Z,?0012
+   \   00FD            ?0011:
+    134                                  io_output_off( 0x00, 0x08 ); /* 高輝度設定 */
+   \   00FD  0E08              LD      C,8
+   \   00FF  1E00              LD      E,0
+   \   0101  CD0000            CALL    io_output_off
+    135                                  io_output_on( 0x00, 0x02 ); /* 高輝度設定 */
+   \   0104  0E02              LD      C,2
+   \   0106  1E00              LD      E,0
+   \   0108  CD0000            CALL    io_output_on
+    136                          }
+    137                          else {
+   \   010B  180E              JR      ?0013
+   \   010D            ?0012:
+    138                                  io_output_off( 0x00, 0x02 ); /* 低輝度設定 */
+   \   010D  0E02              LD      C,2
+   \   010F  1E00              LD      E,0
+   \   0111  CD0000            CALL    io_output_off
+    139                                  io_output_on( 0x00, 0x08 ); /* 低輝度設定 */
+   \   0114  0E08              LD      C,8
+   \   0116  1E00              LD      E,0
+   \   0118  CD0000            CALL    io_output_on
+   \   011B            ?0013:
+    140                          }
+    141          
+    142                          __enable();
+   \   011B  CD0000            CALL    __enable
+   \   011E            ?0015:
+    143          
+    144                          for( ;; ){
+    145                                  mcpDynamicScanDisplay(); 
+   \   011E  CD0000            CALL    mcpDynamicScanDisplay
+    146          
+    147                                  watch_dog_reset();
+   \   0121  CD0000            CALL    watch_dog_reset
+    148                          }
+    149          }
+   \   0124  18F8              JR      ?0015
+    150          
+   \   0000                    RSEG    UDATA0
+   \   0000            readCount:
+   \   0001                    DEFS    1
+   \   0001            preReadIO:
+   \   0003                    DEFS    2
+   \   0003                    END
+
+Errors: none
+Warnings: none
+Code size: 294
+Constant size: 0
+Static variable size: Data(3) Iram(0)
+

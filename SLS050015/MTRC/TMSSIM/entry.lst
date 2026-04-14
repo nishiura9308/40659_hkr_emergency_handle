@@ -1,0 +1,103 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:13  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\entry.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  PEntryProgram                                          ; section
+                     1:    /********************************************************************
+                     2:    *       ÅyçÅç`ínâ∫ìSå¸ÇØé©ìÆóÒé‘ï˙ëóêßå‰ëïíuÅz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       í êMêßå‰ÉÇÉWÉÖÅ[Éã                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <machine.h>
+                    13:    #include        "iodefine.h"
+                    14:    
+                    15:    #pragma stacksize       1024
+                    16:    
+                    17:    #pragma entry EntryFunction
+                    18:    
+                    19:    #pragma section EntryProgram
+                    20:    
+                    21:    void EntryFunction( void )
+    000000              _EntryFunction:                  ; function: EntryFunction
+    000000 7A07                   MOV.L       #STARTOF S+SIZEOF S:32,SP
+           <00000000>   
+                    22:    {
+                    23:            P8.DDR = 0xFE;          // CS3 Enable
+    000006 F8FE                   MOV.B       #-2:8,R0L
+    000008 38CD                   MOV.B       R0L,@16777165:8
+                    24:    
+                    25:             set_imask_ccr(1);
+    00000A 0480                   ORC.B       #-128:8,CCR
+                    26:    
+                    27:            _INIT_IOLIB();                                  // Use SIM I/O
+    00000C 5E                     JSR         @__INIT_IOLIB:24
+           <000000>     
+                    28:    
+                    29:    //      errno=0;                                                // Remove the comment when you use errno
+                    30:    //      srand(1);                                               // Remove the comment when you use rand()
+                    31:    //      _s1ptr=NULL;                                    // Remove the comment when you use strtok()
+                    32:    
+                    33:            HardwareSetup();                                // Use Hardware Setup
+    000010 5E                     JSR         @_HardwareSetup:24
+           <000000>     
+                    34:    
+                    35:            main();
+    000014 5E                     JSR         @_main:24
+           <000000>     
+                    36:    
+                    37:            _CLOSEALL();                                    // Use SIM I/O
+    000018 5E                     JSR         @__CLOSEALL:24
+           <000000>     
+                    38:            
+                    39:            sleep();
+    00001C 0180                   SLEEP
+                    40:    }
+    00001E 5470                   RTS
+  S                                                      ; section
+    000000 00000400               .RES.W      512
+                    41:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:13  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000000 Byte(s)
+PROGRAM  SECTION(PEntryProgram):                    0x00000020 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+STACK    SECTION(S):                                0x00000400 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000020 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+TOTAL STACK    SECTION: 0x00000400 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000420 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        4 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        1 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:          5 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,.\inc\,.\inc\ .\src\entry.c -object=.\obj\entry.obj
+CPU         : 300ha:24

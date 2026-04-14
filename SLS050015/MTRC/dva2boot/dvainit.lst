@@ -1,0 +1,1165 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     24-Nov-2000  08:50:54  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvainit.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "vect.h"
+                    15:    #include    "iodefine.h"
+                    16:    
+                    17:    /*@@@S*/
+                    18:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    19:            ƒOƒ[ƒoƒ‹•Ï”
+                    20:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    21:    #pragma section IntChgTable
+                    22:            void    (*IRQ4Jump)(void);
+                    23:    
+                    24:            void    (*IMIA0Jump)(void);
+                    25:            void    (*IMIA1Jump)(void);
+                    26:            void    (*IMIA2Jump)(void);
+                    27:            void    (*IMIA3Jump)(void);
+                    28:            void    (*IMIA4Jump)(void);
+                    29:    
+                    30:            void    (*ERI0Jump)(void);
+                    31:            void    (*RXI0Jump)(void);
+                    32:            void    (*TXI0Jump)(void);
+                    33:            void    (*TEI0Jump)(void);
+                    34:            void    (*ERI1Jump)(void);
+                    35:            void    (*RXI1Jump)(void);
+                    36:            void    (*TXI1Jump)(void);
+                    37:            void    (*TEI1Jump)(void);
+                    38:    
+                    39:    #pragma section DataWatchDog
+                    40:    char    watchDogCount;
+                    41:    char    watchDogFlag;
+                    42:    char    watchDogON;
+                    43:    
+                    44:    #pragma section BootCheck
+                    45:            // ƒu[ƒgƒ`ƒFƒbƒNƒGƒŠƒA
+                    46:            unsigned short  check_date;
+                    47:            unsigned short  check_time;
+                    48:            unsigned long   check_all_bytes;
+                    49:    #pragma section
+                    50:    
+                    51:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    52:            ’è”’è‹`
+                    53:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    54:    
+                    55:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    56:            \‘¢‘Ì’è‹`
+                    57:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    58:    
+                    59:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    60:            ƒe[ƒuƒ‹
+                    61:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    62:    
+                    63:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    64:                    ŠO•”ŽQÆ
+                    65:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    66:    
+                    67:    
+                    68:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    69:                    ƒ[ƒJƒ‹•Ï”
+                    70:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    71:    
+                    72:    /*@@@E*/
+                    73:    /************************************************************************
+                    74:    *                                                                                                                                               *
+                    75:    *       Function name   << RAMCheck >>  
+                    76:    *                                       ‰ŠúÝ’è
+                    77:    *       Syntax                  RAMCheck( void );
+                    78:    *       Argument                none                                                                                            *
+                    79:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    80:    *       Revision                a00 2000/06/27                                                                          *
+                    81:    *                                                                                                                                               *
+                    82:    *************************************************************************/
+                    83:    int RAMCheck( void )
+    000000              _RAMCheck:                       ; function: RAMCheck
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    84:    {
+    000004 7A04000100             MOV.L       #65536:32,ER4
+           00           
+                    85:                    volatile unsigned short *p;
+                    86:                    long    cnt;
+                    87:                    unsigned short  data1,data2;
+                    88:    
+                    89:                    p = (unsigned short *)RAMTOP_ADDRESS; /* RAM Top */
+    00000A 7A06000800             MOV.L       #524288:32,ER6
+           00           
+                    90:                    for( cnt=0; cnt<RAM_SIZE/2; cnt++,p++ ){
+    000010 1A91                   SUB.L       ER1,ER1
+    000012 4016                   BRA         L241:8
+    000014              L240:                             
+                    91:                            data1 = *p;
+    000014 696B                   MOV.W       @ER6,E3
+                    92:                            *p = 0x55AA;
+    000016 790055AA               MOV.W       #21930:16,R0
+    00001A 69E0                   MOV.W       R0,@ER6
+                    93:                            data2 = *p;
+    00001C 6968                   MOV.W       @ER6,E0
+                    94:                            *p = data1;
+    00001E 69EB                   MOV.W       E3,@ER6
+                    95:                            if( data2!=0x55AA ){
+    000020 792855AA               CMP.W       #21930:16,E0
+    000024 4624                   BNE         L290:8
+                    96:                                    return 1;
+    000026 0B71                   INC.L       #1,ER1
+    000028 0BF6                   INC.L       #2,ER6
+    00002A              L241:                             
+    00002A 1FC1                   CMP.L       ER4,ER1
+    00002C 4DE6                   BLT         L240:8
+                    97:                            }
+                    98:                    }
+                    99:                    p = (unsigned short *)RAMTOP_ADDRESS; /* RAM Top */
+    00002E 7A06000800             MOV.L       #524288:32,ER6
+           00           
+                   100:                    for( cnt=0; cnt<RAM_SIZE/2; cnt++,p++ ){
+    000034 1A91                   SUB.L       ER1,ER1
+    000036 401C                   BRA         L245:8
+    000038              L244:                             
+                   101:                            data1 = *p;
+    000038 6968                   MOV.W       @ER6,E0
+                   102:                            *p = 0xAA55;
+    00003A 7900AA55               MOV.W       #-21931:16,R0
+    00003E 69E0                   MOV.W       R0,@ER6
+                   103:                            data2 = *p;
+    000040 696B                   MOV.W       @ER6,E3
+                   104:                            *p = data1;
+    000042 69E8                   MOV.W       E0,@ER6
+                   105:                            if( data2!=0xAA55 ){
+    000044 792BAA55               CMP.W       #-21931:16,E3
+    000048 4706                   BEQ         L246:8
+                   106:                                    return 1;
+    00004A              L290:                             
+    00004A 79000001               MOV.W       #1:16,R0
+    00004E 400A                   BRA         L243:8
+    000050              L246:                             
+    000050 0B71                   INC.L       #1,ER1
+    000052 0BF6                   INC.L       #2,ER6
+    000054              L245:                             
+    000054 1FC1                   CMP.L       ER4,ER1
+    000056 4DE0                   BLT         L244:8
+                   107:                            }
+                   108:                    }
+                   109:    //              p = (unsigned short *)RAMTOP_ADDRESS; /* RAM Top */
+                   110:    //              for( cnt=0; cnt<RAM_SIZE/2; cnt++,p++ ){
+                   111:    //                      data1 = *p;
+                   112:    //                      *p = 0xFFFF;
+                   113:    //                      data2 = *p;
+                   114:    //                      *p = data1;
+                   115:    //                      if( data2!=0xFFFF ){
+                   116:    //                              return 1;
+                   117:    //                      }
+                   118:    //              }
+                   119:    //              p = (unsigned short *)RAMTOP_ADDRESS; /* RAM Top */
+                   120:    //              for( cnt=0; cnt<RAM_SIZE/2; cnt++,p++ ){
+                   121:    //                      data1 = *p;
+                   122:    //                      *p = 0x0000;
+                   123:    //                      data2 = *p;
+                   124:    //                      *p = data1;
+                   125:    //                      if( data2!=0x0000 ){
+                   126:    //                              return 1;
+                   127:    //                      }
+                   128:    //              }
+                   129:    
+                   130:                    return 0;
+    000058 1900                   SUB.W       R0,R0
+                   131:    }
+    00005A              L243:                             
+    00005A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   132:    
+                   133:    /************************************************************************
+                   134:    *                                                                                                                                               *
+                   135:    *       Function name   << ROMCheck >>  
+                   136:    *                                       ‰ŠúÝ’è
+                   137:    *       Syntax                  ROMCheck( void );
+                   138:    *       Argument                none                                                                                            *
+                   139:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   140:    *       Revision                a00 2000/06/27                                                                          *
+                   141:    *                                                                                                                                               *
+                   142:    *************************************************************************/
+                   143:    int ROMCheck( void )
+    00005E              _ROMCheck:                       ; function: ROMCheck
+    00005E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   144:    {
+                   145:                    unsigned char   *p;
+                   146:                    long    cnt;
+                   147:                    unsigned char   data;
+                   148:    
+                   149:                    p = (unsigned char *)ROMTOP_ADDRESS; /* ROM Top */
+    000062 1AD5                   SUB.L       ER5,ER5
+                   150:                    data = 0;
+    000064 18CC                   SUB.B       R4L,R4L
+                   151:                    for( cnt=0; cnt<ROM_SIZE; cnt++,p++ ){
+    000066 1A91                   SUB.L       ER1,ER1
+    000068              L247:                             
+                   152:                            data += (unsigned char)*p;
+    000068 6858                   MOV.B       @ER5,R0L
+    00006A 088C                   ADD.B       R0L,R4L
+    00006C 0B71                   INC.L       #1,ER1
+    00006E 0B75                   INC.L       #1,ER5
+    000070 7A21000200             CMP.L       #131072:32,ER1
+           00           
+    000076 4DF0                   BLT         L247:8
+                   153:                    }
+                   154:                    return data;
+    000078 1754                   EXTU.W      R4
+    00007A 0D40                   MOV.W       R4,R0
+                   155:    }
+    00007C 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   156:    
+                   157:    
+                   158:    /************************************************************************
+                   159:    *                                                                                                                                               *
+                   160:    *       Function name   << HardwareSetup >>     
+                   161:    *                                       ‰ŠúÝ’è
+                   162:    *       Syntax                  HardwareSetup( void );
+                   163:    *       Argument                none                                                                                            *
+                   164:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   165:    *       Revision                a00 2000/06/27                                                                          *
+                   166:    *                                                                                                                                               *
+                   167:    *************************************************************************/
+                   168:    void HardwareSetup( void )
+    000080              _HardwareSetup:                  ; function: HardwareSetup
+                   169:    {
+                   170:                    watchDogON = watchDogFlag;
+    000080 6A2800                 MOV.B       @_watchDogFlag:24,R0L
+           <000000>     
+    000086 6AA800                 MOV.B       R0L,@_watchDogON:24
+           <000000>     
+                   171:                    watchDogFlag = 0;
+    00008C 1888                   SUB.B       R0L,R0L
+    00008E 6AA800                 MOV.B       R0L,@_watchDogFlag:24
+           <000000>     
+                   172:    
+                   173:                    WDT = 0xA500;           /* WatchDog Disable */
+    000094 7900A500               MOV.W       #-23296:16,R0
+    000098 6B80FFA8               MOV.W       R0,@16777128:16
+                   174:                    INTC.IER.BYTE = 0;      /* IRQ Use */
+    00009C 1888                   SUB.B       R0L,R0L
+    00009E 38F5                   MOV.B       R0L,@16777205:8
+                   175:    
+                   176:            /*** CPU Mode3 ***/
+                   177:    
+                   178:                    BSC.BRCR.BIT.A21E=0;            // PA6 is A21
+    0000A0 7FF37250               BCLR.B      #5,@16777203:8
+                   179:                    BSC.BRCR.BIT.A22E=0;            // PA5 is A22
+    0000A4 7FF37260               BCLR.B      #6,@16777203:8
+                   180:                    BSC.BRCR.BIT.A23E=0;            // PA4 is A23
+    0000A8 7FF37270               BCLR.B      #7,@16777203:8
+                   181:    
+                   182:                    IRQ4Jump=NULL;
+                   183:    
+                   184:                    IMIA0Jump=NULL;
+    0000AC 1A80                   SUB.L       ER0,ER0
+    0000AE 01006BA000             MOV.L       ER0,@_IMIA0Jump:24
+           <000000>     
+    0000B6 01006BA000             MOV.L       ER0,@_IRQ4Jump:24
+           <000000>     
+                   185:                    IMIA1Jump=NULL;
+                   186:                    IMIA2Jump=NULL;
+    0000BE 01006BA000             MOV.L       ER0,@_IMIA2Jump:24
+           <000000>     
+    0000C6 01006BA000             MOV.L       ER0,@_IMIA1Jump:24
+           <000000>     
+                   187:                    IMIA3Jump=NULL;
+                   188:                    IMIA4Jump=NULL;
+    0000CE 01006BA000             MOV.L       ER0,@_IMIA4Jump:24
+           <000000>     
+    0000D6 01006BA000             MOV.L       ER0,@_IMIA3Jump:24
+           <000000>     
+                   189:    
+                   190:                    ERI0Jump=NULL;
+                   191:                    RXI0Jump=NULL;
+    0000DE 01006BA000             MOV.L       ER0,@_RXI0Jump:24
+           <000000>     
+    0000E6 01006BA000             MOV.L       ER0,@_ERI0Jump:24
+           <000000>     
+                   192:                    TXI0Jump=NULL;
+                   193:                    TEI0Jump=NULL;
+    0000EE 01006BA000             MOV.L       ER0,@_TEI0Jump:24
+           <000000>     
+    0000F6 01006BA000             MOV.L       ER0,@_TXI0Jump:24
+           <000000>     
+                   194:                    ERI1Jump=NULL;
+                   195:                    RXI1Jump=NULL;
+    0000FE 01006BA000             MOV.L       ER0,@_RXI1Jump:24
+           <000000>     
+    000106 01006BA000             MOV.L       ER0,@_ERI1Jump:24
+           <000000>     
+                   196:                    TXI1Jump=NULL;
+                   197:                    TEI1Jump=NULL;
+    00010E 01006BA000             MOV.L       ER0,@_TEI1Jump:24
+           <000000>     
+    000116 01006BA000             MOV.L       ER0,@_TXI1Jump:24
+           <000000>     
+                   198:    
+                   199:            /**** ƒ|[ƒg•ûŒüÝ’è ****/
+                   200:                    P4.DDR = 0;                     /* P4 is Input( DIP-SW ) */
+    00011E 38C5                   MOV.B       R0L,@16777157:8
+                   201:                    P4.PCR.BYTE = 0;        /* P4 pullup is External */
+    000120 38DA                   MOV.B       R0L,@16777178:8
+                   202:    
+                   203:                    P6.DDR = 0x80;          /* P6 no use */
+    000122 F880                   MOV.B       #-128:8,R0L
+    000124 38C9                   MOV.B       R0L,@16777161:8
+                   204:    
+                   205:                                                            /* P7 Input SCI0 status */
+                   206:    
+                   207:                    P8.DDR = 0xFE;          /* P8 b4-b1=CS0-CS3, b0=IRQ0 */
+    000126 F8FE                   MOV.B       #-2:8,R0L
+    000128 38CD                   MOV.B       R0L,@16777165:8
+                   208:    
+                   209:                    P9.DDR = 0xC0;          /* P9 b5=IRQ5, b4=IRQ4, b3=RxD1, b2=RxD0, b1=TxD1, b0=TxD0 */
+    00012A F8C0                   MOV.B       #-64:8,R0L
+    00012C 38D0                   MOV.B       R0L,@16777168:8
+                   210:    
+                   211:                    PA.DDR = 0xFF;          /* PA b7=A20, b6= , b5= , b4= , b3=DTR1, b2=RTS1, b1=DTR0, b0=RTS0 */
+    00012E F8FF                   MOV.B       #-1:8,R0L
+    000130 38D1                   MOV.B       R0L,@16777169:8
+                   212:    
+                   213:                    SYSCR.BYTE = 0;
+    000132 1888                   SUB.B       R0L,R0L
+    000134 38F2                   MOV.B       R0L,@16777202:8
+                   214:                    SYSCR.BIT.SSBY  = 1;            /* Sleep –½—ßŒãAƒ\ƒtƒgƒEƒFƒAƒXƒ^ƒ“ƒoƒC */
+    000136 7FF27070               BSET.B      #7,@16777202:8
+                   215:                    SYSCR.BIT.STS   = 7;            /* Žg—p‹ÖŽ~ */
+    00013A 28F2                   MOV.B       @16777202:8,R0L
+    00013C E88F                   AND.B       #-113:8,R0L
+    00013E C870                   OR.B        #112:8,R0L
+    000140 38F2                   MOV.B       R0L,@16777202:8
+                   216:                    SYSCR.BIT.UE    = 0;            /* —DæŠ„‚èž‚Ý‚ ‚è */
+    000142 7FF27230               BCLR.B      #3,@16777202:8
+                   217:                    SYSCR.BIT.NMIEG = 0;
+    000146 7FF27220               BCLR.B      #2,@16777202:8
+                   218:                    SYSCR.BIT.RAME  = 1;            /*“à‘Ÿ‚q‚`‚l—LŒø */
+    00014A 7FF27000               BSET.B      #0,@16777202:8
+                   219:    
+                   220:                    INTC.ISCR.BYTE = 0;
+    00014E 1888                   SUB.B       R0L,R0L
+    000150 38F4                   MOV.B       R0L,@16777204:8
+                   221:                    INTC.ISCR.BIT.IRQ4SC = 0;       /* IRQ4 Level Int*/
+    000152 7FF47240               BCLR.B      #4,@16777204:8
+                   222:                    INTC.IER.BYTE = 0;
+    000156 1888                   SUB.B       R0L,R0L
+    000158 38F5                   MOV.B       R0L,@16777205:8
+                   223:    
+                   224:                    if( INTC.ISR.BYTE )                     // •Û—¯ó‘Ô‚ÌŠ„‚èž‚Ý‚ðƒNƒŠƒA
+    00015A 28F6                   MOV.B       @16777206:8,R0L
+    00015C 4704                   BEQ         L249:8
+                   225:                            INTC.ISR.BYTE = 0;
+    00015E 1888                   SUB.B       R0L,R0L
+    000160 38F6                   MOV.B       R0L,@16777206:8
+    000162              L249:                             
+                   226:    
+                   227:                    if( ITU0.TSR.BYTE )
+    000162 2867                   MOV.B       @16777063:8,R0L
+    000164 4704                   BEQ         L250:8
+                   228:                            ITU0.TSR.BYTE = 0;
+    000166 1888                   SUB.B       R0L,R0L
+    000168 3867                   MOV.B       R0L,@16777063:8
+    00016A              L250:                             
+                   229:                    if( ITU1.TSR.BYTE )
+    00016A 2871                   MOV.B       @16777073:8,R0L
+    00016C 4704                   BEQ         L251:8
+                   230:                            ITU1.TSR.BYTE = 0;
+    00016E 1888                   SUB.B       R0L,R0L
+    000170 3871                   MOV.B       R0L,@16777073:8
+    000172              L251:                             
+                   231:                    if( ITU2.TSR.BYTE )
+    000172 287B                   MOV.B       @16777083:8,R0L
+    000174 4704                   BEQ         L252:8
+                   232:                            ITU2.TSR.BYTE = 0;
+    000176 1888                   SUB.B       R0L,R0L
+    000178 387B                   MOV.B       R0L,@16777083:8
+    00017A              L252:                             
+                   233:                    if( ITU3.TSR.BYTE )
+    00017A 2885                   MOV.B       @16777093:8,R0L
+    00017C 4704                   BEQ         L253:8
+                   234:                            ITU3.TSR.BYTE = 0;
+    00017E 1888                   SUB.B       R0L,R0L
+    000180 3885                   MOV.B       R0L,@16777093:8
+    000182              L253:                             
+                   235:                    if( ITU4.TSR.BYTE )
+    000182 2895                   MOV.B       @16777109:8,R0L
+    000184 4704                   BEQ         L254:8
+                   236:                            ITU4.TSR.BYTE = 0;
+    000186 1888                   SUB.B       R0L,R0L
+    000188 3895                   MOV.B       R0L,@16777109:8
+    00018A              L254:                             
+                   237:    
+                   238:                    INTC.IPRA.BYTE = 0;
+    00018A 1888                   SUB.B       R0L,R0L
+    00018C 38F8                   MOV.B       R0L,@16777208:8
+                   239:                    INTC.IPRA.BIT.B3 = 1;  // Set WDT,RFSHC Priority Level 1
+    00018E 7FF87030               BSET.B      #3,@16777208:8
+                   240:    
+                   241:                    INTC.IPRB.BYTE = 0;
+    000192 38F9                   MOV.B       R0L,@16777209:8
+                   242:    
+                   243:                    SCI0.SCR.BYTE = 0;
+    000194 38B2                   MOV.B       R0L,@16777138:8
+                   244:                    SCI0.SMR.BYTE = 0;
+    000196 38B0                   MOV.B       R0L,@16777136:8
+                   245:    
+                   246:                    PA.DR.BIT.B1 = 1;               /* RTS OFF */
+    000198 7FD37010               BSET.B      #1,@16777171:8
+                   247:                    PA.DR.BIT.B0 = 1;               /* RTS OFF */
+    00019C 7FD37000               BSET.B      #0,@16777171:8
+                   248:    }
+    0001A0 5470                   RTS
+                   249:    
+                   250:    
+                   251:    
+                   252:    /************************************************************************
+                   253:    *                                                                                                                                               *
+                   254:    *       Function name   << WatchDogReset >>     
+                   255:    *                                       ‰ŠúÝ’è
+                   256:    *       Syntax                  WatchDogReset( void );
+                   257:    *       Argument                none                                                                                            *
+                   258:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   259:    *       Revision                a00 2000/06/27                                                                          *
+                   260:    *                                                                                                                                               *
+                   261:    *************************************************************************/
+                   262:    void WatchDogReset( void )
+    0001A2              _WatchDogReset:                  ; function: WatchDogReset
+                   263:    {
+                   264:                                                            /* 14.7456MHz -> ƒ³
+                   265:                                                                    ƒ³/4096 = 3600Hz
+                   266:                                                                    0xFF= 70mS Interval */
+                   267:                    WDT = 0x5A00;           /* TCNT Clear */
+    0001A2 79005A00               MOV.W       #23040:16,R0
+    0001A6 6B80FFA8               MOV.W       R0,@16777128:16
+                   268:                    WDT = 0xA53F;           /* TCSR Set (Interval Timer) */
+    0001AA 7900A53F               MOV.W       #-23233:16,R0
+    0001AE 6B80FFA8               MOV.W       R0,@16777128:16
+                   269:    /*              WDT = 0xA55F;           * TCSR Set (Watch Dog Reset) */
+                   270:    
+                   271:                    watchDogCount = 0;
+    0001B2 1888                   SUB.B       R0L,R0L
+    0001B4 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   272:    }
+    0001BA 5470                   RTS
+                   273:    
+                   274:    
+                   275:    /************************************************************************
+                   276:    *                                                                                                                                               *
+                   277:    *       Function name   << WatchDogDisable >>   
+                   278:    *                                       ƒEƒHƒbƒ`ƒhƒbƒO‚ð‹ÖŽ~‚·‚é
+                   279:    *       Syntax                  WatchDogDisable( void );
+                   280:    *       Argument                none                                                                                            *
+                   281:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   282:    *       Revision                a00 2000/06/27                                                                          *
+                   283:    *                                                                                                                                               *
+                   284:    *************************************************************************/
+                   285:    void WatchDogDisable( void )
+    0001BC              _WatchDogDisable:                ; function: WatchDogDisable
+                   286:    {
+                   287:                                                            /* 14.7456MHz -> ƒ³
+                   288:                                                                    ƒ³/4096 = 3600Hz
+                   289:                                                                    0xFF= 70mS Interval */
+                   290:                    WDT = 0x5A00;           /* TCNT Clear */
+    0001BC 79005A00               MOV.W       #23040:16,R0
+    0001C0 6B80FFA8               MOV.W       R0,@16777128:16
+                   291:                    WDT = 0xA500;           /* TCSR Reset */
+    0001C4 7900A500               MOV.W       #-23296:16,R0
+    0001C8 6B80FFA8               MOV.W       R0,@16777128:16
+                   292:    
+                   293:                    watchDogCount = 0;
+    0001CC 1888                   SUB.B       R0L,R0L
+    0001CE 6AA800                 MOV.B       R0L,@_watchDogCount:24
+           <000000>     
+                   294:    }
+    0001D4 5470                   RTS
+                   295:    
+                   296:    //  vector 20 WOVI
+                   297:    void    INT_WOVI(void)
+    0001D6              _INT_WOVI:                       ; function: INT_WOVI
+    0001D6 01006DF1               PUSH.L      ER1
+    0001DA 6DF0                   PUSH.W      R0
+                   298:    {
+                   299:                    if( WDT & 0x8000 ){
+    0001DC 28A8                   MOV.B       @16777128:8,R0L
+    0001DE 4A1A                   BPL         L255:8
+                   300:                            watchDogCount++;
+    0001E0 7A01                   MOV.L       #_watchDogCount:32,ER1
+           <00000000>   
+    0001E6 6818                   MOV.B       @ER1,R0L
+    0001E8 0A08                   INC.B       R0L
+    0001EA 6898                   MOV.B       R0L,@ER1
+                   301:                            if( watchDogCount>14 ){         /* –ñ‚P•b‚Ìƒ^ƒCƒ€ƒAƒEƒg */
+    0001EC 6819                   MOV.B       @ER1,R1L
+    0001EE A90E                   CMP.B       #14:8,R1L
+    0001F0 4F08                   BLE         L256:8
+                   302:                                    watchDogFlag = 1;
+    0001F2 F801                   MOV.B       #1:8,R0L
+    0001F4 6AA800                 MOV.B       R0L,@_watchDogFlag:24
+           <000000>     
+    0001FA              L256:                             
+    0001FA              L255:                             
+                   303:                            }
+                   304:                    }
+                   305:                    WDT = 0xA51F;           /* TCSR Set (Interval Timer) */
+    0001FA 7900A51F               MOV.W       #-23265:16,R0
+    0001FE 6B80FFA8               MOV.W       R0,@16777128:16
+                   306:                    WDT = 0xA53F;           /* TCSR Set (Interval Timer) */
+    000202 7900A53F               MOV.W       #-23233:16,R0
+    000206 6B80FFA8               MOV.W       R0,@16777128:16
+                   307:    }
+    00020A 6D70                   POP.W       R0
+    00020C 01006D71               POP.L       ER1
+    000210 5670                   RTE
+  PIntPRG                                                ; section
+                   308:    
+                   309:    
+                   310:    
+                   311:    #pragma section IntPRG
+                   312:    //  vector 1 Reserved
+                   313:    
+                   314:    //  vector 2 Reserved
+                   315:    
+                   316:    //  vector 3 Reserved
+                   317:    
+                   318:    //  vector 4 Reserved
+                   319:    
+                   320:    //  vector 5 Reserved 
+                   321:    
+                   322:    //  vector 6 Reserved
+                   323:    
+                   324:    //  vector 7 NMI 
+                   325:    void    INT_NMI(void) {/* sleep(); */}
+    000000              _INT_NMI:                        ; function: INT_NMI
+    000000 5670                   RTE
+                   326:    //  vector 8 TRAP
+                   327:    void    INT_TRAP1(void) {/* sleep(); */}
+    000002              _INT_TRAP1:                      ; function: INT_TRAP1
+    000002 5670                   RTE
+                   328:    //  vector 9 TRAP
+                   329:    void    INT_TRAP2(void) {/* sleep(); */}
+    000004              _INT_TRAP2:                      ; function: INT_TRAP2
+    000004 5670                   RTE
+                   330:    //  vector 10 TRAP
+                   331:    void    INT_TRAP3(void) {/* sleep(); */}
+    000006              _INT_TRAP3:                      ; function: INT_TRAP3
+    000006 5670                   RTE
+                   332:    
+                   333:    
+                   334:    //  vector 12 IRQ0
+                   335:    void    INT_IRQ0(void) {/* sleep(); */}
+    000008              _INT_IRQ0:                       ; function: INT_IRQ0
+    000008 5670                   RTE
+                   336:    //  vector 13 IRQ1
+                   337:    void    INT_IRQ1(void) {/* sleep(); */}
+    00000A              _INT_IRQ1:                       ; function: INT_IRQ1
+    00000A 5670                   RTE
+                   338:    //  vector 14 IRQ2
+                   339:    void    INT_IRQ2(void) {/* sleep(); */}
+    00000C              _INT_IRQ2:                       ; function: INT_IRQ2
+    00000C 5670                   RTE
+                   340:    //  vector 15 IRQ3
+                   341:    void    INT_IRQ3(void) {/* sleep(); */}
+    00000E              _INT_IRQ3:                       ; function: INT_IRQ3
+    00000E 5670                   RTE
+                   342:    //  vector 16 IRQ4
+                   343:    void    INT_IRQ4(void) {
+    000010              _INT_IRQ4:                       ; function: INT_IRQ4
+    000010 01006DF1               PUSH.L      ER1
+    000014 01006DF0               PUSH.L      ER0
+                   344:                    if( IRQ4Jump!=NULL ){
+    000018 01006B2000             MOV.L       @_IRQ4Jump:24,ER0
+           <000000>     
+    000020 4712                   BEQ         L257:8
+                   345:                            if( INTC.IPRA.BIT.B4==0 ){
+    000022 7EF87740               BLD.B       #4,@16777208:8
+    000026 4502                   BCS         L258:8
+                   346:                                    and_ccr(~0x40);
+    000028 06BF                   ANDC.B      #-65:8,CCR
+    00002A              L258:                             
+                   347:                            }
+                   348:                            IRQ4Jump();
+    00002A 01006B2000             MOV.L       @_IRQ4Jump:24,ER0
+           <000000>     
+    000032 5D00                   JSR         @ER0
+    000034              L257:                             
+                   349:                    }
+                   350:                    INTC.ISR.BIT.IRQ4F = 0;
+    000034 7FF67240               BCLR.B      #4,@16777206:8
+                   351:    }
+    000038 01006D70               POP.L       ER0
+    00003C 01006D71               POP.L       ER1
+    000040 5670                   RTE
+                   352:    //  vector 17 IRQ5
+                   353:    void    INT_IRQ5(void) {/* sleep(); */}
+    000042              _INT_IRQ5:                       ; function: INT_IRQ5
+    000042 5670                   RTE
+                   354:    //  vector 18 Reserved
+                   355:    
+                   356:    //  vector 19 Reserved
+                   357:    
+                   358:    //  vector 21 CMI
+                   359:    void    INT_CMI(void) {/* sleep(); */}
+    000044              _INT_CMI:                        ; function: INT_CMI
+    000044 5670                   RTE
+                   360:    //  vector 22 Reserved
+                   361:    
+                   362:    //  vector 23 Reserved
+                   363:    
+                   364:    //  vector 24 IMIA0
+                   365:    void    INT_IMIA0(void) {
+    000046              _INT_IMIA0:                      ; function: INT_IMIA0
+    000046 01006DF1               PUSH.L      ER1
+    00004A 01006DF0               PUSH.L      ER0
+                   366:                    if( IMIA0Jump!=NULL ){
+    00004E 01006B2000             MOV.L       @_IMIA0Jump:24,ER0
+           <000000>     
+    000056 4712                   BEQ         L259:8
+                   367:                            if( INTC.IPRA.BIT.B2==0 ){
+    000058 7EF87720               BLD.B       #2,@16777208:8
+    00005C 4502                   BCS         L260:8
+                   368:                                    and_ccr(~0x40);
+    00005E 06BF                   ANDC.B      #-65:8,CCR
+    000060              L260:                             
+                   369:                            }
+                   370:                            IMIA0Jump();
+    000060 01006B2000             MOV.L       @_IMIA0Jump:24,ER0
+           <000000>     
+    000068 5D00                   JSR         @ER0
+    00006A              L259:                             
+                   371:                    }
+                   372:                    if( ITU0.TSR.BIT.IMFA )
+    00006A 7E677700               BLD.B       #0,@16777063:8
+    00006E 4404                   BCC         L261:8
+                   373:                            ITU0.TSR.BIT.IMFA = 0;          /* ƒ^ƒCƒ}[Š„‚èž‚ÝƒNƒŠƒA */
+    000070 7F677200               BCLR.B      #0,@16777063:8
+    000074              L261:                             
+                   374:    }
+    000074 01006D70               POP.L       ER0
+    000078 01006D71               POP.L       ER1
+    00007C 5670                   RTE
+                   375:    
+                   376:    //  vector 25 IMIB0
+                   377:    void    INT_IMIB0(void) {/* sleep(); */}
+    00007E              _INT_IMIB0:                      ; function: INT_IMIB0
+    00007E 5670                   RTE
+                   378:    //  vector 26 OVI0
+                   379:    void    INT_OVI0(void) {/* sleep(); */}
+    000080              _INT_OVI0:                       ; function: INT_OVI0
+    000080 5670                   RTE
+                   380:    //  vector 27 Reserved
+                   381:    
+                   382:    //  vector 28 IMIA1
+                   383:    void    INT_IMIA1(void) {
+    000082              _INT_IMIA1:                      ; function: INT_IMIA1
+    000082 01006DF1               PUSH.L      ER1
+    000086 01006DF0               PUSH.L      ER0
+                   384:                    if( IMIA1Jump!=NULL ){
+    00008A 01006B2000             MOV.L       @_IMIA1Jump:24,ER0
+           <000000>     
+    000092 4712                   BEQ         L262:8
+                   385:                            if( INTC.IPRA.BIT.B1==0 ){
+    000094 7EF87710               BLD.B       #1,@16777208:8
+    000098 4502                   BCS         L263:8
+                   386:                                    and_ccr(~0x40);
+    00009A 06BF                   ANDC.B      #-65:8,CCR
+    00009C              L263:                             
+                   387:                            }
+                   388:                            IMIA1Jump();
+    00009C 01006B2000             MOV.L       @_IMIA1Jump:24,ER0
+           <000000>     
+    0000A4 5D00                   JSR         @ER0
+    0000A6              L262:                             
+                   389:                    }
+                   390:                    if( ITU1.TSR.BIT.IMFA )
+    0000A6 7E717700               BLD.B       #0,@16777073:8
+    0000AA 4404                   BCC         L264:8
+                   391:                            ITU1.TSR.BIT.IMFA = 0;          /* ƒ^ƒCƒ}[Š„‚èž‚ÝƒNƒŠƒA */
+    0000AC 7F717200               BCLR.B      #0,@16777073:8
+    0000B0              L264:                             
+                   392:    }
+    0000B0 01006D70               POP.L       ER0
+    0000B4 01006D71               POP.L       ER1
+    0000B8 5670                   RTE
+                   393:    
+                   394:    //  vector 29 IMIB1
+                   395:    void    INT_IMIB1(void) {/* sleep(); */}
+    0000BA              _INT_IMIB1:                      ; function: INT_IMIB1
+    0000BA 5670                   RTE
+                   396:    //  vector 30 OVI1
+                   397:    void    INT_OVI1(void) {/* sleep(); */}
+    0000BC              _INT_OVI1:                       ; function: INT_OVI1
+    0000BC 5670                   RTE
+                   398:    //  vector 31 Reserved
+                   399:    
+                   400:    //  vector 32 IMIA2
+                   401:    void    INT_IMIA2(void) {
+    0000BE              _INT_IMIA2:                      ; function: INT_IMIA2
+    0000BE 01006DF1               PUSH.L      ER1
+    0000C2 01006DF0               PUSH.L      ER0
+                   402:                    if( IMIA2Jump!=NULL ){
+    0000C6 01006B2000             MOV.L       @_IMIA2Jump:24,ER0
+           <000000>     
+    0000CE 4712                   BEQ         L265:8
+                   403:                            if( INTC.IPRA.BIT.B0==0 ){
+    0000D0 7EF87700               BLD.B       #0,@16777208:8
+    0000D4 4502                   BCS         L266:8
+                   404:                                    and_ccr(~0x40);
+    0000D6 06BF                   ANDC.B      #-65:8,CCR
+    0000D8              L266:                             
+                   405:                            }
+                   406:                            IMIA2Jump();
+    0000D8 01006B2000             MOV.L       @_IMIA2Jump:24,ER0
+           <000000>     
+    0000E0 5D00                   JSR         @ER0
+    0000E2              L265:                             
+                   407:                    }
+                   408:                    if( ITU2.TSR.BIT.IMFA )
+    0000E2 7E7B7700               BLD.B       #0,@16777083:8
+    0000E6 4404                   BCC         L267:8
+                   409:                            ITU2.TSR.BIT.IMFA = 0;          /* ƒ^ƒCƒ}[Š„‚èž‚ÝƒNƒŠƒA */
+    0000E8 7F7B7200               BCLR.B      #0,@16777083:8
+    0000EC              L267:                             
+                   410:    }
+    0000EC 01006D70               POP.L       ER0
+    0000F0 01006D71               POP.L       ER1
+    0000F4 5670                   RTE
+                   411:    
+                   412:    //  vector 33 IMIB2
+                   413:    void    INT_IMIB2(void) {/* sleep(); */}
+    0000F6              _INT_IMIB2:                      ; function: INT_IMIB2
+    0000F6 5670                   RTE
+                   414:    //  vector 34 OVI2
+                   415:    void    INT_OVI2(void) {/* sleep(); */}
+    0000F8              _INT_OVI2:                       ; function: INT_OVI2
+    0000F8 5670                   RTE
+                   416:    //  vector 35 Reserved
+                   417:    
+                   418:    //  vector 36 IMIA3
+                   419:    void    INT_IMIA3(void) {
+    0000FA              _INT_IMIA3:                      ; function: INT_IMIA3
+    0000FA 01006DF1               PUSH.L      ER1
+    0000FE 01006DF0               PUSH.L      ER0
+                   420:                    if( IMIA3Jump!=NULL ){
+    000102 01006B2000             MOV.L       @_IMIA3Jump:24,ER0
+           <000000>     
+    00010A 4710                   BEQ         L268:8
+                   421:                            if( INTC.IPRB.BIT.B7==0 ){
+    00010C 28F9                   MOV.B       @16777209:8,R0L
+    00010E 4B02                   BMI         L269:8
+                   422:                                    and_ccr(~0x40);
+    000110 06BF                   ANDC.B      #-65:8,CCR
+    000112              L269:                             
+                   423:                            }
+                   424:                            IMIA3Jump();
+    000112 01006B2000             MOV.L       @_IMIA3Jump:24,ER0
+           <000000>     
+    00011A 5D00                   JSR         @ER0
+    00011C              L268:                             
+                   425:                    }
+                   426:                    if( ITU3.TSR.BIT.IMFA )
+    00011C 7E857700               BLD.B       #0,@16777093:8
+    000120 4404                   BCC         L270:8
+                   427:                            ITU3.TSR.BIT.IMFA = 0;          /* ƒ^ƒCƒ}[Š„‚èž‚ÝƒNƒŠƒA */
+    000122 7F857200               BCLR.B      #0,@16777093:8
+    000126              L270:                             
+                   428:    }
+    000126 01006D70               POP.L       ER0
+    00012A 01006D71               POP.L       ER1
+    00012E 5670                   RTE
+                   429:    
+                   430:    //  vector 37 IMIB3
+                   431:    void    INT_IMIB3(void) {/* sleep(); */}
+    000130              _INT_IMIB3:                      ; function: INT_IMIB3
+    000130 5670                   RTE
+                   432:    //  vector 38 OVI3
+                   433:    void    INT_OVI3(void) {/* sleep(); */}
+    000132              _INT_OVI3:                       ; function: INT_OVI3
+    000132 5670                   RTE
+                   434:    //  vector 39 Reserved
+                   435:    
+                   436:    //  vector 40 IMIA4
+                   437:    void    INT_IMIA4(void) {
+    000134              _INT_IMIA4:                      ; function: INT_IMIA4
+    000134 01006DF1               PUSH.L      ER1
+    000138 01006DF0               PUSH.L      ER0
+                   438:                    if( IMIA4Jump!=NULL ){
+    00013C 01006B2000             MOV.L       @_IMIA4Jump:24,ER0
+           <000000>     
+    000144 4712                   BEQ         L271:8
+                   439:                            if( INTC.IPRB.BIT.B6==0 ){
+    000146 7EF97760               BLD.B       #6,@16777209:8
+    00014A 4502                   BCS         L272:8
+                   440:                                    and_ccr(~0x40);
+    00014C 06BF                   ANDC.B      #-65:8,CCR
+    00014E              L272:                             
+                   441:                            }
+                   442:                            IMIA4Jump();
+    00014E 01006B2000             MOV.L       @_IMIA4Jump:24,ER0
+           <000000>     
+    000156 5D00                   JSR         @ER0
+    000158              L271:                             
+                   443:                    }
+                   444:                    if( ITU4.TSR.BIT.IMFA )
+    000158 7E957700               BLD.B       #0,@16777109:8
+    00015C 4404                   BCC         L273:8
+                   445:                            ITU4.TSR.BIT.IMFA = 0;          /* ƒ^ƒCƒ}[Š„‚èž‚ÝƒNƒŠƒA */
+    00015E 7F957200               BCLR.B      #0,@16777109:8
+    000162              L273:                             
+                   446:    }
+    000162 01006D70               POP.L       ER0
+    000166 01006D71               POP.L       ER1
+    00016A 5670                   RTE
+                   447:    
+                   448:    //  vector 41 IMIB4
+                   449:    void    INT_IMIB4(void) {/* sleep(); */}
+    00016C              _INT_IMIB4:                      ; function: INT_IMIB4
+    00016C 5670                   RTE
+                   450:    //  vector 42 OVI4
+                   451:    void    INT_OVI4(void) {/* sleep(); */}
+    00016E              _INT_OVI4:                       ; function: INT_OVI4
+    00016E 5670                   RTE
+                   452:    //  vector 43 Reserved
+                   453:    
+                   454:    //  vector 44 DEND0A
+                   455:    void    INT_DEND0A(void) {/* sleep(); */}
+    000170              _INT_DEND0A:                     ; function: INT_DEND0A
+    000170 5670                   RTE
+                   456:    //  vector 45 DEND0B
+                   457:    void    INT_DEND0B(void) {/* sleep(); */}
+    000172              _INT_DEND0B:                     ; function: INT_DEND0B
+    000172 5670                   RTE
+                   458:    //  vector 46 DEND1A
+                   459:    void    INT_DEND1A(void) {/* sleep(); */}
+    000174              _INT_DEND1A:                     ; function: INT_DEND1A
+    000174 5670                   RTE
+                   460:    //  vector 47 DEND1B
+                   461:    void    INT_DEND1B(void) {/* sleep(); */}
+    000176              _INT_DEND1B:                     ; function: INT_DEND1B
+    000176 5670                   RTE
+                   462:    //  vector 48 Reserved
+                   463:    
+                   464:    //  vector 49 Reserved
+                   465:    
+                   466:    //  vector 50 Reserved
+                   467:    
+                   468:    //  vector 51 Reserved
+                   469:    
+                   470:    //  vector 52 ERI0
+                   471:    void    INT_ERI0(void) {
+    000178              _INT_ERI0:                       ; function: INT_ERI0
+    000178 01006DF1               PUSH.L      ER1
+    00017C 01006DF0               PUSH.L      ER0
+                   472:                    if( ERI0Jump!=NULL ){
+    000180 01006B2000             MOV.L       @_ERI0Jump:24,ER0
+           <000000>     
+    000188 4712                   BEQ         L274:8
+                   473:                            if( INTC.IPRB.BIT.B3==0 ){
+    00018A 7EF97730               BLD.B       #3,@16777209:8
+    00018E 4502                   BCS         L275:8
+                   474:                                    and_ccr(~0x40);
+    000190 06BF                   ANDC.B      #-65:8,CCR
+    000192              L275:                             
+                   475:                            }
+                   476:                            ERI0Jump();
+    000192 01006B2000             MOV.L       @_ERI0Jump:24,ER0
+           <000000>     
+    00019A 5D00                   JSR         @ER0
+    00019C              L274:                             
+                   477:                    }
+                   478:    }
+    00019C 01006D70               POP.L       ER0
+    0001A0 01006D71               POP.L       ER1
+    0001A4 5670                   RTE
+                   479:    //  vector 53 RXI0
+                   480:    void    INT_RXI0(void) {
+    0001A6              _INT_RXI0:                       ; function: INT_RXI0
+    0001A6 01006DF1               PUSH.L      ER1
+    0001AA 01006DF0               PUSH.L      ER0
+                   481:                    if( RXI0Jump!=NULL ){
+    0001AE 01006B2000             MOV.L       @_RXI0Jump:24,ER0
+           <000000>     
+    0001B6 4712                   BEQ         L276:8
+                   482:                            if( INTC.IPRB.BIT.B3==0 ){
+    0001B8 7EF97730               BLD.B       #3,@16777209:8
+    0001BC 4502                   BCS         L277:8
+                   483:                                    and_ccr(~0x40);
+    0001BE 06BF                   ANDC.B      #-65:8,CCR
+    0001C0              L277:                             
+                   484:                            }
+                   485:                            RXI0Jump();
+    0001C0 01006B2000             MOV.L       @_RXI0Jump:24,ER0
+           <000000>     
+    0001C8 5D00                   JSR         @ER0
+    0001CA              L276:                             
+                   486:                    }
+                   487:    }
+    0001CA 01006D70               POP.L       ER0
+    0001CE 01006D71               POP.L       ER1
+    0001D2 5670                   RTE
+                   488:    //  vector 54 TXI0
+                   489:    void    INT_TXI0(void) {
+    0001D4              _INT_TXI0:                       ; function: INT_TXI0
+    0001D4 01006DF1               PUSH.L      ER1
+    0001D8 01006DF0               PUSH.L      ER0
+                   490:                    if( TXI0Jump!=NULL ){
+    0001DC 01006B2000             MOV.L       @_TXI0Jump:24,ER0
+           <000000>     
+    0001E4 4712                   BEQ         L278:8
+                   491:                            if( INTC.IPRB.BIT.B3==0 ){
+    0001E6 7EF97730               BLD.B       #3,@16777209:8
+    0001EA 4502                   BCS         L279:8
+                   492:                                    and_ccr(~0x40);
+    0001EC 06BF                   ANDC.B      #-65:8,CCR
+    0001EE              L279:                             
+                   493:                            }
+                   494:                            TXI0Jump();
+    0001EE 01006B2000             MOV.L       @_TXI0Jump:24,ER0
+           <000000>     
+    0001F6 5D00                   JSR         @ER0
+    0001F8              L278:                             
+                   495:                    }
+                   496:    }
+    0001F8 01006D70               POP.L       ER0
+    0001FC 01006D71               POP.L       ER1
+    000200 5670                   RTE
+                   497:    //  vector 55 TEI0
+                   498:    void    INT_TEI0(void) {
+    000202              _INT_TEI0:                       ; function: INT_TEI0
+    000202 01006DF1               PUSH.L      ER1
+    000206 01006DF0               PUSH.L      ER0
+                   499:                    if( TEI0Jump!=NULL ){
+    00020A 01006B2000             MOV.L       @_TEI0Jump:24,ER0
+           <000000>     
+    000212 4712                   BEQ         L280:8
+                   500:                            if( INTC.IPRB.BIT.B3==0 ){
+    000214 7EF97730               BLD.B       #3,@16777209:8
+    000218 4502                   BCS         L281:8
+                   501:                                    and_ccr(~0x40);
+    00021A 06BF                   ANDC.B      #-65:8,CCR
+    00021C              L281:                             
+                   502:                            }
+                   503:                            TEI0Jump();
+    00021C 01006B2000             MOV.L       @_TEI0Jump:24,ER0
+           <000000>     
+    000224 5D00                   JSR         @ER0
+    000226              L280:                             
+                   504:                    }
+                   505:    }
+    000226 01006D70               POP.L       ER0
+    00022A 01006D71               POP.L       ER1
+    00022E 5670                   RTE
+                   506:    //  vector 56 ERI1
+                   507:    void    INT_ERI1(void) {
+    000230              _INT_ERI1:                       ; function: INT_ERI1
+    000230 01006DF1               PUSH.L      ER1
+    000234 01006DF0               PUSH.L      ER0
+                   508:                    if( ERI1Jump!=NULL ){
+    000238 01006B2000             MOV.L       @_ERI1Jump:24,ER0
+           <000000>     
+    000240 4712                   BEQ         L282:8
+                   509:                            if( INTC.IPRB.BIT.B2==0 ){
+    000242 7EF97720               BLD.B       #2,@16777209:8
+    000246 4502                   BCS         L283:8
+                   510:                                    and_ccr(~0x40);
+    000248 06BF                   ANDC.B      #-65:8,CCR
+    00024A              L283:                             
+                   511:                            }
+                   512:                            ERI1Jump();
+    00024A 01006B2000             MOV.L       @_ERI1Jump:24,ER0
+           <000000>     
+    000252 5D00                   JSR         @ER0
+    000254              L282:                             
+                   513:                    }
+                   514:    }
+    000254 01006D70               POP.L       ER0
+    000258 01006D71               POP.L       ER1
+    00025C 5670                   RTE
+                   515:    //  vector 57 RXI1
+                   516:    void    INT_RXI1(void) {
+    00025E              _INT_RXI1:                       ; function: INT_RXI1
+    00025E 01006DF1               PUSH.L      ER1
+    000262 01006DF0               PUSH.L      ER0
+                   517:                    if( RXI1Jump!=NULL ){
+    000266 01006B2000             MOV.L       @_RXI1Jump:24,ER0
+           <000000>     
+    00026E 4712                   BEQ         L284:8
+                   518:                            if( INTC.IPRB.BIT.B2==0 ){
+    000270 7EF97720               BLD.B       #2,@16777209:8
+    000274 4502                   BCS         L285:8
+                   519:                                    and_ccr(~0x40);
+    000276 06BF                   ANDC.B      #-65:8,CCR
+    000278              L285:                             
+                   520:                            }
+                   521:                            RXI1Jump();
+    000278 01006B2000             MOV.L       @_RXI1Jump:24,ER0
+           <000000>     
+    000280 5D00                   JSR         @ER0
+    000282              L284:                             
+                   522:                    }
+                   523:    }
+    000282 01006D70               POP.L       ER0
+    000286 01006D71               POP.L       ER1
+    00028A 5670                   RTE
+                   524:    //  vector 58 TXI1
+                   525:    void    INT_TXI1(void) {
+    00028C              _INT_TXI1:                       ; function: INT_TXI1
+    00028C 01006DF1               PUSH.L      ER1
+    000290 01006DF0               PUSH.L      ER0
+                   526:                    if( TXI1Jump!=NULL ){
+    000294 01006B2000             MOV.L       @_TXI1Jump:24,ER0
+           <000000>     
+    00029C 4712                   BEQ         L286:8
+                   527:                            if( INTC.IPRB.BIT.B2==0 ){
+    00029E 7EF97720               BLD.B       #2,@16777209:8
+    0002A2 4502                   BCS         L287:8
+                   528:                                    and_ccr(~0x40);
+    0002A4 06BF                   ANDC.B      #-65:8,CCR
+    0002A6              L287:                             
+                   529:                            }
+                   530:                            TXI1Jump();
+    0002A6 01006B2000             MOV.L       @_TXI1Jump:24,ER0
+           <000000>     
+    0002AE 5D00                   JSR         @ER0
+    0002B0              L286:                             
+                   531:                    }
+                   532:    }
+    0002B0 01006D70               POP.L       ER0
+    0002B4 01006D71               POP.L       ER1
+    0002B8 5670                   RTE
+                   533:    //  vector 59 TEI1
+                   534:    void    INT_TEI1(void) {
+    0002BA              _INT_TEI1:                       ; function: INT_TEI1
+    0002BA 01006DF1               PUSH.L      ER1
+    0002BE 01006DF0               PUSH.L      ER0
+                   535:                    if( TEI1Jump!=NULL ){
+    0002C2 01006B2000             MOV.L       @_TEI1Jump:24,ER0
+           <000000>     
+    0002CA 4712                   BEQ         L288:8
+                   536:                            if( INTC.IPRB.BIT.B2==0 ){
+    0002CC 7EF97720               BLD.B       #2,@16777209:8
+    0002D0 4502                   BCS         L289:8
+                   537:                                    and_ccr(~0x40);
+    0002D2 06BF                   ANDC.B      #-65:8,CCR
+    0002D4              L289:                             
+                   538:                            }
+                   539:                            TEI1Jump();
+    0002D4 01006B2000             MOV.L       @_TEI1Jump:24,ER0
+           <000000>     
+    0002DC 5D00                   JSR         @ER0
+    0002DE              L288:                             
+                   540:                    }
+                   541:    }
+    0002DE 01006D70               POP.L       ER0
+    0002E2 01006D71               POP.L       ER1
+    0002E6 5670                   RTE
+                   542:    
+                   543:    //  vector 60 ADI
+                   544:    void    INT_ADI(void) {/* sleep(); */}
+    0002E8              _INT_ADI:                        ; function: INT_ADI
+    0002E8 5670                   RTE
+                   545:    
+                   546:    
+                   547:    //  vector Dummy
+                   548:    void    Dummy(void) {/* sleep(); */}
+    0002EA              _Dummy:                          ; function: Dummy
+    0002EA 5670                   RTE
+                   549:    
+  BIntChgTable                                           ; section
+    000000              _IRQ4Jump:                       ; static: IRQ4Jump
+    000000 00000004               .RES.L      1
+    000004              _IMIA0Jump:                      ; static: IMIA0Jump
+    000004 00000004               .RES.L      1
+    000008              _IMIA1Jump:                      ; static: IMIA1Jump
+    000008 00000004               .RES.L      1
+    00000C              _IMIA2Jump:                      ; static: IMIA2Jump
+    00000C 00000004               .RES.L      1
+    000010              _IMIA3Jump:                      ; static: IMIA3Jump
+    000010 00000004               .RES.L      1
+    000014              _IMIA4Jump:                      ; static: IMIA4Jump
+    000014 00000004               .RES.L      1
+    000018              _ERI0Jump:                       ; static: ERI0Jump
+    000018 00000004               .RES.L      1
+    00001C              _RXI0Jump:                       ; static: RXI0Jump
+    00001C 00000004               .RES.L      1
+    000020              _TXI0Jump:                       ; static: TXI0Jump
+    000020 00000004               .RES.L      1
+    000024              _TEI0Jump:                       ; static: TEI0Jump
+    000024 00000004               .RES.L      1
+    000028              _ERI1Jump:                       ; static: ERI1Jump
+    000028 00000004               .RES.L      1
+    00002C              _RXI1Jump:                       ; static: RXI1Jump
+    00002C 00000004               .RES.L      1
+    000030              _TXI1Jump:                       ; static: TXI1Jump
+    000030 00000004               .RES.L      1
+    000034              _TEI1Jump:                       ; static: TEI1Jump
+    000034 00000004               .RES.L      1
+  BDataWatchDog                                          ; section
+    000000              _watchDogCount:                  ; static: watchDogCount
+    000000 00000001               .RES.B      1
+    000001              _watchDogFlag:                   ; static: watchDogFlag
+    000001 00000001               .RES.B      1
+    000002              _watchDogON:                     ; static: watchDogON
+    000002 00000001               .RES.B      1
+  BBootCheck                                             ; section
+    000000              _check_date:                     ; static: check_date
+    000000 00000002               .RES.W      1
+    000002              _check_time:                     ; static: check_time
+    000002 00000002               .RES.W      1
+    000004              _check_all_bytes:                ; static: check_all_bytes
+    000004 00000004               .RES.L      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     24-Nov-2000  08:50:54  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000212 Byte(s)
+PROGRAM  SECTION(PIntPRG):                          0x000002EC Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+BSS      SECTION(BIntChgTable):                     0x00000038 Byte(s)
+BSS      SECTION(BDataWatchDog):                    0x00000003 Byte(s)
+BSS      SECTION(BBootCheck):                       0x00000008 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000004FE Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000043 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000541 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        2 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       66 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        117 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\ .\src\dvainit.c -object=.\obj\dvainit.obj
+CPU         : 300ha:24

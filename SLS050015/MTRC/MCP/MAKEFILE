@@ -1,0 +1,95 @@
+# ==========================================================================
+#	◇◇◇　香港地下鉄自動放送　◇◇◇
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .r01 .c .msa
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ ICC ]]
+CC = iccz80
+AS = az80
+LN = xlink
+
+# [[ Compiler Option ]]
+CFLAGS = -P -gA -s -v1 -rn -ml -I$(INC) -I$(COMMINC) -DSIM=0 
+
+# [[ Assambler Option ]]
+AFLAGS = -v1 -X -S+ 
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# msa -> r01 using ICC Assenbler
+{.\src}.msa.r01:
+	$(AS) $(AFLAGS) $< -o $* -l $* 
+
+# .c -> r01 using ICC Compiler
+{.\src}.c.r01:
+	$(CC) $< -o $*.r01 $(CFLAGS) -a $*.s01 -l $*.lst -q
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+SRC		= .\src^\
+OBJ		= .\obj^\
+INC		= .\inc^\
+COMMINC	= ..\comminc^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	MCP
+
+A_OBJS	=	$(OBJ)mcpInitA.r01 $(OBJ)mcpTimeA.r01 $(OBJ)mcpCommA.r01 $(OBJ)mcpPioA.r01 \
+		$(OBJ)mcpMain.r01 $(OBJ)mcpInit.r01 $(OBJ)mcpPio.r01 $(OBJ)mcpTimer.r01 \
+		$(OBJ)mcpDisp.r01 $(OBJ)mcpComm.r01
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# R01 －＞ HEX ファイル
+#
+$(PGM).hex	: $(OBJS)
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -f LINK.CMD -o $(PGM).hex -l $(PGM).map -t -xes
+
+
+#初期設定（アセンブラーレベル）
+$(OBJ)mcpInitA.r01 : $(SRC)mcpInitA.msa $(INC)MCPHW.INC
+
+#タイマー割り込み処理（アセンブラーレベル）
+$(OBJ)mcpTimeA.r01 : $(SRC)mcpTimeA.msa $(INC)MCPHW.INC
+
+#非同期通信処理（アセンブラーレベル）
+$(OBJ)mcpCommA.r01 : $(SRC)mcpCommA.msa $(INC)MCPHW.INC
+
+#Ｉ／Ｏ処理（アセンブラーレベル）
+$(OBJ)mcpPioA.r01 : $(SRC)mcpPioA.msa $(INC)MCPHW.INC
+
+#初期設定
+$(OBJ)mcpInit.r01 : $(SRC)mcpInit.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#タイマー割り込み処理
+$(OBJ)mcpTimer.r01 : $(SRC)mcpTimer.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#編成間通信処理
+$(OBJ)mcpComm.r01 : $(SRC)mcpComm.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#Ｉ／Ｏ処理
+$(OBJ)mcpPio.r01 : $(SRC)mcpPio.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#表示処理
+$(OBJ)mcpDisp.r01 : $(SRC)mcpDisp.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+#メインルーティン
+$(OBJ)mcpMain.r01 : $(SRC)mcpMain.c $(INC)IOFUNC.H $(COMMINC)COMMDEF.H
+
+

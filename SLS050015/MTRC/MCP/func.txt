@@ -1,0 +1,624 @@
+
+1.1. モジュール名　mcpInit
+
+
+	Module name	   : mcpInitialize
+	Module version	   : 1.0
+	Module Description : ＭＣＰ初期設定
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : main
+	Calling		   : ram_check, rom_check, HALTCPU
+	Remarks(History)   : MCP起動時のＩ／Ｏ初期設定を行う。
+
+
+
+	Module name	   : PRGBEGIN
+	Module version	   : 1.0
+	Module Description : リセット起動
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : CPU Reset Start Entry
+	Calling		   : BOOTSTRUP, X180_INIT, INIT_IC
+	Remarks(History)   : リセット起動の先頭アドレス
+
+
+	Module name	   : BOOTSTRUP
+	Module version	   : 1.0
+	Module Description : ＣＰＵ起動処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : PRGBEGIN
+	Calling		   : main
+	Remarks(History)   : ＣＰＵ起動処理。
+			     ダミーＲＥＴＩ命令発効。
+			     ＣＰＵ及び周辺の初期化。
+			     ソフトウェア（変数、バンクＲＡＭ等）イニシャライズ。
+			     Ｃのプログラムへジャンプ。
+
+
+	Module name	   : X180_INIT
+	Module version	   : 1.1
+	Module Description : ＩＣ初期化処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 07.09.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : BOOTSTRUP
+	Calling		   :
+	Remarks(History)   : ハードウェア（ＣＰＵ）初期化処理
+			     2000/09/07 メモリーウェイトを０にする
+
+
+
+	Module name	   : INIT_IC
+	Module version	   : 1.0
+	Module Description : ＩＣの初期化
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : BOOTSTRUP
+	Calling		   : timer_0_initialize, timer_1_initialize, asci_0_initialize, csio_initialize
+	Remarks(History)   : ＣＰＵ内蔵ペリフェラル、外部IC初期化
+			     timer_0_initialize	;. TIMER 0 初期化
+			     timer_1_initialize	;. TIMER 1 初期化
+			     asci_0_initialize	;. ASCI  0 初期化
+			     csio_initialize	;. CSI/O 初期化
+
+
+
+
+	Module name	   : read_dipsw
+	Module version 	   : 1.0
+	Module Description : Jumper Switch Read
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : main, mcpSwitchIn
+	Calling		   : 
+	Remarks(History)   : 
+	
+
+
+	Module name	   : Watch_dog_reset
+	Module version 	   : 1.0
+	Module Description : ウォッチドッグタイマーのリセット
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpGetFont, main
+	Calling		   : 
+	Remarks(History)   : ウォッチドッグタイマーのリセット
+
+
+	Module name	   : _bankchange
+	Module version 	   : 1.0
+	Module Description : バンク切り換え
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : bank_no
+				Bank_no = 
+					no       address	*
+					  0 :  0000h -  3fffh	*
+					  1 :  4000h -  7fffh	*
+					  2 :  8000h -  bfffh	*
+					  3 :  c000h -  ffffh	*
+					  4 : 10000h - 13fffh	*
+					  5 : 14000h - 17fffh	*
+					  6 : 18000h - 1bfffh	*
+					  7 : 1c000h - 1ffffh	*
+					  8 : 20000h - 23fffh	*
+					  9 : 24000h - 27fffh	*
+					 10 : 28000h - 2bfffh	*
+					 11 : 2c000h - 2ffffh	*
+					 12 : 30000h - 33fffh	*
+					 13 : 34000h - 37fffh	*
+					 14 : 38000h - 3bfffh	*
+					 15 : 3c000h - 3ffffh
+	Data Output	   : void
+	Called by	   : ram_check, rom_check
+	Calling		   : 
+	Remarks(History)   : ＲＡＭバンクエリアの切り替え
+
+
+
+
+
+	Module name	   : __enable
+	Module version 	   : 1.0
+	Module Description : 割り込みの許可
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : asci0_recv_ir, main
+	Calling		   : 
+	Remarks(History)   : 
+
+
+	Module name	   : __disable
+	Module version 	   : 1.0
+	Module Description : 割り込みの禁止
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpSend, asci0_recv_ir, main
+	Calling		   : 
+	Remarks(History)   : 
+
+
+	Module name	   : ram_check
+	Module version 	   : 1.0
+	Module Description : ALL RAM Area read after write check
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpInitialize
+	Calling		   : 
+	Remarks(History)   : 
+
+	Module name	   : rom_check
+	Module version 	   : 1.0
+	Module Description : ALL ROM Area Calc SUM
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpInitialize
+	Calling		   : 
+	Remarks(History)   : 
+
+
+	Module name	   : HALTCPU
+	Module version 	   : 1.0
+	Module Description : HALT CPU
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpInitialize
+	Calling		   : 
+	Remarks(History)   : 
+
+
+
+
+
+
+
+
+
+1.2. モジュール名　mcpMain
+
+
+
+	Module name	   : main
+	Module version 	   : 1.0
+	Module Description : メイン関数
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : BOOTSTRUP
+	Calling		   : io_output_on, io_output_off, mcpInitialize, read_dipsw, __enable, mcpDynamicScanDisplay, watch_dog_reset
+	Remarks(History)   : MCPのメインルーティン
+				McpDynamicScanDisplay() を呼び出す
+
+
+
+1.3. モジュール名　mcpPIO
+
+
+	Module name	   : mcpSwitchIn
+	Module version 	   : 1.0
+	Module Description : スイッチ状態入力
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 07.11.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : timer_1_func
+	Calling		   : switch_read, io_output_on, io_output_off, read_dipsw
+	Remarks(History)   : スイッチ押下状態をＤＶＡＵへ送信するまで蓄積する
+			    Ｉ／Ｏ入力処理で、すべてのスイッチおよびＤＩＰＳＷを取り込む
+
+
+	Module name	   : csio_initialize
+	Module version 	   : 1.0
+	Module Description : クロック同期式シリアルの初期化
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : INIT_IC
+	Calling		   : 
+	Remarks(History)   : ● クロック同期式シリアル出力の初期化を行う。
+
+
+	Module name	   : csio_output
+	Module version 	   : 1.0
+	Module Description : クロック同期式シリアルの出力
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char data = 出力データ
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : 
+	Remarks(History)   :
+
+
+	Module name	   : csio_strobe
+	Module version 	   : 1.0
+	Module Description : クロック同期式シリアルの Strobe Signal ON/OFF
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char data = On = 1...High, 
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : 
+	Remarks(History)   :
+
+
+	Module name	   : switch_read
+	Module version 	   : 1.0
+	Module Description : スイッチ情報の読み込み
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : short  switch data
+	Called by	   : 
+	Calling		   : 
+	Remarks(History)   :
+
+
+	Module name	   : io_output_on
+	Module version 	   : 1.0
+	Module Description : Ｉ／Ｏ出力のＯＮ処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char ondata1, char ondata2
+				ondata1 = reg.E
+					b0...b4 = 分割表示制御　ＣＯＬ番号
+					b5 = ＣＯＬ出力有効ビット
+				ondata2 = reg.C
+					b0 = Matrix LED Enable
+					b1 = Matrix LED 高輝度
+					b2 = Switch LED Enable
+					b3 = Switch LED 高輝度
+					b7 = Watch Dog Enable
+	Data Output	   : void
+	Called by	   : main, mcpSwitchIn
+	Calling		   : 
+	Remarks(History)   :
+
+
+	Module name	   : io_output_off
+	Module version 	   : 1.0
+	Module Description : Ｉ／Ｏ出力のＯＦＦ処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char offdata1, char offdata2
+				offdata1 = reg.E
+					b0...b4 = 分割表示制御　ＣＯＬ番号
+					b5 = ＣＯＬ出力有効ビット
+				offdata2 = reg.C
+					b0 = Matrix LED Enable
+					b1 = Matrix LED 高輝度
+					b2 = Switch LED Enable
+					b3 = Switch LED 高輝度
+					b7 = Watch Dog Enable
+	Data Output	   : void
+	Called by	   : main, mcpSwitchIn
+	Calling		   : 
+	Remarks(History)   :
+
+
+	Module name	   : csio_ir
+	Module version 	   : 1.0
+	Module Description : 同期データ転送割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 07.09.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : 
+	Remarks(History)   : 同期転送によるマトリックスＬＥＤへの出力処理
+			    １ｍＳ以内に１０バイトを転送する
+
+
+	Module name	   : io_disp_set
+	Module version 	   : 1.0
+	Module Description : 表示処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 07.09.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : 
+	Remarks(History)   : ダイナミックスキャン表示処理をアセンブラー化した
+
+
+
+
+
+1.4. モジュール名　mcpTimer
+
+
+	Module name	   : timer_1_func
+	Module version 	   : 1.0
+	Module Description : １０ｍＳタイマー割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : timer_1_ir
+	Calling		   : mcpSwitchIn, mcpBlinkCount
+	Remarks(History)   : ブリンク表示のタイミングをカウントする
+			　　mcpSwitchIn()
+			    mcpBlinkCount() を呼び出す
+
+
+
+	Module name	   : timer_0_func
+	Module version 	   : 1.0
+	Module Description : １ｍＳタイマー割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : timer_1_ir
+	Calling		   : io_disp_set
+	Remarks(History)   : ダイナミックスキャンのタイミングに使用する
+			　　io_disp_set() を呼び出す
+
+
+	Module name	   : timer_0_initialize
+	Module version 	   : 1.0
+	Module Description : タイマ０の初期化
+				１ｍＳタイマーの作成
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : INIT_IC
+	Calling		   : 
+	Remarks(History)   : ダイナミックスキャンのタイミングに使用する
+			　　io_disp_set() を呼び出す
+
+
+	Module name	   : timer_0_ir
+	Module version 	   : 1.0
+	Module Description : タイマ０の割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : timer_0_func
+	Remarks(History)   : 
+			　　
+
+
+	Module name	   : timer_1_initialize
+	Module version 	   : 1.0
+	Module Description : タイマ１の初期化
+				１０ｍＳタイマーの作成
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : INIT_IC
+	Calling		   : 
+	Remarks(History)   : 
+			　　
+
+	Module name	   : timer_1_ir
+	Module version 	   : 1.0
+	Module Description : タイマ１の割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : timer_1_func
+	Remarks(History)   : 
+
+
+
+
+1.5. モジュール名　mcpDisp
+
+
+
+	Module name	   : mcpGetFont
+	Module version 	   : 1.0
+	Module Description : ＬＥＤへ表示するフォントを展開する
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpDynamicScanDisplay
+	Calling		   : watch_dog_reset
+	Remarks(History)   : 通信によって表示するデータはＡＳＣＩＩなので　ﾄﾞｯﾄ表示用に展開する
+			     処理時間がかかるため、watch_dog_reset() を呼び出す
+
+
+	Module name	   : mcpBlinkCount
+	Module version 	   : 1.0
+	Module Description : 点滅カウンターによって点灯・消灯の判定データを作成する
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : timer_1_func
+	Calling		   : 
+	Remarks(History)   : １０ｍＳごとに呼び出される
+				２５０ｍＳごとに点灯と消灯を区別する
+
+
+
+	Module name	   : mcpMatrixOutput
+	Module version 	   : 1.0
+	Module Description : マトリックスＬＥＤへの出力
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpDynamicScanDisplay
+	Calling		   : 
+	Remarks(History)   : アセンブラールーティンへ移動し、廃止した
+				ﾄﾞｯﾄ単位の表示データをＩ／Ｏ出力する
+
+
+	Module name	   : mcpDynamicScanDisplay
+	Module version 	   : 1.0
+	Module Description : ＬＥＤへ表示するメインルーティン
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 07.09.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : main
+	Calling		   : mcpGetFont
+	Remarks(History)   : メインルーティンから呼び出される
+				mcpGetFont()
+				mcpMatrixOutput() を呼び出す
+			     アセンブラールーティンへmcpMatrixOutput を移動したため、mcpGetFont() のみの呼び出しとした
+
+
+
+1.6. モジュール名　mcpComm
+
+
+	Module name	   : asci_0_send_ir
+	Module version 	   : 1.0
+	Module Description : 送信割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : asci_0_ir
+	Calling		   : asci_0_tx_disable, asci_0_transmit
+	Remarks(History)   : シリアルポート０用の送信割り込み処理（編成間通信用）
+				アセンブラールーティンより呼び出される
+				送信バッファーのデータを１バイトずつ送信する
+
+
+	Module name	   : mcpSend
+	Module version 	   : 1.0
+	Module Description : 送信準備処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : mcpReceive
+	Calling		   : asci_0_tx_enable, __disable, asci_0_tx_enable, asci_0_send_ir
+	Remarks(History)   : 送信バッファーへキースイッチ情報のデータを設定する（編成間通信用）
+
+
+	Module name	   : mcpReceive
+	Module version 	   : 1.0
+	Module Description : 受信処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char *data, char len
+				*data = Receive Data Buffer address, len = receive length
+	Data Output	   : return 1 = my address
+	Called by	   : asci_0_recv_ir
+	Calling		   : 
+	Remarks(History)   : 受信終了時に受信データを解析し、内部エリアへ格納する。
+				応答アドレスのとき、mcpSend() を呼び出す
+
+
+
+	Module name	   : asci_0_recv_ir
+	Module version 	   : 1.0
+	Module Description : 受信割り込み処理
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char data, char status
+				data = receive data, status = receive status
+	Data Output	   : void
+	Called by	   : asci_0_ir
+	Calling		   : mcpReceive, mcpSend
+	Remarks(History)   : シリアルポート０用の受信割り込み処理（編成間通信用）
+				アセンブラールーティンより呼び出される
+				受信データを１バイトずつ受信バッファーに格納する
+				通信フォーマットのチェックを行い、ＢＣＣのチェックまで行う
+
+
+	Module name	   : asci_0_initialize
+	Module version 	   : 1.0
+	Module Description : ASCI 0 の初期設定
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : INIT_IC
+	Calling		   : 
+	Remarks(History)   : Boudrate         : 9600 bps.
+				Character Length : 8 bits.
+				Parity bit       : EVEN
+				Stop Bit Length  : 1 stop bit.
+				Trans , Receiver : Tx & Rx Enable.
+				Interrupt        : Rx Enable, Tx Disable
+
+
+
+	Module name	   : asci_0_tx_disable
+	Module version 	   : 1.0
+	Module Description : ASCI0送信禁止
+				ASCI0受信許可
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : void
+	Data Output	   : void
+	Called by	   : asci_0_send_ir
+	Calling		   : 
+	Remarks(History)   : 送信割り込み禁止(TIE=0)
+				受信許可(RE=1)
+
+
+	Module name	   : asci_0_tx_enable
+	Module version 	   : 1.0
+	Module Description : ASCI0送信許可
+				ASCI0受信禁止
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char data = 1 ... RTS ON/INT OFF, 0 ... RTS ON/INT ON
+	Data Output	   : void
+	Called by	   : mcpSend
+	Calling		   : 
+	Remarks(History)   : 送信割り込み禁止(TIE=0)
+				受信許可(RE=1)
+
+
+	Module name	   : asci_0_ir
+	Module version 	   : 1.0
+	Module Description : ASCI 0 受信割り込みエントリー
+	Author		   : TOA Corporation  K.Honda
+	Date		   : 27.06.2000
+	Data Input	   : char ch = 送信データ
+	Data Output	   : void
+	Called by	   : 
+	Calling		   : asci_0_send_ir, asci_0_recv_ir
+	Remarks(History)   : ＤＶＡＵ通信割り込み
+				call asci_0_recv_ir( char data, char status )
+					data	８ビット＝受信データ
+					status  ８ビット＝ステータス
+				call asci_0_send_ir( void )
+
+
+
+
+
+

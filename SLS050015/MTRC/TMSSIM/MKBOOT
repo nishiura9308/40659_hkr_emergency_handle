@@ -1,0 +1,69 @@
+# ==========================================================================
+#	žžž@`’n‰º“SŽ©“®•ú‘—@žžž
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .mot .obj .c .src
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ H8 ]]
+CC = ch38.exe
+AS = asm38.exe
+LN = optlnk38.exe
+CONV = cnvs.exe
+
+# [[ Compiler Option ]]
+CFLAGS = -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\INC
+
+# [[ Assambler Option ]]
+AFLAGS = -cpu=300ha:24 -debug -list -chgincpath -errorpath
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# src -> obj using ICC Assenbler
+{.\bootsrc}.src.obj:
+	$(AS) $< $(AFLAGS) -object=$* 
+
+# .c -> obj using ICC Compiler
+{.\bootsrc}.c.obj:
+	$(CC) $(CFLAGS) $< -object=$*.obj
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+OBJ		= .\bootobj^\
+INC		= .\inc^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	DVA1BOOT
+
+A_OBJS	=	$(OBJ)lowlvl.obj $(OBJ)jump.obj
+
+C_OBJS	=	$(OBJ)DBSCT.obj $(OBJ)sbrk.obj \
+		$(OBJ)vecttbl.obj $(OBJ)resetprg.obj $(OBJ)dvaio.obj \
+		$(OBJ)dvaumain.obj $(OBJ)boot.obj \
+		$(OBJ)pcaccs.obj $(OBJ)dosaccs1.obj $(OBJ)dosaccs2.obj $(OBJ)cluster.obj $(OBJ)diraccs.obj \
+		$(OBJ)dvainit.obj $(OBJ)dosaccs3.obj $(OBJ)dvamente.obj $(OBJ)commlib.obj
+
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# OBJ |„ MOT ƒtƒ@ƒCƒ‹
+#
+$(PGM).mot	: $(OBJS) LINK.CMD
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -SubCommand=LINKBOOT.CMD
+	$(CONV) ".\DVA1BOOT.abs" ".\DVA1BOOT.mot"
+
+

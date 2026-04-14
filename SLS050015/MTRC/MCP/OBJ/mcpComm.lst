@@ -1,0 +1,1259 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/386                                        #
+# Front End V4.20N                                     06/Dec/2000  09:16:26 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  .\src\mcpcomm.c                                     #
+#       List file     =  .\obj\mcpcomm.lst                                   #
+#       Object file   =  .\obj\mcpcomm.r01                                   #
+#       ASM file      =  .\obj\mcpcomm.s01                                   #
+#       Command line  =  .\src\mcpComm.c -o .\obj\mcpComm.r01 -P -gA -s -v1  #
+#                        -rn -ml -I.\inc\ -I..\comminc\ -DSIM=0 -a           #
+#                        .\obj\mcpComm.s01 -l .\obj\mcpComm.lst -q           #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+   \   0000                    NAME    mcpcomm(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    UDATA0(0)
+   \   0000                    EXTERN  __disable
+   \   0000                    EXTERN  __enable
+   \   0000                    PUBLIC  address
+   \   0000                    PUBLIC  asci_0_recv_ir
+   \   0000                    EXTERN  asci_0_rx_disable
+   \   0000                    EXTERN  asci_0_rx_enable
+   \   0000                    PUBLIC  asci_0_send_ir
+   \   0000                    EXTERN  asci_0_transmit
+   \   0000                    EXTERN  asci_0_tx_disable
+   \   0000                    EXTERN  asci_0_tx_enable
+   \   0000                    EXTERN  matrix_blink
+   \   0000                    EXTERN  matrix_led
+   \   0000                    PUBLIC  mcpReceive
+   \   0000                    PUBLIC  mcpSend
+   \   0000                    PUBLIC  mcp_active
+   \   0000                    PUBLIC  mcp_sendactive
+   \   0000                    PUBLIC  sendarea
+   \   0000                    EXTERN  sw_blink
+   \   0000                    EXTERN  sw_led
+   \   0000                    EXTERN  ?CL64180L_4_04_L00
+   \   0000                    EXTERN  ?US_RSH_L02
+   \   0000                    EXTERN  ?MEMSET_L11
+   \   0000                    RSEG    CODE
+   \   0000            asci_0_send_ir:
+      1          /********************************************************************
+      2                  【香港地下鉄向け自動列車放送制御装置】
+      3          *-------------------------------------------------------------------*
+      4                  編成間通信制御モジュール
+      5          *-------------------------------------------------------------------*
+      6                  Author          TOA Corporation
+      7          
+      8                  Revision        a00. 2000/06/27         K.Honda
+      9          
+     10          *********************************************************************/
+     11          
+     12          #include <string.h>
+     13          
+     14          #include "IOFUNC.h"
+     15          
+     16          #include "COMMDEF.h"
+     17          
+     18          /*@@@S*/
+     19          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     20                  グローバル変数
+     21          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     22          
+     23          /** 自アドレス **/
+     24          unsigned short  address;                        /* 上位１２ビット＝Ｃａｒ　Ｎｏ．
+     25                                                                             下位４ビット＝ＤＩＰＳＷアドレス */
+     26          
+     27          /** 送信エリア **/
+     28          struct MCPSEND  sendarea;
+     29          
+     30          char    mcp_active;
+     31          
+     32          char    mcp_sendactive;
+     33          
+     34          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     35                  定数定義
+     36          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     37          #define         STX                     (0x02)                          /* テキスト開始                 */
+     38          #define         ETX                     (0x03)                          /* テキスト終了                 */
+     39          #define         DLE                     (0x10)                          /* ＤＬＥ拡張                   */
+     40          
+     41          #define COMM_WAIT_STX           0               /* ＳＴＸ待ち */
+     42          #define COMM_WAIT_ETX           1               /* ＥＴＸ待ち */
+     43          #define COMM_WAIT_BCC           2               /* ＢＣＣ待ち */
+     44          
+     45          
+     46          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     47                  構造体定義
+     48          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     49          
+     50          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     51                  テーブル
+     52          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     53          
+     54          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     55                          外部参照
+     56          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     57          
+     58          /** 表示データ **/
+     59          extern  short   sw_led;                         /*スイッチＬＥＤ*/
+     60          #define SWLED_EMGPRG    0x0001
+     61          #define SWLED_CABCAB    0x0002
+     62          #define SWLED_RBM               0x0004
+     63          #define SWLED_TEST              0x0008
+     64          #define SWLED_ATC               0x0010
+     65          #define SWLED_HL                0x0020
+     66          #define SWLED_EMG               0x0040
+     67          #define SWLED_SPC               0x0080
+     68          #define SWLED_REP               0x0100
+     69          #define SWLED_LEFT              0x0200
+     70          #define SWLED_RIGHT             0x0400
+     71          #define SWLED_SEL               0x0800
+     72          #define SWLED_RST               0x1000
+     73          #define SWLED_ENT               0x2000
+     74          #define SWLED_STN               0x4000
+     75          #define SWLED_SPC2              0x8000  /* Same SWLED_SPC */
+     76          
+     77          
+     78          extern  char    matrix_led[4][6];       /*６ｘ４マトリックスＬＥＤ*/
+     79          extern  short   sw_blink;                       /*スイッチ点滅データ*/
+     80          extern  char    matrix_blink[4];        /*６ｘ４マトリックス点滅データ*/
+     81          
+     82          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     83                          ローカル変数
+     84          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     85          static  unsigned char   recvbuff[64];           /*受信バッファー*/
+     86          static  unsigned char   recvlen;                        /*受信バイト数*/
+     87          static  unsigned char   recvphase;                      /*受信フェーズ*/
+     88          static  unsigned char   recvdle;                        /*受信ＤＬＥフラグ*/
+     89          static  unsigned char   recvbcc;                        /*受信ＢＣＣ計算エリア*/
+     90          static  unsigned char   sendbuff[64];           /*送信バッファー*/
+     91          static  unsigned char   sendlen;                        /*送信バイト数*/
+     92          static  unsigned char   sendcnt;                        /*送信カウンター*/
+     93          
+     94          /*@@@E*/
+     95          /************************************************************************
+     96          
+     97                  Function name   << asci_0_send_ir >>
+     98                                                  送信割り込み処理
+     99                  Syntax                  asci_0_send_ir( void );
+    100                  Argument                none
+    101                  Author                  TOA Corporation  K.Honda
+    102                  Revision                a00 2000/06/27
+    103          
+    104          *************************************************************************/
+    105          void asci_0_send_ir( void )
+    106          {
+   \   0000  C5                PUSH    BC
+   \   0001  D5                PUSH    DE
+    107                          if( sendcnt==sendlen ){ /*すべて送信したとき*/
+   \   0002  3A9000            LD      A,(sendlen)
+   \   0005  47                LD      B,A
+   \   0006  3A9100            LD      A,(sendcnt)
+   \   0009  B8                CP      B
+   \   000A  2005              JR      NZ,?0001
+   \   000C            ?0000:
+    108                                  asci_0_tx_disable();            /*受信へ切り替え*/
+   \   000C  CD0000            CALL    asci_0_tx_disable
+    109                                  return;
+    110                          }
+   \   000F  180F              JR      ?0002
+   \   0011            ?0001:
+    111          
+    112                          asci_0_transmit( sendbuff[sendcnt++] ); /*１バイトの送信*/
+   \   0011  219100            LD      HL,sendcnt
+   \   0014  4E                LD      C,(HL)
+   \   0015  34                INC     (HL)
+   \   0016  0600              LD      B,0
+   \   0018  215000            LD      HL,sendbuff
+   \   001B  09                ADD     HL,BC
+   \   001C  5E                LD      E,(HL)
+   \   001D  CD0000            CALL    asci_0_transmit
+    113          }
+   \   0020            ?0002:
+   \   0020  D1                POP     DE
+   \   0021  C1                POP     BC
+   \   0022  C9                RET
+   \   0023            mcpSend:
+    114          
+    115          /************************************************************************
+    116          
+    117                  Function name   << mcpSend >>
+    118                                                  送信準備処理
+    119                  Syntax                  mcpSend( void );
+    120                  Argument                none
+    121                  Author                  TOA Corporation  K.Honda
+    122                  Revision                a00 2000/06/27
+    123          
+    124          *************************************************************************/
+    125          void mcpSend( void )
+    126          {
+   \   0023  C5                PUSH    BC
+   \   0024  D5                PUSH    DE
+   \   0025  DDE5              PUSH    IX
+   \   0027  DD210000          LD      IX,0
+   \   002B  DD39              ADD     IX,SP
+   \   002D  F5                PUSH    AF
+   \   002E  F5                PUSH    AF
+   \   002F  F5                PUSH    AF
+    127                          unsigned char   *p;                     /*送信データポインター*/
+    128                          unsigned char   sendbcc;        /*送信ＢＣＣ計算エリア*/
+    129                          int             i;
+    130                          unsigned char   len;
+    131          
+    132                          asci_0_tx_enable(1);            /*送信開始  RTS=ON*/
+   \   0030  1E01              LD      E,1
+   \   0032  CD0000            CALL    asci_0_tx_enable
+    133          
+    134                          mcp_sendactive = 1;
+   \   0035  3E01              LD      A,1
+   \   0037  320B00            LD      (mcp_sendactive),A
+    135          
+    136                          sendarea.adr = address;
+   \   003A  2A0000            LD      HL,(address)
+   \   003D  220200            LD      (sendarea),HL
+    137          
+    138                          sendcnt = 0;                                    /* 送信ポインター０クリア */
+   \   0040  AF                XOR     A
+   \   0041  329100            LD      (sendcnt),A
+    139                          sendlen = 0;                                    /* 送信バイト数０クリア*/
+   \   0044  AF                XOR     A
+   \   0045  329000            LD      (sendlen),A
+    140          
+    141                                  /* DLE+STX を設定*/
+    142                          sendbuff[sendlen++] = DLE;
+   \   0048  219000            LD      HL,sendlen
+   \   004B  4E                LD      C,(HL)
+   \   004C  34                INC     (HL)
+   \   004D  0600              LD      B,0
+   \   004F  215000            LD      HL,sendbuff
+   \   0052  09                ADD     HL,BC
+   \   0053  3610              LD      (HL),16
+    143                          sendbuff[sendlen++] = STX;
+   \   0055  219000            LD      HL,sendlen
+   \   0058  4E                LD      C,(HL)
+   \   0059  34                INC     (HL)
+   \   005A  0600              LD      B,0
+   \   005C  215000            LD      HL,sendbuff
+   \   005F  09                ADD     HL,BC
+   \   0060  3602              LD      (HL),2
+    144          
+    145                          sendbcc = 0;                                    /* 送信ＢＣＣの計算クリア */
+   \   0062  DD36FC00          LD      (IX-4),0
+    146                          p = (unsigned char *)&sendarea;                 /* 送信エリアの内容をそのまま送信 */
+   \   0066  DD36FA00          LD      (IX-6),LOW(sendarea)
+   \   006A  DD36FB00          LD      (IX-5),HIGH(sendarea)
+    147          
+    148                          len = sizeof(sendarea);
+   \   006E  DD36FF08          LD      (IX-1),8
+    149                          sendbcc ^= len;                                         /* 送信ＢＣＣの計算 */
+   \   0072  DD7EFC            LD      A,(IX-4)
+   \   0075  DDAEFF            XOR     (IX-1)
+   \   0078  DD77FC            LD      (IX-4),A
+    150                          if( len==STX || len==ETX || len==DLE ){
+   \   007B  DD46FF            LD      B,(IX-1)
+   \   007E  05                DEC     B
+   \   007F  05                DEC     B
+   \   0080  280E              JR      Z,?0003
+   \   0082  DD7EFF            LD      A,(IX-1)
+   \   0085  FE03              CP      3
+   \   0087  2807              JR      Z,?0003
+   \   0089  DD7EFF            LD      A,(IX-1)
+   \   008C  FE10              CP      16
+   \   008E  2020              JR      NZ,?0004
+   \   0090            ?0005:
+   \   0090            ?0006:
+   \   0090            ?0003:
+    151                                  sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+   \   0090  219000            LD      HL,sendlen
+   \   0093  4E                LD      C,(HL)
+   \   0094  34                INC     (HL)
+   \   0095  0600              LD      B,0
+   \   0097  215000            LD      HL,sendbuff
+   \   009A  09                ADD     HL,BC
+   \   009B  3610              LD      (HL),16
+    152                                  sendbuff[sendlen++] = len + 0x40;
+   \   009D  219000            LD      HL,sendlen
+   \   00A0  4E                LD      C,(HL)
+   \   00A1  34                INC     (HL)
+   \   00A2  0600              LD      B,0
+   \   00A4  215000            LD      HL,sendbuff
+   \   00A7  09                ADD     HL,BC
+   \   00A8  DD7EFF            LD      A,(IX-1)
+   \   00AB  C640              ADD     A,64
+   \   00AD  77                LD      (HL),A
+    153                          }
+    154                          else {
+   \   00AE  180F              JR      ?0007
+   \   00B0            ?0004:
+    155                                  sendbuff[sendlen++] = len;
+   \   00B0  219000            LD      HL,sendlen
+   \   00B3  4E                LD      C,(HL)
+   \   00B4  34                INC     (HL)
+   \   00B5  0600              LD      B,0
+   \   00B7  215000            LD      HL,sendbuff
+   \   00BA  09                ADD     HL,BC
+   \   00BB  DD46FF            LD      B,(IX-1)
+   \   00BE  70                LD      (HL),B
+   \   00BF            ?0007:
+    156                          }
+    157          
+    158                          for( i=0; i<sizeof(sendarea); i++, p++ ){
+   \   00BF  AF                XOR     A
+   \   00C0  DD77FD            LD      (IX-3),A
+   \   00C3  DD77FE            LD      (IX-2),A
+   \   00C6            ?0009:
+   \   00C6  010880            LD      BC,32776
+   \   00C9  DD6EFD            LD      L,(IX-3)
+   \   00CC  DD66FE            LD      H,(IX-2)
+   \   00CF  3E80              LD      A,128
+   \   00D1  AC                XOR     H
+   \   00D2  67                LD      H,A
+   \   00D3  ED42              SBC     HL,BC
+   \   00D5  307C              JR      NC,?0008
+   \   00D7            ?0010:
+    159                                  sendbcc ^= *p;                          /* 送信ＢＣＣの計算 */
+   \   00D7  DD6EFA            LD      L,(IX-6)
+   \   00DA  DD66FB            LD      H,(IX-5)
+   \   00DD  DD7EFC            LD      A,(IX-4)
+   \   00E0  AE                XOR     (HL)
+   \   00E1  DD77FC            LD      (IX-4),A
+    160                                  if( *p==STX || *p==ETX || *p==DLE ){
+   \   00E4  DD6EFA            LD      L,(IX-6)
+   \   00E7  DD66FB            LD      H,(IX-5)
+   \   00EA  46                LD      B,(HL)
+   \   00EB  05                DEC     B
+   \   00EC  05                DEC     B
+   \   00ED  2816              JR      Z,?0012
+   \   00EF  DD6EFA            LD      L,(IX-6)
+   \   00F2  DD66FB            LD      H,(IX-5)
+   \   00F5  7E                LD      A,(HL)
+   \   00F6  FE03              CP      3
+   \   00F8  280B              JR      Z,?0012
+   \   00FA  DD6EFA            LD      L,(IX-6)
+   \   00FD  DD66FB            LD      H,(IX-5)
+   \   0100  7E                LD      A,(HL)
+   \   0101  FE10              CP      16
+   \   0103  2026              JR      NZ,?0013
+   \   0105            ?0014:
+   \   0105            ?0015:
+   \   0105            ?0012:
+    161                                          sendbuff[sendlen++] = DLE;                      /*データのＤＬＥ拡張*/
+   \   0105  219000            LD      HL,sendlen
+   \   0108  4E                LD      C,(HL)
+   \   0109  34                INC     (HL)
+   \   010A  0600              LD      B,0
+   \   010C  215000            LD      HL,sendbuff
+   \   010F  09                ADD     HL,BC
+   \   0110  3610              LD      (HL),16
+    162                                          sendbuff[sendlen++] = *p + 0x40;
+   \   0112  219000            LD      HL,sendlen
+   \   0115  4E                LD      C,(HL)
+   \   0116  34                INC     (HL)
+   \   0117  0600              LD      B,0
+   \   0119  215000            LD      HL,sendbuff
+   \   011C  09                ADD     HL,BC
+   \   011D  E5                PUSH    HL
+   \   011E  DD6EFA            LD      L,(IX-6)
+   \   0121  DD66FB            LD      H,(IX-5)
+   \   0124  7E                LD      A,(HL)
+   \   0125  C640              ADD     A,64
+   \   0127  E1                POP     HL
+   \   0128  77                LD      (HL),A
+    163                                  }
+    164                                  else {
+   \   0129  1815              JR      ?0016
+   \   012B            ?0013:
+    165                                          sendbuff[sendlen++] = *p;
+   \   012B  219000            LD      HL,sendlen
+   \   012E  4E                LD      C,(HL)
+   \   012F  34                INC     (HL)
+   \   0130  0600              LD      B,0
+   \   0132  215000            LD      HL,sendbuff
+   \   0135  09                ADD     HL,BC
+   \   0136  E5                PUSH    HL
+   \   0137  DD6EFA            LD      L,(IX-6)
+   \   013A  DD66FB            LD      H,(IX-5)
+   \   013D  46                LD      B,(HL)
+   \   013E  E1                POP     HL
+   \   013F  70                LD      (HL),B
+   \   0140            ?0016:
+   \   0140  DD34FD            INC     (IX-3)
+   \   0143  2003              JR      NZ,?0069
+   \   0145  DD34FE            INC     (IX-2)
+   \   0148            ?0069:
+   \   0148  DD34FA            INC     (IX-6)
+   \   014B  2003              JR      NZ,?0070
+   \   014D  DD34FB            INC     (IX-5)
+   \   0150            ?0070:
+   \   0150  C3C600            JP      ?0009
+   \   0153            ?0008:
+    166                                  }
+    167                          }
+    168          
+    169                                  /* DLE+ETX を設定*/
+    170                          sendbuff[sendlen++] = DLE;
+   \   0153  219000            LD      HL,sendlen
+   \   0156  4E                LD      C,(HL)
+   \   0157  34                INC     (HL)
+   \   0158  0600              LD      B,0
+   \   015A  215000            LD      HL,sendbuff
+   \   015D  09                ADD     HL,BC
+   \   015E  3610              LD      (HL),16
+    171                          sendbuff[sendlen++] = ETX;
+   \   0160  219000            LD      HL,sendlen
+   \   0163  4E                LD      C,(HL)
+   \   0164  34                INC     (HL)
+   \   0165  0600              LD      B,0
+   \   0167  215000            LD      HL,sendbuff
+   \   016A  09                ADD     HL,BC
+   \   016B  3603              LD      (HL),3
+    172                          sendbcc ^= ETX;                 /* 送信ＢＣＣの計算*/
+   \   016D  DD7EFC            LD      A,(IX-4)
+   \   0170  EE03              XOR     3
+   \   0172  DD77FC            LD      (IX-4),A
+    173          
+    174                          if( sendbcc==STX || sendbcc==ETX || sendbcc==DLE ){
+   \   0175  3D                DEC     A
+   \   0176  3D                DEC     A
+   \   0177  280E              JR      Z,?0017
+   \   0179  DD7EFC            LD      A,(IX-4)
+   \   017C  FE03              CP      3
+   \   017E  2807              JR      Z,?0017
+   \   0180  DD7EFC            LD      A,(IX-4)
+   \   0183  FE10              CP      16
+   \   0185  2020              JR      NZ,?0018
+   \   0187            ?0019:
+   \   0187            ?0020:
+   \   0187            ?0017:
+    175                                  sendbuff[sendlen++] = DLE;                      /* ＢＣＣのＤＬＥ拡張 */
+   \   0187  219000            LD      HL,sendlen
+   \   018A  4E                LD      C,(HL)
+   \   018B  34                INC     (HL)
+   \   018C  0600              LD      B,0
+   \   018E  215000            LD      HL,sendbuff
+   \   0191  09                ADD     HL,BC
+   \   0192  3610              LD      (HL),16
+    176                                  sendbuff[sendlen++] = sendbcc + 0x40;
+   \   0194  219000            LD      HL,sendlen
+   \   0197  4E                LD      C,(HL)
+   \   0198  34                INC     (HL)
+   \   0199  0600              LD      B,0
+   \   019B  215000            LD      HL,sendbuff
+   \   019E  09                ADD     HL,BC
+   \   019F  DD7EFC            LD      A,(IX-4)
+   \   01A2  C640              ADD     A,64
+   \   01A4  77                LD      (HL),A
+    177                          }
+    178                          else {
+   \   01A5  180F              JR      ?0021
+   \   01A7            ?0018:
+    179                                  sendbuff[sendlen++] = sendbcc;          /* ＢＣＣの設定 */
+   \   01A7  219000            LD      HL,sendlen
+   \   01AA  4E                LD      C,(HL)
+   \   01AB  34                INC     (HL)
+   \   01AC  0600              LD      B,0
+   \   01AE  215000            LD      HL,sendbuff
+   \   01B1  09                ADD     HL,BC
+   \   01B2  DD46FC            LD      B,(IX-4)
+   \   01B5  70                LD      (HL),B
+   \   01B6            ?0021:
+    180                          }
+    181          
+    182                          sendbuff[sendlen++] = 0;                /*ＲＴＳ切り替えタイミング用ダミー*/
+   \   01B6  219000            LD      HL,sendlen
+   \   01B9  4E                LD      C,(HL)
+   \   01BA  34                INC     (HL)
+   \   01BB  0600              LD      B,0
+   \   01BD  215000            LD      HL,sendbuff
+   \   01C0  09                ADD     HL,BC
+   \   01C1  3600              LD      (HL),0
+    183          
+    184                          __disable();
+   \   01C3  CD0000            CALL    __disable
+    185          
+    186                          asci_0_tx_enable(0);            /*送信開始  RTS=ON*/
+   \   01C6  1E00              LD      E,0
+   \   01C8  CD0000            CALL    asci_0_tx_enable
+    187          
+    188                          asci_0_send_ir();               /*最初の１バイトを送信*/
+   \   01CB  CD0000            CALL    asci_0_send_ir
+    189          }
+   \   01CE  DDF9              LD      SP,IX
+   \   01D0  DDE1              POP     IX
+   \   01D2  D1                POP     DE
+   \   01D3  C1                POP     BC
+   \   01D4  C9                RET
+   \   01D5            mcpReceive:
+    190          
+    191          /************************************************************************
+    192          
+    193                  Function name   << mcpReceive >>
+    194                                                  受信処理
+    195                  Syntax                  mcpReceive( unsigned char *data, char len );
+    196                  Argument                none
+    197                  Author                  TOA Corporation  K.Honda
+    198                  Revision                a00 2000/06/27
+    199          
+    200          *************************************************************************/
+    201          char mcpReceive( unsigned char *data, char len )
+    202          {
+   \   01D5  DDE5              PUSH    IX
+   \   01D7  DD210000          LD      IX,0
+   \   01DB  DD39              ADD     IX,SP
+   \   01DD  C5                PUSH    BC
+   \   01DE  D5                PUSH    DE
+   \   01DF  F5                PUSH    AF
+   \   01E0  F5                PUSH    AF
+    203                          struct POLLING  *p;
+    204                          unsigned short  leddata;
+    205          
+    206                          p = (struct POLLING *)data;
+   \   01E1  DD73F8            LD      (IX-8),E
+   \   01E4  DD72F9            LD      (IX-7),D
+    207          
+    208                          if( len!=sizeof(*p) ){
+   \   01E7  79                LD      A,C
+   \   01E8  FE3B              CP      59
+   \   01EA  2804              JR      Z,?0023
+   \   01EC            ?0022:
+    209                                  /*受信バイト数が異常のときは処理しない*/
+    210                                  return 0;
+   \   01EC  AF                XOR     A
+    211                          }
+   \   01ED  C3A104            JP      ?0041
+   \   01F0            ?0023:
+    212          
+    213                          /** 必要なデータをコピーする **/
+    214          
+    215                          mcp_active = (p->door>>6) & 0x03;
+   \   01F0  210900            LD      HL,9
+   \   01F3  DD4EF8            LD      C,(IX-8)
+   \   01F6  DD46F9            LD      B,(IX-7)
+   \   01F9  09                ADD     HL,BC
+   \   01FA  7E                LD      A,(HL)
+   \   01FB  07                RLCA
+   \   01FC  07                RLCA
+   \   01FD  E603              AND     3
+   \   01FF  E603              AND     3
+   \   0201  320A00            LD      (mcp_active),A
+    216                          if( sendarea.mcpsw[2] & 0x20 ){
+   \   0204  3A0700            LD      A,(sendarea+5)
+   \   0207  E620              AND     32
+   \   0209  CAED02            JP      Z,?0025
+   \   020C            ?0024:
+    217                                  if( mcp_active & 0x02 ){
+   \   020C  3A0A00            LD      A,(mcp_active)
+   \   020F  E602              AND     2
+   \   0211  2875              JR      Z,?0027
+   \   0213            ?0026:
+    218                                          memcpy( &leddata, p->display, 2 );
+   \   0213  010200            LD      BC,2
+   \   0216  C5                PUSH    BC
+   \   0217  210400            LD      HL,4
+   \   021A  39                ADD     HL,SP
+   \   021B  5D                LD      E,L
+   \   021C  54                LD      D,H
+   \   021D  211300            LD      HL,19
+   \   0220  DD4EF8            LD      C,(IX-8)
+   \   0223  DD46F9            LD      B,(IX-7)
+   \   0226  09                ADD     HL,BC
+   \   0227  C1                POP     BC
+   \   0228  EDB0              LDIR
+    219                                          sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+   \   022A  2A0000            LD      HL,(sw_led)
+   \   022D  7D                LD      A,L
+   \   022E  E620              AND     32
+   \   0230  4F                LD      C,A
+   \   0231  7C                LD      A,H
+   \   0232  E600              AND     0
+   \   0234  47                LD      B,A
+   \   0235  DD7EFA            LD      A,(IX-6)
+   \   0238  E6DF              AND     223
+   \   023A  5F                LD      E,A
+   \   023B  DD7EFB            LD      A,(IX-5)
+   \   023E  E6FF              AND     255
+   \   0240  57                LD      D,A
+   \   0241  79                LD      A,C
+   \   0242  B3                OR      E
+   \   0243  6F                LD      L,A
+   \   0244  78                LD      A,B
+   \   0245  B2                OR      D
+   \   0246  67                LD      H,A
+   \   0247  220000            LD      (sw_led),HL
+    220                                          memcpy( matrix_led, &p->display[2], 4*6 );                      /* Matrix-LED */
+   \   024A  011800            LD      BC,24
+   \   024D  C5                PUSH    BC
+   \   024E  110000            LD      DE,matrix_led
+   \   0251  211500            LD      HL,21
+   \   0254  DD4EF8            LD      C,(IX-8)
+   \   0257  DD46F9            LD      B,(IX-7)
+   \   025A  09                ADD     HL,BC
+   \   025B  C1                POP     BC
+   \   025C  EDB0              LDIR
+    221                                          memcpy( &sw_blink, &p->display[2+4*6], 2 );                     /* SW-Blink */
+   \   025E  010200            LD      BC,2
+   \   0261  C5                PUSH    BC
+   \   0262  110000            LD      DE,sw_blink
+   \   0265  212D00            LD      HL,45
+   \   0268  DD4EF8            LD      C,(IX-8)
+   \   026B  DD46F9            LD      B,(IX-7)
+   \   026E  09                ADD     HL,BC
+   \   026F  C1                POP     BC
+   \   0270  EDB0              LDIR
+    222                                          memcpy( matrix_blink, &p->display[2+4*6+2], 4 );        /* Matrix Blink */
+   \   0272  010400            LD      BC,4
+   \   0275  C5                PUSH    BC
+   \   0276  110000            LD      DE,matrix_blink
+   \   0279  212F00            LD      HL,47
+   \   027C  DD4EF8            LD      C,(IX-8)
+   \   027F  DD46F9            LD      B,(IX-7)
+   \   0282  09                ADD     HL,BC
+   \   0283  C1                POP     BC
+   \   0284  EDB0              LDIR
+    223                                  }
+    224                                  else {
+   \   0286  1862              JR      ?0028
+   \   0288            ?0027:
+    225                                          memcpy( &leddata, p->display, 2 );
+   \   0288  010200            LD      BC,2
+   \   028B  C5                PUSH    BC
+   \   028C  210400            LD      HL,4
+   \   028F  39                ADD     HL,SP
+   \   0290  5D                LD      E,L
+   \   0291  54                LD      D,H
+   \   0292  211300            LD      HL,19
+   \   0295  DD4EF8            LD      C,(IX-8)
+   \   0298  DD46F9            LD      B,(IX-7)
+   \   029B  09                ADD     HL,BC
+   \   029C  C1                POP     BC
+   \   029D  EDB0              LDIR
+    226                                          leddata &= SWLED_CABCAB;
+   \   029F  210200            LD      HL,2
+   \   02A2  39                ADD     HL,SP
+   \   02A3  7E                LD      A,(HL)
+   \   02A4  E602              AND     2
+   \   02A6  77                LD      (HL),A
+   \   02A7  23                INC     HL
+   \   02A8  7E                LD      A,(HL)
+   \   02A9  E600              AND     0
+   \   02AB  77                LD      (HL),A
+    227                                          sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+   \   02AC  2A0000            LD      HL,(sw_led)
+   \   02AF  7D                LD      A,L
+   \   02B0  E620              AND     32
+   \   02B2  4F                LD      C,A
+   \   02B3  7C                LD      A,H
+   \   02B4  E600              AND     0
+   \   02B6  47                LD      B,A
+   \   02B7  DD7EFA            LD      A,(IX-6)
+   \   02BA  E6DF              AND     223
+   \   02BC  5F                LD      E,A
+   \   02BD  DD7EFB            LD      A,(IX-5)
+   \   02C0  E6FF              AND     255
+   \   02C2  57                LD      D,A
+   \   02C3  79                LD      A,C
+   \   02C4  B3                OR      E
+   \   02C5  6F                LD      L,A
+   \   02C6  78                LD      A,B
+   \   02C7  B2                OR      D
+   \   02C8  67                LD      H,A
+   \   02C9  220000            LD      (sw_led),HL
+    228                                          memset( matrix_led, 0, 4*6 );                   /* Matrix-LED */
+   \   02CC  011800            LD      BC,24
+   \   02CF  110000            LD      DE,matrix_led
+   \   02D2  210000            LD      HL,0
+   \   02D5  CD0000            CALL    ?MEMSET_L11
+    229                                          sw_blink = 0;
+   \   02D8  210000            LD      HL,0
+   \   02DB  220000            LD      (sw_blink),HL
+    230                                          memset( matrix_blink, 0, 4 );   /* Matrix Blink */
+   \   02DE  010400            LD      BC,4
+   \   02E1  110000            LD      DE,matrix_blink
+   \   02E4  210000            LD      HL,0
+   \   02E7  CD0000            CALL    ?MEMSET_L11
+   \   02EA            ?0028:
+    231                                  }
+    232                          }
+    233                          else {
+   \   02EA  C3CB03            JP      ?0029
+   \   02ED            ?0025:
+    234                                  if( mcp_active & 0x01 ){
+   \   02ED  3A0A00            LD      A,(mcp_active)
+   \   02F0  E601              AND     1
+   \   02F2  2875              JR      Z,?0031
+   \   02F4            ?0030:
+    235                                          memcpy( &leddata, p->display, 2 );
+   \   02F4  010200            LD      BC,2
+   \   02F7  C5                PUSH    BC
+   \   02F8  210400            LD      HL,4
+   \   02FB  39                ADD     HL,SP
+   \   02FC  5D                LD      E,L
+   \   02FD  54                LD      D,H
+   \   02FE  211300            LD      HL,19
+   \   0301  DD4EF8            LD      C,(IX-8)
+   \   0304  DD46F9            LD      B,(IX-7)
+   \   0307  09                ADD     HL,BC
+   \   0308  C1                POP     BC
+   \   0309  EDB0              LDIR
+    236                                          sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+   \   030B  2A0000            LD      HL,(sw_led)
+   \   030E  7D                LD      A,L
+   \   030F  E620              AND     32
+   \   0311  4F                LD      C,A
+   \   0312  7C                LD      A,H
+   \   0313  E600              AND     0
+   \   0315  47                LD      B,A
+   \   0316  DD7EFA            LD      A,(IX-6)
+   \   0319  E6DF              AND     223
+   \   031B  5F                LD      E,A
+   \   031C  DD7EFB            LD      A,(IX-5)
+   \   031F  E6FF              AND     255
+   \   0321  57                LD      D,A
+   \   0322  79                LD      A,C
+   \   0323  B3                OR      E
+   \   0324  6F                LD      L,A
+   \   0325  78                LD      A,B
+   \   0326  B2                OR      D
+   \   0327  67                LD      H,A
+   \   0328  220000            LD      (sw_led),HL
+    237                                          memcpy( matrix_led, &p->display[2], 4*6 );                      /* Matrix-LED */
+   \   032B  011800            LD      BC,24
+   \   032E  C5                PUSH    BC
+   \   032F  110000            LD      DE,matrix_led
+   \   0332  211500            LD      HL,21
+   \   0335  DD4EF8            LD      C,(IX-8)
+   \   0338  DD46F9            LD      B,(IX-7)
+   \   033B  09                ADD     HL,BC
+   \   033C  C1                POP     BC
+   \   033D  EDB0              LDIR
+    238                                          memcpy( &sw_blink, &p->display[2+4*6], 2 );                     /* SW-Blink */
+   \   033F  010200            LD      BC,2
+   \   0342  C5                PUSH    BC
+   \   0343  110000            LD      DE,sw_blink
+   \   0346  212D00            LD      HL,45
+   \   0349  DD4EF8            LD      C,(IX-8)
+   \   034C  DD46F9            LD      B,(IX-7)
+   \   034F  09                ADD     HL,BC
+   \   0350  C1                POP     BC
+   \   0351  EDB0              LDIR
+    239                                          memcpy( matrix_blink, &p->display[2+4*6+2], 4 );        /* Matrix Blink */
+   \   0353  010400            LD      BC,4
+   \   0356  C5                PUSH    BC
+   \   0357  110000            LD      DE,matrix_blink
+   \   035A  212F00            LD      HL,47
+   \   035D  DD4EF8            LD      C,(IX-8)
+   \   0360  DD46F9            LD      B,(IX-7)
+   \   0363  09                ADD     HL,BC
+   \   0364  C1                POP     BC
+   \   0365  EDB0              LDIR
+    240                                  }
+    241                                  else {
+   \   0367  1862              JR      ?0032
+   \   0369            ?0031:
+    242                                          memcpy( &leddata, p->display, 2 );
+   \   0369  010200            LD      BC,2
+   \   036C  C5                PUSH    BC
+   \   036D  210400            LD      HL,4
+   \   0370  39                ADD     HL,SP
+   \   0371  5D                LD      E,L
+   \   0372  54                LD      D,H
+   \   0373  211300            LD      HL,19
+   \   0376  DD4EF8            LD      C,(IX-8)
+   \   0379  DD46F9            LD      B,(IX-7)
+   \   037C  09                ADD     HL,BC
+   \   037D  C1                POP     BC
+   \   037E  EDB0              LDIR
+    243                                          leddata &= SWLED_CABCAB;
+   \   0380  210200            LD      HL,2
+   \   0383  39                ADD     HL,SP
+   \   0384  7E                LD      A,(HL)
+   \   0385  E602              AND     2
+   \   0387  77                LD      (HL),A
+   \   0388  23                INC     HL
+   \   0389  7E                LD      A,(HL)
+   \   038A  E600              AND     0
+   \   038C  77                LD      (HL),A
+    244                                          sw_led = (sw_led & SWLED_HL) | (leddata & ~SWLED_HL);   /* SW-LED */
+   \   038D  2A0000            LD      HL,(sw_led)
+   \   0390  7D                LD      A,L
+   \   0391  E620              AND     32
+   \   0393  4F                LD      C,A
+   \   0394  7C                LD      A,H
+   \   0395  E600              AND     0
+   \   0397  47                LD      B,A
+   \   0398  DD7EFA            LD      A,(IX-6)
+   \   039B  E6DF              AND     223
+   \   039D  5F                LD      E,A
+   \   039E  DD7EFB            LD      A,(IX-5)
+   \   03A1  E6FF              AND     255
+   \   03A3  57                LD      D,A
+   \   03A4  79                LD      A,C
+   \   03A5  B3                OR      E
+   \   03A6  6F                LD      L,A
+   \   03A7  78                LD      A,B
+   \   03A8  B2                OR      D
+   \   03A9  67                LD      H,A
+   \   03AA  220000            LD      (sw_led),HL
+    245                                          memset( matrix_led, 0, 4*6 );                   /* Matrix-LED */
+   \   03AD  011800            LD      BC,24
+   \   03B0  110000            LD      DE,matrix_led
+   \   03B3  210000            LD      HL,0
+   \   03B6  CD0000            CALL    ?MEMSET_L11
+    246                                          sw_blink = 0;
+   \   03B9  210000            LD      HL,0
+   \   03BC  220000            LD      (sw_blink),HL
+    247                                          memset( matrix_blink, 0, 4 );   /* Matrix Blink */
+   \   03BF  010400            LD      BC,4
+   \   03C2  110000            LD      DE,matrix_blink
+   \   03C5  210000            LD      HL,0
+   \   03C8  CD0000            CALL    ?MEMSET_L11
+   \   03CB            ?0032:
+   \   03CB            ?0029:
+    248                                  }
+    249                          }
+    250          
+    251                          if( p->kind=='S' ){             /* 車両番号の登録 */
+   \   03CB  DD6EF8            LD      L,(IX-8)
+   \   03CE  DD66F9            LD      H,(IX-7)
+   \   03D1  23                INC     HL
+   \   03D2  23                INC     HL
+   \   03D3  7E                LD      A,(HL)
+   \   03D4  FE53              CP      83
+   \   03D6  C25E04            JP      NZ,?0034
+   \   03D9            ?0033:
+    252                                  /*
+    253                                          address
+    254                                                  -------------- +1 -------------  ------------- +0 -------------
+    255                           64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+    256                                  H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+    257                                                  -- Car No.--    ----- AD -----   -----Car No.--  -- Car No.----
+    258                                                      3210                             BA98             7654
+    259          
+    260                                          carNo
+    261                                                  -------------- +1 -------------  ------------- +0 -------------
+    262                           64180 Side     b15 b14 b13 b12 b11 b10  b9  b8  b7  b6  b5  b4  b3  b2  b1  b0
+    263                                  H8 Side  b7  b6  b5  b4  b3  b2  b1  b0 b15 b14 b13 b12 b11 b10  b9  b8
+    264                                                  -- Car No.--    -- Car No.  --                  -- Car No.----
+    265                                                      7654           3210                              BA98
+    266                                  */
+    267                                  address &= 0x0F00;
+   \   03D9  210000            LD      HL,address
+   \   03DC  7E                LD      A,(HL)
+   \   03DD  E600              AND     0
+   \   03DF  77                LD      (HL),A
+   \   03E0  23                INC     HL
+   \   03E1  7E                LD      A,(HL)
+   \   03E2  E60F              AND     15
+   \   03E4  77                LD      (HL),A
+    268                                  address |= ((p->carno & 0x00F00)<<4)  & 0x0F000;        /* car No. 3210 */
+   \   03E5  210400            LD      HL,4
+   \   03E8  DD4EF8            LD      C,(IX-8)
+   \   03EB  DD46F9            LD      B,(IX-7)
+   \   03EE  09                ADD     HL,BC
+   \   03EF  7E                LD      A,(HL)
+   \   03F0  E600              AND     0
+   \   03F2  5F                LD      E,A
+   \   03F3  23                INC     HL
+   \   03F4  7E                LD      A,(HL)
+   \   03F5  E60F              AND     15
+   \   03F7  57                LD      D,A
+   \   03F8  EB                EX      DE,HL
+   \   03F9  29                ADD     HL,HL
+   \   03FA  29                ADD     HL,HL
+   \   03FB  29                ADD     HL,HL
+   \   03FC  29                ADD     HL,HL
+   \   03FD  7D                LD      A,L
+   \   03FE  E600              AND     0
+   \   0400  5F                LD      E,A
+   \   0401  7C                LD      A,H
+   \   0402  E6F0              AND     240
+   \   0404  57                LD      D,A
+   \   0405  210000            LD      HL,address
+   \   0408  7E                LD      A,(HL)
+   \   0409  B3                OR      E
+   \   040A  77                LD      (HL),A
+   \   040B  23                INC     HL
+   \   040C  7E                LD      A,(HL)
+   \   040D  B2                OR      D
+   \   040E  77                LD      (HL),A
+    269                                  address |= ((p->carno & 0x0F000)>>12) & 0x0000F;        /* car No. 7654 */
+   \   040F  210400            LD      HL,4
+   \   0412  09                ADD     HL,BC
+   \   0413  7E                LD      A,(HL)
+   \   0414  E600              AND     0
+   \   0416  5F                LD      E,A
+   \   0417  23                INC     HL
+   \   0418  7E                LD      A,(HL)
+   \   0419  E6F0              AND     240
+   \   041B  57                LD      D,A
+   \   041C  060C              LD      B,12
+   \   041E  CD0000            CALL    ?US_RSH_L02
+   \   0421  7B                LD      A,E
+   \   0422  E60F              AND     15
+   \   0424  4F                LD      C,A
+   \   0425  7A                LD      A,D
+   \   0426  E600              AND     0
+   \   0428  47                LD      B,A
+   \   0429  210000            LD      HL,address
+   \   042C  7E                LD      A,(HL)
+   \   042D  B1                OR      C
+   \   042E  77                LD      (HL),A
+   \   042F  23                INC     HL
+   \   0430  7E                LD      A,(HL)
+   \   0431  B0                OR      B
+   \   0432  77                LD      (HL),A
+    270                                  address |= ((p->carno & 0x0000F)<<4)  & 0x000F0;        /* car No. BA98 */
+   \   0433  210400            LD      HL,4
+   \   0436  DD4EF8            LD      C,(IX-8)
+   \   0439  DD46F9            LD      B,(IX-7)
+   \   043C  09                ADD     HL,BC
+   \   043D  7E                LD      A,(HL)
+   \   043E  E60F              AND     15
+   \   0440  4F                LD      C,A
+   \   0441  23                INC     HL
+   \   0442  7E                LD      A,(HL)
+   \   0443  E600              AND     0
+   \   0445  47                LD      B,A
+   \   0446  69                LD      L,C
+   \   0447  60                LD      H,B
+   \   0448  29                ADD     HL,HL
+   \   0449  29                ADD     HL,HL
+   \   044A  29                ADD     HL,HL
+   \   044B  29                ADD     HL,HL
+   \   044C  7D                LD      A,L
+   \   044D  E6F0              AND     240
+   \   044F  4F                LD      C,A
+   \   0450  7C                LD      A,H
+   \   0451  E600              AND     0
+   \   0453  47                LD      B,A
+   \   0454  210000            LD      HL,address
+   \   0457  7E                LD      A,(HL)
+   \   0458  B1                OR      C
+   \   0459  77                LD      (HL),A
+   \   045A  23                INC     HL
+   \   045B  7E                LD      A,(HL)
+   \   045C  B0                OR      B
+   \   045D  77                LD      (HL),A
+   \   045E            ?0034:
+    271                          }
+    272          
+    273                          if( p->kind=='N' ){             /* 一時的処置 */
+   \   045E  DD6EF8            LD      L,(IX-8)
+   \   0461  DD66F9            LD      H,(IX-7)
+   \   0464  23                INC     HL
+   \   0465  23                INC     HL
+   \   0466  7E                LD      A,(HL)
+   \   0467  FE4E              CP      78
+   \   0469  201E              JR      NZ,?0036
+   \   046B            ?0035:
+    274                                  if( (address & 0x0F00) == p->adr ){
+   \   046B  2A0000            LD      HL,(address)
+   \   046E  7D                LD      A,L
+   \   046F  E600              AND     0
+   \   0471  4F                LD      C,A
+   \   0472  7C                LD      A,H
+   \   0473  E60F              AND     15
+   \   0475  47                LD      B,A
+   \   0476  DD6EF8            LD      L,(IX-8)
+   \   0479  DD66F9            LD      H,(IX-7)
+   \   047C  56                LD      D,(HL)
+   \   047D  23                INC     HL
+   \   047E  66                LD      H,(HL)
+   \   047F  6A                LD      L,D
+   \   0480  A7                AND     A
+   \   0481  ED42              SBC     HL,BC
+   \   0483  2004              JR      NZ,?0038
+   \   0485            ?0037:
+    275                                          return 1;
+   \   0485  3E01              LD      A,1
+    276                                  }
+   \   0487  1818              JR      ?0041
+   \   0489            ?0038:
+   \   0489            ?0036:
+    277                          }
+    278                          /** 応答が必要な場合、送信をおこなう */
+    279                          if( address == p->adr ){
+   \   0489  DD6EF8            LD      L,(IX-8)
+   \   048C  DD66F9            LD      H,(IX-7)
+   \   048F  46                LD      B,(HL)
+   \   0490  23                INC     HL
+   \   0491  66                LD      H,(HL)
+   \   0492  68                LD      L,B
+   \   0493  ED4B0000          LD      BC,(address)
+   \   0497  A7                AND     A
+   \   0498  ED42              SBC     HL,BC
+   \   049A  2004              JR      NZ,?0040
+   \   049C            ?0039:
+    280                                  return 1;
+   \   049C  3E01              LD      A,1
+    281                          }
+   \   049E  1801              JR      ?0041
+   \   04A0            ?0040:
+    282                          return 0;
+   \   04A0  AF                XOR     A
+    283          }
+   \   04A1            ?0041:
+   \   04A1  DDF9              LD      SP,IX
+   \   04A3  DDE1              POP     IX
+   \   04A5  C9                RET
+   \   04A6            asci_0_recv_ir:
+    284          
+    285          
+    286          /************************************************************************
+    287          
+    288                  Function name   << asci_0_recv_ir >>
+    289                                                  受信割り込み処理
+    290                  Syntax                  asci_0_recv_ir( char data, char status );
+    291                  Argument                none
+    292                  Author                  TOA Corporation  K.Honda
+    293                  Revision                a00 2000/06/27
+    294          
+    295          *************************************************************************/
+    296          void asci_0_recv_ir( char data, char status )
+    297          {
+   \   04A6  DDE5              PUSH    IX
+   \   04A8  DD210000          LD      IX,0
+   \   04AC  DD39              ADD     IX,SP
+   \   04AE  C5                PUSH    BC
+   \   04AF  D5                PUSH    DE
+    298          /*.     ---------------------　処理詳細説明  ----------------------------       */
+    299          /*  フェーズ毎に受信データを取り込む                                                                    */
+    300          /*. ------------------------------------------------------------------  */
+    301          status=0;
+   \   04B0  DD36FE00          LD      (IX-2),0
+    302                          if( data == DLE ){              /* ＤＬＥ受信 */
+   \   04B4  7B                LD      A,E
+   \   04B5  FE10              CP      16
+   \   04B7  2008              JR      NZ,?0043
+   \   04B9            ?0042:
+    303                                  recvdle = 1;
+   \   04B9  3E01              LD      A,1
+   \   04BB  324E00            LD      (recvdle),A
+    304                                  return;
+    305                          }
+   \   04BE  C39D05            JP      ?0068
+   \   04C1            ?0043:
+    306                          if( data == STX ){              /* ＳＴＸ受信 */
+   \   04C1  DD46FC            LD      B,(IX-4)
+   \   04C4  05                DEC     B
+   \   04C5  05                DEC     B
+   \   04C6  201A              JR      NZ,?0045
+   \   04C8            ?0044:
+    307                                  if( recvdle ){          /*  DLE+STX */
+   \   04C8  3A4E00            LD      A,(recvdle)
+   \   04CB  B7                OR      A
+   \   04CC  2811              JR      Z,?0047
+   \   04CE            ?0046:
+    308                                          recvdle = 0;
+   \   04CE  AF                XOR     A
+   \   04CF  324E00            LD      (recvdle),A
+    309                                          recvphase = COMM_WAIT_ETX;
+   \   04D2  3E01              LD      A,1
+   \   04D4  324D00            LD      (recvphase),A
+    310                                          recvlen = 0;
+   \   04D7  AF                XOR     A
+   \   04D8  324C00            LD      (recvlen),A
+    311                                          recvbcc = 0;
+   \   04DB  AF                XOR     A
+   \   04DC  324F00            LD      (recvbcc),A
+   \   04DF            ?0047:
+    312                                  }
+    313                                  return;
+    314                          }
+   \   04DF  C39D05            JP      ?0068
+   \   04E2            ?0045:
+    315                  
+    316                          switch( recvphase ){
+   \   04E2  3A4D00            LD      A,(recvphase)
+   \   04E5  FE00              CP      0
+   \   04E7  2003              JR      NZ,?0050
+   \   04E9            ?0049:
+    317                          case COMM_WAIT_STX:             /* ＳＴＸ待ち */
+    318                                  break;
+   \   04E9  C39D05            JP      ?0048
+   \   04EC            ?0050:
+   \   04EC  FE01              CP      1
+   \   04EE  2051              JR      NZ,?0058
+    319                  
+    320                          case COMM_WAIT_ETX:
+    321                                  if( recvdle ){          /* ＤＬＥ処理 */
+   \   04F0  3A4E00            LD      A,(recvdle)
+   \   04F3  B7                OR      A
+   \   04F4  2824              JR      Z,?0052
+   \   04F6            ?0051:
+    322                                          recvdle = 0;
+   \   04F6  AF                XOR     A
+   \   04F7  324E00            LD      (recvdle),A
+    323                                          if( data == ETX ){              /* ＥＴＸの受信 ( DLE+ETX ) */
+   \   04FA  DD7EFC            LD      A,(IX-4)
+   \   04FD  FE03              CP      3
+   \   04FF  2011              JR      NZ,?0054
+   \   0501            ?0053:
+    324                                                  recvbcc ^= data;
+   \   0501  3A4F00            LD      A,(recvbcc)
+   \   0504  DDAEFC            XOR     (IX-4)
+   \   0507  324F00            LD      (recvbcc),A
+    325                                                  recvphase = COMM_WAIT_BCC;
+   \   050A  3E02              LD      A,2
+   \   050C  324D00            LD      (recvphase),A
+    326                                                  break;
+   \   050F  C39D05            JP      ?0048
+   \   0512            ?0054:
+    327                                          }
+    328                                          data = data - 0x40;     /* データのＤＬＥ拡張 */
+   \   0512  DD7EFC            LD      A,(IX-4)
+   \   0515  C6C0              ADD     A,192
+   \   0517  DD77FC            LD      (IX-4),A
+   \   051A            ?0052:
+    329                                  }
+    330                  
+    331                                  if( recvlen<sizeof(recvbuff) ){
+   \   051A  3A4C00            LD      A,(recvlen)
+   \   051D  FE40              CP      64
+   \   051F  301A              JR      NC,?0056
+   \   0521            ?0055:
+    332                                          recvbcc ^= data;
+   \   0521  3A4F00            LD      A,(recvbcc)
+   \   0524  DDAEFC            XOR     (IX-4)
+   \   0527  324F00            LD      (recvbcc),A
+    333                                          recvbuff[recvlen++] = data;
+   \   052A  214C00            LD      HL,recvlen
+   \   052D  4E                LD      C,(HL)
+   \   052E  34                INC     (HL)
+   \   052F  0600              LD      B,0
+   \   0531  210C00            LD      HL,recvbuff
+   \   0534  09                ADD     HL,BC
+   \   0535  DD46FC            LD      B,(IX-4)
+   \   0538  70                LD      (HL),B
+    334                                  }
+    335                                  else {
+   \   0539  1804              JR      ?0057
+   \   053B            ?0056:
+    336                                          recvphase = COMM_WAIT_STX;
+   \   053B  AF                XOR     A
+   \   053C  324D00            LD      (recvphase),A
+   \   053F            ?0057:
+    337                                  }
+    338                                  break;
+   \   053F  185C              JR      ?0048
+   \   0541            ?0058:
+   \   0541  FE02              CP      2
+   \   0543  2058              JR      NZ,?0048
+    339                  
+    340                          case COMM_WAIT_BCC:
+    341                                  if( recvdle ){          /* ＤＬＥ処理 */
+   \   0545  3A4E00            LD      A,(recvdle)
+   \   0548  B7                OR      A
+   \   0549  280C              JR      Z,?0060
+   \   054B            ?0059:
+    342                                          recvdle = 0;
+   \   054B  AF                XOR     A
+   \   054C  324E00            LD      (recvdle),A
+    343                                          data = data - 0x40;     /* データのＤＬＥ拡張 */
+   \   054F  DD7EFC            LD      A,(IX-4)
+   \   0552  C6C0              ADD     A,192
+   \   0554  DD77FC            LD      (IX-4),A
+   \   0557            ?0060:
+    344                                  }
+    345                                  recvbcc ^= data;
+   \   0557  3A4F00            LD      A,(recvbcc)
+   \   055A  DDAEFC            XOR     (IX-4)
+   \   055D  324F00            LD      (recvbcc),A
+    346                                  if( recvbcc==0 ){
+   \   0560  B7                OR      A
+   \   0561  2034              JR      NZ,?0062
+   \   0563            ?0061:
+    347                                          if( recvlen==recvbuff[0]+1 ){
+   \   0563  ED4B0C00          LD      BC,(recvbuff)
+   \   0567  0600              LD      B,0
+   \   0569  03                INC     BC
+   \   056A  ED5B4C00          LD      DE,(recvlen)
+   \   056E  1600              LD      D,0
+   \   0570  69                LD      L,C
+   \   0571  60                LD      H,B
+   \   0572  A7                AND     A
+   \   0573  ED52              SBC     HL,DE
+   \   0575  2020              JR      NZ,?0064
+   \   0577            ?0063:
+    348                                                  asci_0_rx_disable();
+   \   0577  CD0000            CALL    asci_0_rx_disable
+    349                                                  __enable();
+   \   057A  CD0000            CALL    __enable
+    350                                                  if( mcpReceive( &recvbuff[1], recvlen-1 ) ){
+   \   057D  3A4C00            LD      A,(recvlen)
+   \   0580  C6FF              ADD     A,255
+   \   0582  4F                LD      C,A
+   \   0583  110D00            LD      DE,recvbuff+1
+   \   0586  CDD501            CALL    mcpReceive
+   \   0589  B7                OR      A
+   \   058A  2805              JR      Z,?0066
+   \   058C            ?0065:
+    351                                                          mcpSend();
+   \   058C  CD2300            CALL    mcpSend
+    352                                                  }
+    353                                                  else {
+   \   058F  1806              JR      ?0067
+   \   0591            ?0066:
+    354                                                          __disable();
+   \   0591  CD0000            CALL    __disable
+    355                                                          asci_0_rx_enable();
+   \   0594  CD0000            CALL    asci_0_rx_enable
+   \   0597            ?0067:
+   \   0597            ?0064:
+   \   0597            ?0062:
+    356                                                  }
+    357                                          }
+    358                                  }
+    359                                  recvphase = COMM_WAIT_STX;
+   \   0597  AF                XOR     A
+   \   0598  324D00            LD      (recvphase),A
+    360                                  break;
+   \   059B  1800              JR      ?0048
+   \   059D            ?0048:
+    361                          }
+    362          }
+   \   059D            ?0068:
+   \   059D  DDF9              LD      SP,IX
+   \   059F  DDE1              POP     IX
+   \   05A1  C9                RET
+    363          
+   \   0000                    RSEG    UDATA0
+   \   0000            address:
+   \   0002                    DEFS    2
+   \   0002            sendarea:
+   \   000A                    DEFS    8
+   \   000A            mcp_active:
+   \   000B                    DEFS    1
+   \   000B            mcp_sendactive:
+   \   000C                    DEFS    1
+   \   000C            recvbuff:
+   \   004C                    DEFS    64
+   \   004C            recvlen:
+   \   004D                    DEFS    1
+   \   004D            recvphase:
+   \   004E                    DEFS    1
+   \   004E            recvdle:
+   \   004F                    DEFS    1
+   \   004F            recvbcc:
+   \   0050                    DEFS    1
+   \   0050            sendbuff:
+   \   0090                    DEFS    64
+   \   0090            sendlen:
+   \   0091                    DEFS    1
+   \   0091            sendcnt:
+   \   0092                    DEFS    1
+   \   0092                    END
+
+Errors: none
+Warnings: none
+Code size: 1442
+Constant size: 0
+Static variable size: Data(146) Iram(0)
+

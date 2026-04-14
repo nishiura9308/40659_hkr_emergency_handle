@@ -1,0 +1,211 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:45  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvamain.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            メイン制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/06/27         K.Honda
+                     9:    
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    #include        "table.h"
+                    16:    
+                    17:    #include        "timer.h"
+                    18:    
+                    19:    /*@@@S*/
+                    20:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    21:            グローバル変数
+                    22:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    23:    
+                    24:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    25:            ローカル定数定義
+                    26:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    27:    
+                    28:    
+                    29:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    30:            ローカル構造体定義
+                    31:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    32:    
+                    33:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    34:            ローカルテーブル
+                    35:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    36:    
+                    37:    
+                    38:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    39:                    外部参照
+                    40:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    41:    extern  void dvauCommInitialize( void );        // 音声バス通信初期設定
+                    42:    extern  void dvaCommProc( void );               // 音声バス通信処理
+                    43:    
+                    44:    extern  void dvauEIDSInitialize( void );        // ＥＩＤＳ通信初期設定
+                    45:    extern  void dvauEIDSSendCheck( void ); // ＥＩＤＳ通信処理
+                    46:    
+                    47:    extern  struct  TIMER_CONTROL   timedata;
+                    48:    
+                    49:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    50:                    ローカル変数
+                    51:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    52:    
+                    53:    static  int     bef_active;
+                    54:    
+                    55:    /*@@@E*/
+                    56:    /************************************************************************
+                    57:    
+                    58:            Function name   << main >>
+                    59:                                            メイン関数
+                    60:            Syntax                  main( void );
+                    61:            Argument                none
+                    62:            Author                  TOA Corporation  K.Honda
+                    63:            Revision                a00 2000/08/07
+                    64:    
+                    65:    *************************************************************************/
+                    66:    void main( void )
+    000000              _main:                           ; function: main
+                    67:    {
+    000000 7A06000C00             MOV.L       #786432:32,ER6
+           00           
+                    68:                    /* 初期設定 */
+                    69:                    timer_0_Initialize();
+    000006 5E                     JSR         @_timer_0_Initialize:24
+           <000000>     
+                    70:                    dvauCommInitialize();
+    00000A 5E                     JSR         @_dvauCommInitialize:24
+           <000000>     
+                    71:                    dvauEIDSInitialize();
+    00000E 5E                     JSR         @_dvauEIDSInitialize:24
+           <000000>     
+                    72:    
+                    73:                    DUALPORT2.mainActive = 0;
+    000012 1888                   SUB.B       R0L,R0L
+    000014 6EE807FD               MOV.B       R0L,@(2045:16,ER6)
+                    74:    
+                    75:                    set_imask_ccr(0);               /* 割り込み解除 */
+    000018 067F                   ANDC.B      #127:8,CCR
+                    76:    
+                    77:                    bef_active=0;
+    00001A 1900                   SUB.W       R0,R0
+    00001C 6BA000                 MOV.W       R0,@_$bef_active:24
+           <000000>     
+                    78:    
+                    79:                    strcpy( DUALPORT2.dummy, "END " );
+    000022 7A01                   MOV.L       #L94:32,ER1
+           <00000000>   
+    000028 7A00000001             MOV.L       #467:32,ER0
+           D3           
+    00002E 0AE0                   ADD.L       ER6,ER0
+    000030 5E                     JSR         @_strcpy:24
+           <000000>     
+                    80:    
+                    81:                    for( ;; ){
+    000034              L105:                             
+                    82:                            if( DUALPORT2.mainActive ){
+    000034 6E6807FD               MOV.B       @(2045:16,ER6),R0L
+    000038 470A                   BEQ         L107:8
+                    83:                                    set_imask_ccr(0);               /* 割り込み解除 */
+    00003A 067F                   ANDC.B      #127:8,CCR
+                    84:                                    dvauEIDSSendCheck();
+    00003C 5E                     JSR         @_dvauEIDSSendCheck:24
+           <000000>     
+                    85:                                    dvaCommProc();
+    000040 5E                     JSR         @_dvaCommProc:24
+           <000000>     
+    000044              L107:                             
+                    86:                            }
+                    87:                            if( DUALPORT2.mainActive ){
+    000044 6E6807FD               MOV.B       @(2045:16,ER6),R0L
+    000048 4736                   BEQ         L108:8
+                    88:                                    if( DUALPORT2.subActive==1 ){
+    00004A 6E6807FC               MOV.B       @(2044:16,ER6),R0L
+    00004E A801                   CMP.B       #1:8,R0L
+    000050 4618                   BNE         L109:8
+                    89:                                            if( timedata.mainActiveTimer==0 ){
+    000052 6A2000                 MOV.B       @_timedata+10:24,R0H
+           <000000>     
+    000058 6A2800                 MOV.B       @_timedata+11:24,R0L
+           <000000>     
+    00005E 0D00                   MOV.W       R0,R0
+    000060 461E                   BNE         L111:8
+                    90:                                                    DUALPORT2.mainActive = 0;
+    000062 1888                   SUB.B       R0L,R0L
+    000064 6EE807FD               MOV.B       R0L,@(2045:16,ER6)
+                    91:                                                    timedata.mainActiveTimer=1000;
+    000068 4006                   BRA         L112:8
+    00006A              L109:                             
+                    92:                                            }
+                    93:                                    }
+                    94:                                    else {
+                    95:                                            DUALPORT2.subActive=1;
+    00006A F801                   MOV.B       #1:8,R0L
+    00006C 6EE807FC               MOV.B       R0L,@(2044:16,ER6)
+                    96:                                            timedata.mainActiveTimer=1000;
+    000070              L112:                             
+    000070 790003E8               MOV.W       #1000:16,R0
+    000074 6AA000                 MOV.B       R0H,@_timedata+10:24
+           <000000>     
+    00007A 6AA800                 MOV.B       R0L,@_timedata+11:24
+           <000000>     
+    000080              L111:                             
+    000080              L108:                             
+                    97:                                    }
+                    98:                            }
+                    99:                            WatchDogReset();
+    000080 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    000084 40AE                   BRA         L105:8
+                   100:                    }
+                   101:    }
+                   102:    
+                   103:    struct st_dualport work;
+  C                                                      ; section
+    000000              L94:
+    000000 454E442000             .SDATAZ     "END "
+  B                                                      ; section
+    000000              _$bef_active:                    ; static: bef_active
+    000000 00000002               .RES.W      1
+    000002              _work:                           ; static: work
+    000002 00000800               .RES.B      2048
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:45  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000086 Byte(s)
+CONSTANT SECTION(C):                                0x00000005 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000802 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000086 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000005 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000802 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000088D Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        8 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        2 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         18 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\,..\dva2boot\inc\ .\src\dvamain.c -object=.\obj\dvamain.obj
+CPU         : 300ha:24

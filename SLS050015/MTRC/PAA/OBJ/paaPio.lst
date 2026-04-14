@@ -1,0 +1,187 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/386                                        #
+# Front End V4.20N                                     17/Dec/2002  10:32:19 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  .\src\paapio.c                                      #
+#       List file     =  .\obj\paapio.lst                                    #
+#       Object file   =  .\obj\paapio.r01                                    #
+#       ASM file      =  .\obj\paapio.s01                                    #
+#       Command line  =  .\src\paaPio.c -o .\obj\paaPio.r01 -P -gA -s -v1    #
+#                        -rn -ml -I.\inc\ -I..\comminc\ -DSIM=0 -a           #
+#                        .\obj\paaPio.s01 -l .\obj\paaPio.lst -q             #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+   \   0000                    NAME    paapio(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    RSEG    UDATA0(0)
+   \   0000                    PUBLIC  nowReadIO
+   \   0000                    PUBLIC  paaSignalIn
+   \   0000                    PUBLIC  paaSignalOut
+   \   0000                    EXTERN  sendarea
+   \   0000                    EXTERN  switch_read
+   \   0000                    EXTERN  ?CL64180L_4_04_L00
+   \   0000                    RSEG    CODE
+   \   0000            paaSignalIn:
+      1          /********************************************************************
+      2                  【香港地下鉄向け自動列車放送制御装置】
+      3          *-------------------------------------------------------------------*
+      4                  Ｉ／Ｏ入力制御モジュール
+      5          *-------------------------------------------------------------------*
+      6                  Author          TOA Corporation
+      7          
+      8                  Revision        a00. 2000/06/27         K.Honda
+      9          
+     10          *********************************************************************/
+     11          
+     12          #include <stdio.h>
+     13          
+     14          #include "IOFUNC.h"
+     15          
+     16          #include "COMMDEF.h"
+     17          
+     18          /*@@@S*/
+     19          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     20                  グローバル変数
+     21          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     22          
+     23          /** スイッチデータ **/
+     24          short   nowReadIO;
+     25          
+     26          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     27                  ローカル定数定義
+     28          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     29          
+     30          
+     31          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     32                  ローカル構造体定義
+     33          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     34          
+     35          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     36                  ローカルテーブル
+     37          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     38          
+     39          
+     40          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     41                          外部参照
+     42          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     43          
+     44          /** 送信エリア **/
+     45          extern  struct PAASEND  sendarea;
+     46          
+     47          
+     48          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     49                          ローカル変数
+     50          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     51          static  char    readCount;
+     52          static  short   preReadIO;
+     53          
+     54          /*@@@E*/
+     55          /************************************************************************
+     56          
+     57                  Function name   << paaSignalIn >>
+     58                                                  信号状態入力処理
+     59                  Syntax                  paaSignalIn( void );
+     60                  Argument                none
+     61                  Author                  TOA Corporation  K.Honda
+     62                  Revision                a00 2000/06/27
+     63          
+     64          *************************************************************************/
+     65          void paaSignalIn( void )
+     66          {
+   \   0000  C5                PUSH    BC
+   \   0001  DDE5              PUSH    IX
+   \   0003  DD210000          LD      IX,0
+   \   0007  DD39              ADD     IX,SP
+   \   0009  F5                PUSH    AF
+     67                          short   readIO;
+     68          
+     69                          readIO = switch_read();
+   \   000A  CD0000            CALL    switch_read
+   \   000D  DD75FE            LD      (IX-2),L
+   \   0010  DD74FF            LD      (IX-1),H
+     70          
+     71                          if( readIO!=preReadIO ){
+   \   0013  ED4B0300          LD      BC,(preReadIO)
+   \   0017  A7                AND     A
+   \   0018  ED42              SBC     HL,BC
+   \   001A  2806              JR      Z,?0009
+   \   001C            ?0008:
+     72                                  readCount = 0;
+   \   001C  AF                XOR     A
+   \   001D  320200            LD      (readCount),A
+     73                          }
+     74                          else {
+   \   0020  181E              JR      ?0010
+   \   0022            ?0009:
+     75                                  readCount++;
+   \   0022  210200            LD      HL,readCount
+   \   0025  34                INC     (HL)
+     76                                  if( readCount>=5 ){     /* 50mS 経過しても同一のとき */
+   \   0026  3A0200            LD      A,(readCount)
+   \   0029  FE05              CP      5
+   \   002B  3813              JR      C,?0012
+   \   002D            ?0011:
+     77                                          readCount = 0;
+   \   002D  AF                XOR     A
+   \   002E  320200            LD      (readCount),A
+     78          
+     79                                          nowReadIO = readIO;
+   \   0031  DD6EFE            LD      L,(IX-2)
+   \   0034  DD66FF            LD      H,(IX-1)
+   \   0037  220000            LD      (nowReadIO),HL
+     80          
+     81                                          sendarea.rscsw = nowReadIO & 0x1F;      /*非常通報スイッチを通信エリアへ設定*/
+   \   003A  7D                LD      A,L
+   \   003B  E61F              AND     31
+   \   003D  320300            LD      (sendarea+3),A
+   \   0040            ?0012:
+   \   0040            ?0010:
+     82                                  }
+     83                          }
+     84                          preReadIO = readIO;
+   \   0040  DD6EFE            LD      L,(IX-2)
+   \   0043  DD66FF            LD      H,(IX-1)
+   \   0046  220300            LD      (preReadIO),HL
+     85          }
+   \   0049  DDF9              LD      SP,IX
+   \   004B  DDE1              POP     IX
+   \   004D  C1                POP     BC
+   \   004E  C9                RET
+   \   004F            paaSignalOut:
+     86          
+     87          /************************************************************************
+     88          
+     89                  Function name   << paaSignalOut >>
+     90                                                  Ｉ／Ｏ出力処理
+     91                  Syntax                  paaSignalOut( void );
+     92                  Argument                none
+     93                  Author                  TOA Corporation  K.Honda
+     94                  Revision                a00 2000/06/27
+     95          
+     96          *************************************************************************/
+     97          void paaSignalOut( void )
+     98          {
+     99          }
+   \   004F  C9                RET
+    100          
+   \   0000                    RSEG    UDATA0
+   \   0000            nowReadIO:
+   \   0002                    DEFS    2
+   \   0002            readCount:
+   \   0003                    DEFS    1
+   \   0003            preReadIO:
+   \   0005                    DEFS    2
+   \   0005                    END
+
+Errors: none
+Warnings: none
+Code size: 80
+Constant size: 0
+Static variable size: Data(5) Iram(0)
+

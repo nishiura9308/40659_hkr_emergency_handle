@@ -1,0 +1,124 @@
+# ==========================================================================
+#	žžž@`’n‰º“SŽ©“®•ú‘—@žžž
+# ==========================================================================
+# Rules and Flags
+
+.SUFFIXES: .hex .mot .obj .c .src
+
+#-------------------------------------------
+#                 ICC rules
+#-------------------------------------------
+
+# [[ H8 ]]
+CC = ch38.exe
+AS = asm38.exe
+LN = optlnk38.exe
+CONV = cnvs.exe
+
+# [[ Compiler Option ]]
+#CFLAGS = -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\INC,..\COMMINC,..\DVA1BOOT\INC
+CFLAGS = -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=$(INC),$(COMMINC),$(BOOTINC)
+
+# [[ Assambler Option ]]
+AFLAGS = -cpu=300ha:24 -debug -list -chgincpath -errorpath
+
+# [[ Linker Option ]]
+LD64C	= -f v:\iccz80\lnk64 V:\iccz80\lnkz80
+LD64CH	= -f v:\iccz80\lnk64h V:\icc\cl64180o 
+
+# src -> obj using ICC Assenbler
+{.\src}.src.obj:
+	$(AS) $< $(AFLAGS) -object=$* 
+
+# .c -> obj using ICC Compiler
+{.\src}.c.obj:
+	$(CC) $(CFLAGS) $< -object=$*.obj
+
+#-------------------------------------------
+#                 Directory
+#-------------------------------------------
+
+SRC		= .\src^\
+OBJ		= .\obj^\
+INC		= .\inc^\
+BOOTINC	= ..\DVA1BOOT\inc^\
+COMMINC	= ..\COMMINC^\
+
+#-------------------------------------------
+#                 Making
+#-------------------------------------------
+
+PGM		=	DVAU1
+
+A_OBJS	=	$(OBJ)lowlvl.obj
+
+C_OBJS	=	$(OBJ)entry.obj $(OBJ)sbrk.obj $(OBJ)dosaccs3.obj \
+		$(OBJ)dvamain.obj $(OBJ)dvainit1.obj $(OBJ)dvaio.obj \
+		$(OBJ)dvatms.obj $(OBJ)hdlc.obj $(OBJ)dvatime.obj $(OBJ)commlib.obj \
+		$(OBJ)dvaev500.obj $(OBJ)dvatrace.obj $(OBJ)dvatable.obj $(OBJ)dvamcp.obj \
+		$(OBJ)dvaproc.obj $(OBJ)dvamente.obj
+
+OBJS = $(A_OBJS) $(C_OBJS)
+
+#
+# OBJ |„ MOT ƒtƒ@ƒCƒ‹
+#
+$(PGM).mot	: $(OBJS) LINK.CMD
+#	$(LN) -f LINK.CMD  $(LD64CH) -o $(PGM) -l $(PGM).map -t
+#	$(LN) -f LINK.CMD  $(LD64C) -o $(PGM) -l $(PGM).map
+	$(LN) -SubCommand=LINK.CMD
+	$(CONV) ".\DVAU1.abs" ".\DVAU1.mot"
+
+#‹N“®ƒvƒƒOƒ‰ƒ€
+$(OBJ)entry.obj : $(SRC)entry.c
+
+#ƒVƒXƒeƒ€‹Ÿ‹‹
+$(OBJ)sbrk.obj : $(SRC)sbrk.c $(BOOTINC)sbrk.h
+
+#ƒtƒ@ƒCƒ‹ƒAƒNƒZƒX
+$(OBJ)dosaccs3.obj : $(SRC)dosaccs3.c $(BOOTINC)dosaccs.h $(BOOTINC)fcntl.h
+
+#ƒu[ƒg‚q‚n‚lŒÄ‚Ño‚µ
+$(OBJ)lowlvl.obj : $(SRC)lowlvl.src
+
+#‚g‚c‚k‚bŠ„‚èž‚Ýˆ—
+$(OBJ)hdlc.obj : $(SRC)hdlc.c $(BOOTINC)iodefine.h $(INC)timer.h
+
+#”ñ“¯Šú’ÊMˆ—
+$(OBJ)commlib.obj : $(SRC)commlib.c $(BOOTINC)iodefine.h
+
+#ƒe[ƒuƒ‹ŒŸõ
+$(OBJ)dvatable.obj : $(SRC)dvatable.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(BOOTINC)dosaccs.h $(BOOTINC)fcntl.h $(INC)timer.h
+
+#ƒƒCƒ“ƒ‹[ƒeƒBƒ“
+$(OBJ)dvamain.obj : $(SRC)dvamain.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h
+
+#‰ŠúÝ’è
+$(OBJ)dvainit1.obj : $(SRC)dvainit1.c $(BOOTINC)iodefine.h
+
+#‚h^‚nˆ—
+$(OBJ)dvaio.obj : $(SRC)dvaio.c $(BOOTINC)iodefine.h $(COMMINC)table.h
+
+#‚s‚l‚r’ÊMˆ—
+$(OBJ)dvatms.obj : $(SRC)dvatms.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h
+
+#ƒ^ƒCƒ}[Š„‚èž‚Ýˆ—
+$(OBJ)dvatime.obj : $(SRC)dvatime.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h
+
+#‚d‚u‚T‚O‚O‚O’ÊMˆ—
+$(OBJ)dvaev500.obj : $(SRC)dvaev500.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h
+
+#ƒgƒŒ[ƒXˆ—
+$(OBJ)dvatrace.obj : $(SRC)dvatrace.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h
+
+#‚l‚b‚o‘€ì
+$(OBJ)dvamcp.obj : $(SRC)dvamcp.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h
+
+#ƒvƒƒZƒX‘JˆÚˆ—
+$(OBJ)dvaproc.obj : $(SRC)dvaproc.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h
+
+#ƒƒ“ƒeƒiƒ“ƒXˆ—
+$(OBJ)dvamente.obj : $(SRC)dvamente.c $(BOOTINC)iodefine.h $(COMMINC)table.h $(INC)timer.h $(INC)trace.h $(BOOTINC)dosaccs.h $(BOOTINC)fcntl.h
+
+
+

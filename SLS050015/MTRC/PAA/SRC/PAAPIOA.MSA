@@ -1,0 +1,385 @@
+;/*[paaPioA.ASM]***********************************************************
+;*	ÅyçÅç`ínâ∫ìSÅ@é©ìÆï˙ëóêßå‰Åz				     *
+;*-------------------------------------------------------------------*
+;*	ÇoÇhÇnèoóÕÉåÉxÉãÇOÉÇÉWÉÖÅ[Éã					     *
+;*-------------------------------------------------------------------*
+;*    Author	TOA Corporation   K.Honda
+;*								     *
+;*    Revison	a00. 2000/06/26
+;*								     *
+;********************************************************************/
+	module	'çÅç`ínâ∫ìS AAU PAA S/W'
+$.\INC\PAAHW.INC
+
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ÉfÅ[É^
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+	RSEG	RDATA :DATA
+
+public iodata
+iodata:
+	defs	4
+
+csiodata:
+	defs	1
+
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ÉvÉçÉOÉâÉÄïî
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+	RSEG	RCODE :CODE
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< csio_initialize >>			*
+;*			ÉNÉçÉbÉNìØä˙éÆÉVÉäÉAÉãÇÃèâä˙âª				*
+;*	Syntax		csio_initialize();				*
+;*	Argument	none						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+; ÅúÉNÉçÉbÉNìØä˙éÆÉVÉäÉAÉãèoóÕÇÃèâä˙âªÇçsÇ§ÅB
+;
+	public	csio_initialize	;.(Function)
+csio_initialize:
+	push	af
+	push	hl
+
+	ld	a,00000000b
+	out0	(DERA),a	;. PA is ALL I/O
+	ld	a,10101000b
+	out0	(DDRA),a		;. TXS/CKS/TEND1 is Output
+	ld	a,10101000b
+	ld	(csiodata),a
+	out0	(ODRA),a		;. TXS/CSK/TEND1 is Initial High
+
+	pop	hl
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< csio_output >>			*
+;*			ÉNÉçÉbÉNìØä˙éÆÉVÉäÉAÉãÇÃèoóÕ			*
+;*	Syntax		csio_output( data );
+;*	Argument	short data    i ÅFÅ@Output Data.						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;	data = reg.HL
+;
+	public	csio_output	;.(Function)
+csio_output:
+	push	af
+	push	bc
+
+	ld		c,13
+csio_loop:
+	ld		a,l
+	and		1
+	jr		z,csio_on
+
+	ld		a,(csiodata)
+	and		BINNOT 00001000b		; TXS ON
+	jr		csio_onoff
+csio_on:
+	ld		a,(csiodata)
+	or		00001000b		; TXS OFF
+csio_onoff:
+	ld		(csiodata),a
+	out0	(ODRA),a		;. TXS SET
+
+	ld		a,(csiodata)
+	and		BINNOT 00100000b		; CXS OFF
+	ld		(csiodata),a
+	out0	(ODRA),a		;. CXS SET
+
+	ld		a,(csiodata)
+	or		00100000b		; CXS ON
+	ld		(csiodata),a
+	out0	(ODRA),a		;. CXS SET
+
+	srl		h			; Right Shift 1 bit
+	rr		l
+
+	dec		c
+	ld		a,c
+	or		a
+	jr		nz,csio_loop
+
+	ld		a,(csiodata)
+	and		01111111b		; TEND1 OFF
+	ld		(csiodata),a
+	out0	(ODRA),a		;. CXS SET
+
+	ld		a,(csiodata)
+	or		10000000b		; TEND1 ON
+	ld		(csiodata),a
+	out0	(ODRA),a		;. CXS SET
+
+	pop	bc
+	pop	af
+	ret
+
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< switch_read >>			*
+;*			ÉXÉCÉbÉ`èÓïÒÇÃì«Ç›çûÇ›
+;*	Syntax		r=switch_read( void );
+;*	Argument	short r	  o	:Å@Import Switch data						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;	output Reg.HL
+;
+	public	switch_read	;.(Function)
+switch_read:
+	push	af
+
+	in0		a,(EXT_PORT0)
+	ld		l,a
+	in0		a,(EXT_PORT1)
+	ld		h,a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_on1 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇmèàóù
+;*	Syntax		io_output_on1( ondata1 );
+;*	Argument	char ondata1	o ÅF Set data of Port0						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ondata1 =
+;.		b0...b4 = EMG Microphone Gate
+;.		b6 = AMP LED
+;.		b7 = RUN LED
+;
+	public	io_output_on1	;.(Function)
+io_output_on1:
+	push	af
+
+	ld		a,(iodata)
+	or		E
+	ld		(iodata),a
+	out0	(EXT_PORT0),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_on2 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇmèàóù
+;*	Syntax		io_output_on2( ondata2 );
+;*	Argument	char ondata2 	o ÅF Set data of Port1						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ondata2 =
+;.		b0...b5 = Speaker ON
+;.		b6...b7 = AMP ON
+;
+	public	io_output_on2	;.(Function)
+io_output_on2:
+	push	af
+
+	ld		a,(iodata+1)
+	or		E
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_on3 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇmèàóù
+;*	Syntax		io_output_on3( ondata3 );
+;*	Argument	char ondata3 	o ÅF Set data of Port3						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ondata3 =
+;.		b0...b1 = Noise Level ON
+;.		b7 = Watch Dog Enable
+;
+	public	io_output_on3	;.(Function)
+io_output_on3:
+	push	af
+
+	ld		A,(iodata+2)
+	or		E
+	ld		(iodata+2),a
+	out0	(EXT_PORT2),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_on4 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇmèàóù
+;*	Syntax		io_output_on4( ondata4 );				*
+;*	Argument	char ondata4 	o ÅF Set data of Port4						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	ondata4 =
+;.		b0...b7 = Debug LED
+;
+	public	io_output_on4	;.(Function)
+io_output_on4:
+	push	af
+
+	ld		a,(iodata+3)
+	or		E
+	ld		(iodata+3),a
+	out0	(EXT_PORT3),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_off1 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇeÇeèàóù
+;*	Syntax		io_output_off1( offdata1 );
+;*	Argument	char offdata1	i ÅF Set OFF data of Port0						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	offdata1 =
+;.		b0...b4 = EMG Microphone Gate
+;.		b6 = AMP LED
+;.		b7 = RUN LED
+
+	public	io_output_off1	;.(Function)
+io_output_off1:
+	push	af
+
+	ld		a,E
+	CPL
+	ld		E,A
+	ld		a,(iodata)
+	AND		E
+	ld		(iodata),a
+	out0	(EXT_PORT0),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_off2 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇeÇeèàóù
+;*	Syntax		io_output_off2( char offdata2 );
+;*	Argument	char offdata2	i ÅF Set OFF data of Port1						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	offdata2 =
+;.		b0...b5 = Speaker ON
+;.		b6...b7 = AMP ON
+;
+	public	io_output_off2	;.(Function)
+io_output_off2:
+	push	af
+
+	ld		a,E
+	CPL
+	ld		E,A
+	ld		a,(iodata+1)
+	AND		E
+	ld		(iodata+1),a
+	out0	(EXT_PORT1),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_off3 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇeÇeèàóù
+;*	Syntax		io_output_off3( offdata3 );				*
+;*	Argument	char offdata3	i ÅF Set OFF data of Port2						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	offdata3 =
+;.		b0...b1 = Noise Level ON
+;.		b7 = Watch Dog Enable
+;
+	public	io_output_off3	;.(Function)
+io_output_off3:
+	push	af
+
+	ld		a,E
+	CPL
+	ld		E,A
+	ld		a,(iodata+2)
+	AND		E
+	ld		(iodata+2),a
+	out0	(EXT_PORT2),a
+
+	pop	af
+	ret
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< io_output_off4 >>			*
+;*			ÇhÅ^ÇnèoóÕÇÃÇnÇeÇeèàóù
+;*	Syntax		io_output_off4( offdata4 );				*
+;*	Argument	char offdata4	i ÅF Set OFF data of Port3						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£Ü£
+;.	offdata4 =
+;.		b0...b7 = Debug LED
+;
+	public	io_output_off4	;.(Function)
+io_output_off4:
+	push	af
+
+	ld		a,E
+	CPL
+	ld		E,A
+	ld		a,(iodata+3)
+	AND		E
+	ld		(iodata+3),a
+	out0	(EXT_PORT3),a
+
+	pop	af
+	ret
+
+
+
+	END
+

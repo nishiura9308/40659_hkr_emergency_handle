@@ -1,0 +1,594 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:21  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvamain.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            通信制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/07/27         K.Honda
+                     9:            Revision        a01. 2000/09/07         K.Honda
+                    10:            Revision        a02. 2000/11/13         K.Honda
+                    11:                                    a03. 2001/04/18
+                    12:                                    a04. 2002/04/08         h.nisiura
+                    13:                                    a05. 2003/04/01         h.nisiura
+                    14:    
+                    15:                                    a07. 2004/09/13         h.nisiura
+                    16:                                    a08. 2005/07/12         h.nisiura
+                    17:                                    a09. 2013/03/26         h.nisiura
+                    18:                                    a10. 2021/02/07         h.nisiura
+                    19:                                    a11. 2023/03/07         h.nisiura
+                    20:                                    a12. 2024/03/11         h.nisiura
+                    21:                                    
+                    22:    *********************************************************************/
+                    23:    
+                    24:    #include        <stdio.h>
+                    25:    #include    <machine.h>
+                    26:    #include    "iodefine.h"
+                    27:    
+                    28:    #include        "table.h"
+                    29:    
+                    30:    #include        "timer.h"
+                    31:    
+                    32:    #define         VERSION_INFO    0x0304
+                    33:    
+                    34:    /*@@@S*/
+                    35:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    36:            グローバル変数
+                    37:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    38:    
+                    39:    unsigned short  VERSION;
+                    40:    
+                    41:    unsigned char   tms_config_write;
+                    42:    
+                    43:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    44:            ローカル定数定義
+                    45:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    46:    
+                    47:    
+                    48:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    49:            ローカル構造体定義
+                    50:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    51:    
+                    52:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    53:            ローカルテーブル
+                    54:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    55:    
+                    56:    
+                    57:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    58:                    外部参照
+                    59:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    60:    extern  void dvaProcess_Init( void );
+                    61:    extern  void dvaMCPInitial( void );
+                    62:    
+                    63:    extern  void dvaIOOut( unsigned long onbit, unsigned long offbit );
+                    64:    extern  void timer_0_Initialize( void );
+                    65:    extern  void dvauEV5000Initialize( void );
+                    66:    extern  void dvauMENTEInitialize( void );
+                    67:    extern  void tms_initialize( void );
+                    68:    
+                    69:    
+                    70:    extern  struct  BACKUP_DATA             backup_data;            // バックアップデータ
+                    71:    extern  struct  CONFIG_INFO             config_data;            // 設定情報
+                    72:    extern  struct st_ReadSIGNAL nowSignal;                 // 最新Ｉ／Ｏ情報
+                    73:    
+                    74:    extern  struct  TIMER_CONTROL   timedata;               // タイマー情報
+                    75:    
+                    76:    extern  char    watchDogCount;          // ウォッチドッグカウンター
+                    77:    extern  char    watchDogFlag;           // ウォッチドッグフラグ
+                    78:    extern  char    watchDogON;             // ウォッチドッグ結果
+                    79:    
+                    80:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    81:                    ローカル変数
+                    82:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    83:    
+                    84:    extern  struct  BACKUP_DATA             backup_data;            // バックアップデータ
+                    85:    static  unsigned short magicCodeBack;
+                    86:    
+                    87:    static  unsigned char   befSignal1;
+                    88:    static  unsigned char   befSignal2;
+                    89:    static  unsigned char   befSignal3;
+                    90:    
+                    91:    extern  struct st_WriteSIGNAL   outSignal;
+                    92:    static  unsigned char   writeSignal1;
+                    93:    static  unsigned char   writeSignal2;
+                    94:    static  unsigned char   writeSignal3;
+                    95:    
+                    96:    static  unsigned char   befTMSAct;
+                    97:    static  unsigned char   befActive;
+                    98:    
+                    99:    /*@@@E*/
+                   100:    /************************************************************************
+                   101:    
+                   102:            Function name   << main >>
+                   103:                                            メイン関数
+                   104:            Syntax                  main( void );
+                   105:            Argument                none
+                   106:            Author                  TOA Corporation  K.Honda
+                   107:            Revision                a00 2000/07/27
+                   108:            Revision                a01 2000/09/07  アドレス変更
+                   109:                                    a02 2000/11/13  ＤＩＰ－ＳＷ変更
+                   110:                                    a03 2001/04/18  ＥＶ５０００からの日時情報取得後、データ読み出し
+                   111:    
+                   112:    *************************************************************************/
+                   113:    void main( void )
+    000000              _main:                           ; function: main
+                   114:    {
+    000000 7A03                   MOV.L       #_watchDogFlag:32,ER3
+           <00000000>   
+    000006 7A040000FF             MOV.L       #65535:32,ER4
+           FF           
+    00000C 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+                   115:                    int             i;
+                   116:                    int             ret;
+                   117:    
+                   118:                    VERSION = VERSION_INFO;         // バージョンを設定
+    000012 79000304               MOV.W       #772:16,R0
+    000016 6BA000                 MOV.W       R0,@_VERSION:24
+           <000000>     
+                   119:    
+                   120:    dvaIOOut( OUTSIGNAL_LED0, 0xFFFF );
+    00001C 0FC1                   MOV.L       ER4,ER1
+    00001E 1A80                   SUB.L       ER0,ER0
+    000020 F801                   MOV.B       #1:8,R0L
+    000022 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   121:    
+                   122:                    // 現在のＩ／Ｏ状況を読む
+                   123:                    for( i=0; i<50; i++ ){
+    000026 79050032               MOV.W       #50:16,R5
+    00002A              L155:                             
+                   124:                            dvaIOIn();
+    00002A 5E                     JSR         @_dvaIOIn:24
+           <000000>     
+    00002E 1B55                   DEC.W       #1,R5
+    000030 46F8                   BNE         L155:8
+                   125:                    }
+                   126:    
+                   127:                    if( nowSignal.SIGNAL2.RBIT.addressOdd ){        // 奇数アドレス時
+    000032 6B2500                 MOV.W       @_VERSION:24,R5
+           <000000>     
+    000038 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    00003E 7728                   BLD.B       #2,R0L
+    000040 440A                   BCC         L156:8
+                   128:                            DUALPORT.answerData.version[0] = VERSION;
+    000042 6EE5004C               MOV.B       R5H,@(76:16,ER6)
+    000046 6EED004D               MOV.B       R5L,@(77:16,ER6)
+    00004A 4008                   BRA         L157:8
+    00004C              L156:                             
+                   129:                    }
+                   130:                    else {                                          // 偶数アドレス時
+                   131:                            DUALPORT.answerData.version[1] = VERSION;
+    00004C 6EE5004E               MOV.B       R5H,@(78:16,ER6)
+    000050 6EED004F               MOV.B       R5L,@(79:16,ER6)
+    000054              L157:                             
+                   132:                    }
+                   133:    
+                   134:                    DUALPORT.activeDVAU=0;
+    000054 1888                   SUB.B       R0L,R0L
+    000056 68E8                   MOV.B       R0L,@ER6
+                   135:                    DUALPORT.changeDVAU=0;
+    000058 6EE80001               MOV.B       R0L,@(1:16,ER6)
+                   136:                    DUALPORT.activeDVAUrequest=0;
+    00005C 6EE80002               MOV.B       R0L,@(2:16,ER6)
+                   137:    
+                   138:                            // 各モジュールの初期設定
+                   139:                    timer_0_Initialize();           // タイマー割り込みの初期設定
+    000060 5E                     JSR         @_timer_0_Initialize:24
+           <000000>     
+                   140:    
+                   141:                    dvauEV5000Initialize();         // ＥＶ５０００の初期設定
+    000064 5E                     JSR         @_dvauEV5000Initialize:24
+           <000000>     
+                   142:    dvaIOOut( OUTSIGNAL_LED1, 0xFFFF );
+    000068 0FC1                   MOV.L       ER4,ER1
+    00006A 1A80                   SUB.L       ER0,ER0
+    00006C F802                   MOV.B       #2:8,R0L
+    00006E 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   143:    
+                   144:                    and_ccr(0x3F);                                          /* 割り込み全面許可 */
+    000072 063F                   ANDC.B      #63:8,CCR
+                   145:                            // ＥＶ５０００からの日時情報の取り込み待ち
+                   146:                    while( DUALPORT.ev5000_request.Initial ){
+    000074 4008                   BRA         L159:8
+    000076              L158:                             
+                   147:                            dvauEV5000Cyclic();             // 音声処理
+    000076 5E                     JSR         @_dvauEV5000Cyclic:24
+           <000000>     
+                   148:                            WatchDogReset();                // ウォッチドッグリセット
+    00007A 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    00007E              L159:                             
+    00007E 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    000082 4BF2                   BMI         L158:8
+                   149:                    }
+                   150:    
+                   151:                    or_ccr(0xC0);                           // 全面割り込み禁止
+    000084 04C0                   ORC.B       #-64:8,CCR
+                   152:    dvaIOOut( OUTSIGNAL_LED2, 0xFFFF );
+    000086 0FC1                   MOV.L       ER4,ER1
+    000088 1A80                   SUB.L       ER0,ER0
+    00008A F804                   MOV.B       #4:8,R0L
+    00008C 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   153:    
+                   154:                    // バックアップ状況のチェック
+                   155:                    ret = dvaBackupCheck();
+    000090 5E                     JSR         @_dvaBackupCheck:24
+           <000000>     
+    000094 0D05                   MOV.W       R0,R5
+                   156:                    if( ret<0 ){
+    000096 4C20                   BGE         L160:8
+                   157:                            set_imask_ccr(1);
+    000098 0480                   ORC.B       #-128:8,CCR
+                   158:                            printf("CONFIG Data Error\r\n");
+    00009A 7A00                   MOV.L       #L123:32,ER0
+           <00000000>   
+    0000A0 01006DF0               PUSH.L      ER0
+    0000A4 5E                     JSR         @_printf:24
+           <000000>     
+    0000A8 0B97                   ADDS.L      #4,SP
+                   159:                            dvaIOOut( OUTSIGNAL_LED7|OUTSIGNAL_LED6, 0xFFFF );
+    0000AA 0FC1                   MOV.L       ER4,ER1
+    0000AC 1A80                   SUB.L       ER0,ER0
+    0000AE F8C0                   MOV.B       #-64:8,R0L
+    0000B0 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   160:                            Halt();
+    0000B4 5E                     JSR         @_Halt:24
+           <000000>     
+    0000B8              L160:                             
+                   161:                    }
+                   162:    
+                   163:                    if( ret>0 ){
+    0000B8 0D55                   MOV.W       R5,R5
+    0000BA 4F10                   BLE         L161:8
+                   164:                            printf("BACKUP Broken  Reset\r\n");
+    0000BC 7A00                   MOV.L       #L126:32,ER0
+           <00000000>   
+    0000C2 01006DF0               PUSH.L      ER0
+    0000C6 5E                     JSR         @_printf:24
+           <000000>     
+    0000CA 0B97                   ADDS.L      #4,SP
+    0000CC              L161:                             
+                   165:                    }
+                   166:    
+                   167:                    if( nowSignal.SIGNAL2.RBIT.hcrON==0 ){
+    0000CC 7A05                   MOV.L       #_backup_data:32,ER5
+           <00000000>   
+    0000D2 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    0000D8 7708                   BLD.B       #0,R0L
+    0000DA 452C                   BCS         L162:8
+                   168:                                    // 初期設定状態
+                   169:                                    // 仮アクティブＤＶＡＵの決定
+                   170:                            if( nowSignal.SIGNAL2.RBIT.addressOdd ){        // 奇数アドレス時
+    0000DC 6A2800                 MOV.B       @_nowSignal+1:24,R0L
+           <000000>     
+    0000E2 7728                   BLD.B       #2,R0L
+    0000E4 4416                   BCC         L163:8
+                   171:                                    backup_data.opeMode = OPEMODE_INITIAL_TEST;
+    0000E6 F801                   MOV.B       #1:8,R0L
+    0000E8 6ED80002               MOV.B       R0L,@(2:16,ER5)
+                   172:                                    DUALPORT.activeDVAU=1;
+    0000EC 68E8                   MOV.B       R0L,@ER6
+                   173:                                    if( P4.DR.BIT.B1==0 ){
+    0000EE 7EC77710               BLD.B       #1,@16777159:8
+    0000F2 452E                   BCS         L166:8
+                   174:                                            backup_data.opeMode = OPEMODE_AUTO;
+    0000F4 F807                   MOV.B       #7:8,R0L
+    0000F6 6ED80002               MOV.B       R0L,@(2:16,ER5)
+    0000FA 4026                   BRA         L166:8
+    0000FC              L163:                             
+                   175:                                    }
+                   176:                            }
+                   177:                            else {                                          // 偶数アドレス時
+                   178:    //                              backup_data.opeMode = OPEMODE_INITIAL_TEST2;
+                   179:                                    backup_data.opeMode = OPEMODE_STANDBY;
+    0000FC F803                   MOV.B       #3:8,R0L
+    0000FE 6ED80002               MOV.B       R0L,@(2:16,ER5)
+                   180:                                    DUALPORT.activeDVAU=0;
+    000102 1888                   SUB.B       R0L,R0L
+    000104 68E8                   MOV.B       R0L,@ER6
+    000106 401A                   BRA         L166:8
+    000108              L162:                             
+                   181:    //                              DUALPORT.activeDVAU=1;
+                   182:    //                              backup_data.opeMode = OPEMODE_IDLE;
+                   183:                            }
+                   184:                    }
+                   185:                    else {
+                   186:                                    backup_data.opeMode = OPEMODE_INITIAL_TEST;
+    000108 F801                   MOV.B       #1:8,R0L
+    00010A 6ED80002               MOV.B       R0L,@(2:16,ER5)
+                   187:                                    DUALPORT.activeDVAU=1;
+    00010E 68E8                   MOV.B       R0L,@ER6
+                   188:                                    if( P4.DR.BIT.B1==0 || P4.DR.BIT.B2==0 ){
+    000110 7EC77710               BLD.B       #1,@16777159:8
+    000114 4406                   BCC         L168:8
+    000116 7EC77720               BLD.B       #2,@16777159:8
+    00011A 4506                   BCS         L167:8
+    00011C              L168:                             
+                   189:                                            backup_data.opeMode = OPEMODE_AUTO;
+    00011C F807                   MOV.B       #7:8,R0L
+    00011E 6ED80002               MOV.B       R0L,@(2:16,ER5)
+    000122              L167:                             
+    000122              L166:                             
+                   190:                                    }
+                   191:                    }
+                   192:    
+                   193:                            // 基本音量データの設定
+                   194:                    for( i=0; i<MAX_PAA; i++ ){
+    000122 1955                   SUB.W       R5,R5
+    000124              L169:                             
+                   195:                            DUALPORT.pollingData.voiceLevel[i] = config_data.paa[i].level;
+    000124 0D50                   MOV.W       R5,R0
+    000126 17F0                   EXTS.L      ER0
+    000128 1A91                   SUB.L       ER1,ER1
+    00012A F944                   MOV.B       #68:8,R1L
+    00012C 0AE1                   ADD.L       ER6,ER1
+    00012E 0A81                   ADD.L       ER0,ER1
+    000130 78006A2800             MOV.B       @(_config_data+8:24,ER0),R0L
+           <000000>     
+    000138 6898                   MOV.B       R0L,@ER1
+    00013A 0B55                   INC.W       #1,R5
+    00013C 79250008               CMP.W       #8:16,R5
+    000140 4DE2                   BLT         L169:8
+                   196:                    }
+                   197:    
+                   198:                            // 前回車両番号の設定
+                   199:                    DUALPORT.pollingData.carNo = backup_data.carInfo[0].carNo;
+    000142 6A2000                 MOV.B       @_backup_data+29:24,R0H
+           <000000>     
+    000148 6A2800                 MOV.B       @_backup_data+30:24,R0L
+           <000000>     
+    00014E 7901000C               MOV.W       #12:16,R1
+    000152 5E                     JSR         @$BFUI$3:24
+           <000000>     
+    000156 6EE0000D               MOV.B       R0H,@(13:16,ER6)
+    00015A 6EE8000E               MOV.B       R0L,@(14:16,ER6)
+                   200:    
+                   201:                    tms_config_write = 0;
+    00015E 1888                   SUB.B       R0L,R0L
+    000160 6AA800                 MOV.B       R0L,@_tms_config_write:24
+           <000000>     
+                   202:    
+                   203:                            // 各モジュールの初期設定
+                   204:                    dvaProcess_Init();
+    000166 5E                     JSR         @_dvaProcess_Init:24
+           <000000>     
+                   205:                    dvaMCPInitial();
+    00016A 5E                     JSR         @_dvaMCPInitial:24
+           <000000>     
+                   206:    
+                   207:                    dvauMENTEInitialize();          // メンテナンスターミナルの初期設定
+    00016E 5E                     JSR         @_dvauMENTEInitialize:24
+           <000000>     
+                   208:    
+                   209:                    tms_initialize();                       // ＴＭＳ通信の初期設定
+    000172 5E                     JSR         @_tms_initialize:24
+           <000000>     
+                   210:    
+                   211:                    printf("System Start\r\n");
+    000176 7A00                   MOV.L       #L134:32,ER0
+           <00000000>   
+    00017C 01006DF0               PUSH.L      ER0
+    000180 5E                     JSR         @_printf:24
+           <000000>     
+    000184 0B97                   ADDS.L      #4,SP
+                   212:    
+                   213:                    timedata.subActiveTimer = 1000; // サブＣＰＵ起動チェックタイマースタート
+    000186 790003E8               MOV.W       #1000:16,R0
+    00018A 6AA000                 MOV.B       R0H,@_timedata+21:24
+           <000000>     
+    000190 6AA800                 MOV.B       R0L,@_timedata+22:24
+           <000000>     
+                   214:    
+                   215:    dvaIOOut( OUTSIGNAL_LED3, 0xFFFF );
+    000196 0FC1                   MOV.L       ER4,ER1
+    000198 1A80                   SUB.L       ER0,ER0
+    00019A F808                   MOV.B       #8:8,R0L
+    00019C 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   216:                    and_ccr(0x3F);                                          /* 割り込み全面許可 */
+    0001A0 063F                   ANDC.B      #63:8,CCR
+                   217:                    for( ;; ){
+    0001A2              L170:                             
+                   218:                            DUALPORT.mainActive = 1;        // メインアクティブ設定
+    0001A2 F801                   MOV.B       #1:8,R0L
+    0001A4 6EE807FD               MOV.B       R0L,@(2045:16,ER6)
+                   219:                            dvaProcess();                   // プロセス処理
+    0001A8 5E                     JSR         @_dvaProcess:24
+           <000000>     
+                   220:                            dvauEV5000Cyclic();             // 音声処理
+    0001AC 5E                     JSR         @_dvauEV5000Cyclic:24
+           <000000>     
+                   221:                            dvauMENTEMain();                // メンテナンス処理
+    0001B0 5E                     JSR         @_dvauMENTEMain:24
+           <000000>     
+                   222:    
+                   223:                            if( watchDogFlag ){
+    0001B4 6838                   MOV.B       @ER3,R0L
+    0001B6 473C                   BEQ         L172:8
+                   224:                                    printf("WatchDog Count = %d\n", watchDogCount );
+    0001B8 6A2800                 MOV.B       @_watchDogCount:24,R0L
+           <000000>     
+    0001BE 17D0                   EXTS.W      R0
+    0001C0 6DF0                   PUSH.W      R0
+    0001C2 7A00                   MOV.L       #L139:32,ER0
+           <00000000>   
+    0001C8 01006DF0               PUSH.L      ER0
+    0001CC 5E                     JSR         @_printf:24
+           <000000>     
+    0001D0 0B97                   ADDS.L      #4,SP
+    0001D2 0B87                   ADDS.L      #2,SP
+                   225:                                    printf("watchDog ON = %d\n", watchDogON );
+    0001D4 6A2800                 MOV.B       @_watchDogON:24,R0L
+           <000000>     
+    0001DA 17D0                   EXTS.W      R0
+    0001DC 6DF0                   PUSH.W      R0
+    0001DE 7A00                   MOV.L       #L140:32,ER0
+           <00000000>   
+    0001E4 01006DF0               PUSH.L      ER0
+    0001E8 5E                     JSR         @_printf:24
+           <000000>     
+    0001EC 0B97                   ADDS.L      #4,SP
+    0001EE 0B87                   ADDS.L      #2,SP
+                   226:                                    watchDogFlag = 0;
+    0001F0 1888                   SUB.B       R0L,R0L
+    0001F2 68B8                   MOV.B       R0L,@ER3
+    0001F4              L172:                             
+                   227:                            }
+                   228:    
+                   229:    //                      if( tms_config_write ){
+                   230:    //                              dvaBackup();
+                   231:    //                              tms_config_write=0;
+                   232:    //                      }
+                   233:    
+                   234:                            WatchDogReset();                // ウォッチドッグリセット
+    0001F4 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    0001F8 40A8                   BRA         L170:8
+                   235:    #if 0
+                   236:    if( backup_data.magicCode != magicCodeBack ){
+                   237:            printf("before MagicCode = %X\r\n", magicCodeBack );
+                   238:            printf("Now MagicCode = %X\r\n", backup_data.magicCode );
+                   239:            magicCodeBack = backup_data.magicCode;
+                   240:    }
+                   241:    if( befSignal1!=nowSignal.SIGNAL1.BYTE ){
+                   242:    printf("600200 Change %X --> %X\r\n", befSignal1, nowSignal.SIGNAL1.BYTE );
+                   243:    befSignal1 = nowSignal.SIGNAL1.BYTE;
+                   244:    }
+                   245:    if( befSignal2!=nowSignal.SIGNAL2.BYTE ){
+                   246:    printf("600300 Change %X --> %X\r\n", befSignal2, nowSignal.SIGNAL2.BYTE );
+                   247:    befSignal2 = nowSignal.SIGNAL2.BYTE;
+                   248:    }
+                   249:    if( befSignal3!=nowSignal.SIGNAL3.BYTE ){
+                   250:    printf("600400 Change %X --> %X\r\n", befSignal3, nowSignal.SIGNAL3.BYTE );
+                   251:    befSignal3 = nowSignal.SIGNAL3.BYTE;
+                   252:    }
+                   253:    
+                   254:    if( writeSignal1!=outSignal.SIGNAL1.BYTE ){
+                   255:    printf("600200 Write Change %X --> %X\r\n", writeSignal1, outSignal.SIGNAL1.BYTE );
+                   256:    writeSignal1 = outSignal.SIGNAL1.BYTE;
+                   257:    }
+                   258:    if( writeSignal2!=outSignal.SIGNAL2.BYTE ){
+                   259:    printf("600300 Write Change %X --> %X\r\n", writeSignal2, outSignal.SIGNAL2.BYTE );
+                   260:    writeSignal2 = outSignal.SIGNAL2.BYTE;
+                   261:    }
+                   262:    if( writeSignal3!=outSignal.SIGNAL3.BYTE ){
+                   263:    printf("600400 Write Change %X --> %X\r\n", writeSignal3, outSignal.SIGNAL3.BYTE );
+                   264:    writeSignal3 = outSignal.SIGNAL3.BYTE;
+                   265:    }
+                   266:    
+                   267:    if( befTMSAct==0 && DUALPORT.tms_request.Active ){
+                   268:    befTMSAct = 1;
+                   269:    printf("TMS Active\r\n");
+                   270:    }
+                   271:    if( befTMSAct && DUALPORT.tms_request.Active==0 ){
+                   272:    befTMSAct = 0;
+                   273:    printf("TMS Off\r\n");
+                   274:    }
+                   275:    if( befActive!=DUALPORT.activeDVAU ){
+                   276:    printf("DVAU Active Change %X --> %X\r\n", befActive, DUALPORT.activeDVAU );
+                   277:    befActive = DUALPORT.activeDVAU;
+                   278:    }
+                   279:    #endif
+                   280:                    }
+                   281:    
+                   282:    }
+                   283:    
+                   284:    //struct st_dualport work;
+  C                                                      ; section
+    000000              L123:
+    000000 434F4E4649             .SDATAZ     "CONFIG Data Error"<H'0D><H'0A>
+           4720446174   
+           6120457272   
+           6F720D0A00   
+    000014              L126:
+    000014 4241434B55             .SDATAZ     "BACKUP Broken  Reset"<H'0D><H'0A>
+           502042726F   
+           6B656E2020   
+           5265736574   
+           0D0A00       
+    00002B              L134:
+    00002B 5379737465             .SDATAZ     "System Start"<H'0D><H'0A>
+           6D20537461   
+           72740D0A00   
+    00003A              L139:
+    00003A 5761746368             .SDATAZ     "WatchDog Count = %d"<H'0A>
+           446F672043   
+           6F756E7420   
+           3D2025640A   
+           00           
+    00004F              L140:
+    00004F 7761746368             .SDATAZ     "watchDog ON = %d"<H'0A>
+           446F67204F   
+           4E203D2025   
+           640A00       
+  B                                                      ; section
+    000000              _VERSION:                        ; static: VERSION
+    000000 00000002               .RES.W      1
+    000002              _tms_config_write:               ; static: tms_config_write
+    000002 00000001               .RES.B      1
+    000003 00000001               .RES.B      1
+    000004              _$magicCodeBack:                 ; static: magicCodeBack
+    000004 00000002               .RES.W      1
+    000006              _$befSignal1:                    ; static: befSignal1
+    000006 00000001               .RES.B      1
+    000007              _$befSignal2:                    ; static: befSignal2
+    000007 00000001               .RES.B      1
+    000008              _$befSignal3:                    ; static: befSignal3
+    000008 00000001               .RES.B      1
+    000009              _$writeSignal1:                  ; static: writeSignal1
+    000009 00000001               .RES.B      1
+    00000A              _$writeSignal2:                  ; static: writeSignal2
+    00000A 00000001               .RES.B      1
+    00000B              _$writeSignal3:                  ; static: writeSignal3
+    00000B 00000001               .RES.B      1
+    00000C              _$befTMSAct:                     ; static: befTMSAct
+    00000C 00000001               .RES.B      1
+    00000D              _$befActive:                     ; static: befActive
+    00000D 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:21  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000001FA Byte(s)
+CONSTANT SECTION(C):                                0x00000061 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x0000000E Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000001FA Byte(s)
+TOTAL CONSTANT SECTION: 0x00000061 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x0000000E Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000269 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       25 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        3 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         57 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvamain.c -object=.\obj\dvamain.obj
+CPU         : 300ha:24

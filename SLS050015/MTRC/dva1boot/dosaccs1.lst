@@ -1,0 +1,322 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:56  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dosaccs1.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       【香港地下鉄向け自動列車放送制御装置】                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       通信制御モジュール                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    /***************************************************************
+                    13:                            実アクセスルーティン
+                    14:    ***************************************************************/
+                    15:    
+                    16:    #include "dosaccs.h"
+                    17:    #include "fcntl.h"
+                    18:    
+                    19:    extern  BPB     root_bpb[MAX_DRIVE];
+                    20:    extern  FCB     root_fcb[MAX_FCB];
+                    21:    
+                    22:    /***************************************************************
+                    23:            物理セクター読み込み（セクター番号で読み込む）
+                    24:                    セクター０をブートセクターとした読み込み
+                    25:    
+                    26:            INPUT:
+                    27:                    bpb =                   デバイス情報
+                    28:                    sector = 0...   読み込みセクター
+                    29:                    num = 1...              読み込みセクター数
+                    30:    
+                    31:                    buffer =                読み込みバッファーアドレス
+                    32:    
+                    33:            RETURN:
+                    34:                    0 = 読み込み正常
+                    35:                    other = 読み込みエラーステータス
+                    36:    ***************************************************************/
+                    37:    int     sector_read( BPB *bpb, long sector, short num, unsigned char *buff )
+    000000              _sector_read:                    ; function: sector_read
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    38:    {
+    000004 0F86                   MOV.L       ER0,ER6
+    000006 0F95                   MOV.L       ER1,ER5
+                    39:                    int             ret;
+                    40:                    long    cylinder,head,sector_n;
+                    41:                    PARTITION_INFO  *part;
+                    42:    
+                    43:                    part = bpb->part;
+    000008 6862                   MOV.B       @ER6,R2H
+    00000A 6E6A0001               MOV.B       @(1:16,ER6),R2L
+    00000E 0D2A                   MOV.W       R2,E2
+    000010 6E620002               MOV.B       @(2:16,ER6),R2H
+    000014 6E6A0003               MOV.B       @(3:16,ER6),R2L
+    000018 0FA6                   MOV.L       ER2,ER6
+                    44:                    if( part==NULL )
+    00001A 4716                   BEQ         L86:8
+                    45:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+                    46:                    if( (void*)part->driver_read==NULL )
+    00001C 6E60001C               MOV.B       @(28:16,ER6),R0H
+    000020 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000024 0D08                   MOV.W       R0,E0
+    000026 6E60001E               MOV.B       @(30:16,ER6),R0H
+    00002A 6E68001F               MOV.B       @(31:16,ER6),R0L
+    00002E 0F80                   MOV.L       ER0,ER0
+    000030 4606                   BNE         L77:8
+                    47:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+    000032              L86:                              
+    000032 79008000               MOV.W       #-32768:16,R0
+    000036 405A                   BRA         L76:8
+    000038              L77:                              
+                    48:    
+                    49:                    sector_n = sector + part->boot_sector;
+    000038 6E60000E               MOV.B       @(14:16,ER6),R0H
+    00003C 6E68000F               MOV.B       @(15:16,ER6),R0L
+    000040 0D08                   MOV.W       R0,E0
+    000042 6E600010               MOV.B       @(16:16,ER6),R0H
+    000046 6E680011               MOV.B       @(17:16,ER6),R0L
+    00004A 0A85                   ADD.L       ER0,ER5
+                    50:                    if( sector_n >= part->all_sector )
+    00004C 6E600012               MOV.B       @(18:16,ER6),R0H
+    000050 6E680013               MOV.B       @(19:16,ER6),R0L
+    000054 0D08                   MOV.W       R0,E0
+    000056 6E600014               MOV.B       @(20:16,ER6),R0H
+    00005A 6E680015               MOV.B       @(21:16,ER6),R0L
+    00005E 1F85                   CMP.L       ER0,ER5
+    000060 4D06                   BLT         L78:8
+                    51:                            return( SECTOR_OVER );          /*セクターオーバー*/
+    000062 79004000               MOV.W       #16384:16,R0
+    000066 402A                   BRA         L76:8
+    000068              L78:                              
+                    52:    
+                    53:    //                      /*シリンダー番号を求める*/
+                    54:    //              cylinder = sector_n / ( part->sector_track * part->head_number );
+                    55:    //              sector_n = sector_n % ( part->sector_track * part->head_number );
+                    56:    //
+                    57:    //                      /*ヘッド番号を求める*/
+                    58:    //              head     = sector_n / part->sector_track;
+                    59:    //                      /*セクター番号を求める*/
+                    60:    //              sector_n = sector_n % part->sector_track;
+                    61:    //
+                    62:    //                      /*物理セクターの読み込み*/
+                    63:                    ret = part->driver_read( sector_n, num, buff );
+    000068 6E60001C               MOV.B       @(28:16,ER6),R0H
+    00006C 6E68001D               MOV.B       @(29:16,ER6),R0L
+    000070 0D08                   MOV.W       R0,E0
+    000072 6E60001E               MOV.B       @(30:16,ER6),R0H
+    000076 6E68001F               MOV.B       @(31:16,ER6),R0L
+    00007A 01006F7100             MOV.L       @(26:16,SP),ER1
+           1A           
+    000080 01006DF1               PUSH.L      ER1
+    000084 6F71001C               MOV.W       @(28:16,SP),R1
+    000088 0F83                   MOV.L       ER0,ER3
+    00008A 0FD0                   MOV.L       ER5,ER0
+    00008C 0FB2                   MOV.L       ER3,ER2
+    00008E 5D20                   JSR         @ER2
+    000090 0B97                   ADDS.L      #4,SP
+                    64:    
+                    65:                    return( ret );
+                    66:    }
+    000092              L76:                              
+    000092 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                    67:    
+                    68:    /***************************************************************
+                    69:            物理セクター書き込み（セクター番号で読み込む）
+                    70:                    セクター０をブートセクターとした書き込み
+                    71:    
+                    72:            INPUT:
+                    73:                    bpb =                   デバイス情報
+                    74:                    sector = 0...   書き込みセクター
+                    75:                    num = 1...              書き込みセクター数
+                    76:    
+                    77:                    buffer =                書き込みバッファーアドレス
+                    78:    
+                    79:            RETURN:
+                    80:                    0 = 書き込み正常
+                    81:                    other = 書き込みエラーステータス
+                    82:    ***************************************************************/
+                    83:    int     sector_write( BPB *bpb, long sector, short num, unsigned char *buff )
+    000096              _sector_write:                   ; function: sector_write
+    000096 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    84:    {
+    00009A 0F86                   MOV.L       ER0,ER6
+    00009C 0F95                   MOV.L       ER1,ER5
+                    85:                    int             ret;
+                    86:                    long    cylinder,head,sector_n;
+                    87:                    PARTITION_INFO  *part;
+                    88:    
+                    89:                    part = bpb->part;
+    00009E 6862                   MOV.B       @ER6,R2H
+    0000A0 6E6A0001               MOV.B       @(1:16,ER6),R2L
+    0000A4 0D2A                   MOV.W       R2,E2
+    0000A6 6E620002               MOV.B       @(2:16,ER6),R2H
+    0000AA 6E6A0003               MOV.B       @(3:16,ER6),R2L
+    0000AE 0FA6                   MOV.L       ER2,ER6
+                    90:                    if( part==NULL )
+    0000B0 4716                   BEQ         L87:8
+                    91:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+                    92:                    if( (void*)part->driver_write==NULL )
+    0000B2 6E600020               MOV.B       @(32:16,ER6),R0H
+    0000B6 6E680021               MOV.B       @(33:16,ER6),R0L
+    0000BA 0D08                   MOV.W       R0,E0
+    0000BC 6E600022               MOV.B       @(34:16,ER6),R0H
+    0000C0 6E680023               MOV.B       @(35:16,ER6),R0L
+    0000C4 0F80                   MOV.L       ER0,ER0
+    0000C6 4606                   BNE         L81:8
+                    93:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+    0000C8              L87:                              
+    0000C8 79008000               MOV.W       #-32768:16,R0
+    0000CC 405A                   BRA         L80:8
+    0000CE              L81:                              
+                    94:    
+                    95:                    sector_n = sector + part->boot_sector;
+    0000CE 6E60000E               MOV.B       @(14:16,ER6),R0H
+    0000D2 6E68000F               MOV.B       @(15:16,ER6),R0L
+    0000D6 0D08                   MOV.W       R0,E0
+    0000D8 6E600010               MOV.B       @(16:16,ER6),R0H
+    0000DC 6E680011               MOV.B       @(17:16,ER6),R0L
+    0000E0 0A85                   ADD.L       ER0,ER5
+                    96:                    if( sector_n >= part->all_sector )
+    0000E2 6E600012               MOV.B       @(18:16,ER6),R0H
+    0000E6 6E680013               MOV.B       @(19:16,ER6),R0L
+    0000EA 0D08                   MOV.W       R0,E0
+    0000EC 6E600014               MOV.B       @(20:16,ER6),R0H
+    0000F0 6E680015               MOV.B       @(21:16,ER6),R0L
+    0000F4 1F85                   CMP.L       ER0,ER5
+    0000F6 4D06                   BLT         L82:8
+                    97:                            return( SECTOR_OVER );          /*セクターオーバー*/
+    0000F8 79004000               MOV.W       #16384:16,R0
+    0000FC 402A                   BRA         L80:8
+    0000FE              L82:                              
+                    98:    
+                    99:    //                      /*シリンダー番号を求める*/
+                   100:    //              cylinder = sector_n / ( part->sector_track * part->head_number );
+                   101:    //              sector_n = sector_n % ( part->sector_track * part->head_number );
+                   102:    //
+                   103:    //                      /*ヘッド番号を求める*/
+                   104:    //              head     = sector_n / part->sector_track;
+                   105:    //                      /*セクター番号を求める*/
+                   106:    //              sector_n = sector_n % part->sector_track;
+                   107:    //
+                   108:                            /*物理セクターの書き込み*/
+                   109:                    ret = part->driver_write( sector_n, num, buff );
+    0000FE 6E600020               MOV.B       @(32:16,ER6),R0H
+    000102 6E680021               MOV.B       @(33:16,ER6),R0L
+    000106 0D08                   MOV.W       R0,E0
+    000108 6E600022               MOV.B       @(34:16,ER6),R0H
+    00010C 6E680023               MOV.B       @(35:16,ER6),R0L
+    000110 01006F7100             MOV.L       @(26:16,SP),ER1
+           1A           
+    000116 01006DF1               PUSH.L      ER1
+    00011A 6F71001C               MOV.W       @(28:16,SP),R1
+    00011E 0F83                   MOV.L       ER0,ER3
+    000120 0FD0                   MOV.L       ER5,ER0
+    000122 0FB2                   MOV.L       ER3,ER2
+    000124 5D20                   JSR         @ER2
+    000126 0B97                   ADDS.L      #4,SP
+                   110:    
+                   111:                    return( ret );
+                   112:    }
+    000128              L80:                              
+    000128 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   113:    
+                   114:    /***************************************************************
+                   115:            物理ドライブ情報の読込み
+                   116:    
+                   117:            INPUT:
+                   118:                    bpb =                   デバイス情報
+                   119:    
+                   120:            RETURN:
+                   121:                    ドライブステータス
+                   122:                            SECTOR_OK
+                   123:                            SECTOR_PROTECT
+                   124:                            SECTOR_NOINIT
+                   125:    ***************************************************************/
+                   126:    int     sector_status( BPB *bpb )
+    00012C              _sector_status:                  ; function: sector_status
+    00012C 01006DF6               PUSH.L      ER6
+                   127:    {
+    000130 0F86                   MOV.L       ER0,ER6
+                   128:                    PARTITION_INFO  *part;
+                   129:    
+                   130:                    part = bpb->part;
+    000132 6861                   MOV.B       @ER6,R1H
+    000134 6E690001               MOV.B       @(1:16,ER6),R1L
+    000138 0D19                   MOV.W       R1,E1
+    00013A 6E610002               MOV.B       @(2:16,ER6),R1H
+    00013E 6E690003               MOV.B       @(3:16,ER6),R1L
+    000142 0F96                   MOV.L       ER1,ER6
+                   131:                    if( part==NULL )
+    000144 4716                   BEQ         L88:8
+                   132:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+                   133:                    if( (void*)part->driver_status==NULL )
+    000146 6E600024               MOV.B       @(36:16,ER6),R0H
+    00014A 6E680025               MOV.B       @(37:16,ER6),R0L
+    00014E 0D08                   MOV.W       R0,E0
+    000150 6E600026               MOV.B       @(38:16,ER6),R0H
+    000154 6E680027               MOV.B       @(39:16,ER6),R0L
+    000158 0F80                   MOV.L       ER0,ER0
+    00015A 4606                   BNE         L85:8
+                   134:                            return( SECTOR_NOINIT );                /*初期設定エラー*/
+    00015C              L88:                              
+    00015C 79008000               MOV.W       #-32768:16,R0
+    000160 4014                   BRA         L84:8
+    000162              L85:                              
+                   135:    
+                   136:                            /*物理セクターの書き込み*/
+                   137:                    return( part->driver_status( ) );
+    000162 6E610024               MOV.B       @(36:16,ER6),R1H
+    000166 6E690025               MOV.B       @(37:16,ER6),R1L
+    00016A 0D19                   MOV.W       R1,E1
+    00016C 6E610026               MOV.B       @(38:16,ER6),R1H
+    000170 6E690027               MOV.B       @(39:16,ER6),R1L
+    000174 5D10                   JSR         @ER1
+                   138:    }
+    000176              L84:                              
+    000176 01006D76               POP.L       ER6
+    00017A 5470                   RTS
+                   139:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     20-Feb-2001  19:08:56  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x0000017C Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x0000017C Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000017C Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        2 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        3 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         16 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\dosaccs1.c -object=.\obj\dosaccs1.obj
+CPU         : 300ha:24

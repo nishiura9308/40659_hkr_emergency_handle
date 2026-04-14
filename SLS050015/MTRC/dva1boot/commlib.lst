@@ -1,0 +1,825 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:51  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\commlib.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include <string.h>
+                    13:    
+                    14:    #include    <machine.h>
+                    15:    #include    "iodefine.h"
+                    16:    
+                    17:    /*@@@S*/
+                    18:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    19:            ƒOƒ[ƒoƒ‹•Ï”
+                    20:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    21:    
+                    22:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    23:            ’è”’è‹`
+                    24:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    25:    
+                    26:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    27:            \‘¢‘Ì’è‹`
+                    28:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    29:    
+                    30:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    31:            ƒe[ƒuƒ‹
+                    32:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    33:    
+                    34:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    35:                    ŠO•”ŽQÆ
+                    36:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    37:    
+                    38:    extern  void    (*ERI0Jump)(void);
+                    39:    extern  void    (*RXI0Jump)(void);
+                    40:    extern  void    (*TXI0Jump)(void);
+                    41:    extern  void    (*TEI0Jump)(void);
+                    42:    
+                    43:    extern  void    (*ERI1Jump)(void);
+                    44:    extern  void    (*RXI1Jump)(void);
+                    45:    extern  void    (*TXI1Jump)(void);
+                    46:    extern  void    (*TEI1Jump)(void);
+                    47:    
+                    48:    extern  void asci_0_recv_ir( char data, char status );
+                    49:    extern  void asci_0_send_ir( char tend );
+                    50:    
+                    51:    extern  void asci_1_recv_ir( char data, char status );
+                    52:    extern  void asci_1_send_ir( char tend );
+                    53:    
+                    54:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    55:                    ƒ[ƒJƒ‹•Ï”
+                    56:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    57:    
+                    58:    /*@@@E*/
+                    59:    
+                    60:    /***************************************************
+                    61:            ŠÖ”–¼  FRX
+                    62:            ˆ—“à—eF³íŽóMŠ„‚èž‚Ýˆ—
+                    63:    
+                    64:                            name            i/o             explanation
+                    65:    parameter:      -
+                    66:    return   :      -
+                    67:    ***************************************************/
+                    68:    void asci_0_RX( void )
+    000000              _asci_0_RX:                      ; function: asci_0_RX
+    000000 6DF6                   PUSH.W      R6
+                    69:    {
+                    70:                    unsigned char   status;
+                    71:                    unsigned char   data;
+                    72:    
+                    73:                    status = SCI0.SSR.BYTE;                 /*Š„‚èž‚ÝƒXƒe[ƒ^ƒX‚Ì“Çž‚Ý*/
+    000002 2EB4                   MOV.B       @16777140:8,R6L
+                    74:                    if( status & 0x40 ){                    /*ŽóMƒf[ƒ^—L‚èH*/
+    000004 736E                   BTST.B      #6,R6L
+    000006 4710                   BEQ         L161:8
+                    75:                            data = SCI0.RDR;
+    000008 26B5                   MOV.B       @16777141:8,R6H
+                    76:                            SCI0.SSR.BYTE = (unsigned char)(status & ~0x78);        /*ŽóMƒGƒ‰[‚ðŠÜ‚ÞƒXƒe[ƒ^ƒXƒNƒŠƒA*/
+    00000A 0CE8                   MOV.B       R6L,R0L
+    00000C E887                   AND.B       #-121:8,R0L
+    00000E 38B4                   MOV.B       R0L,@16777140:8
+                    77:                            asci_0_recv_ir( data, status );
+    000010 0CE0                   MOV.B       R6L,R0H
+    000012 0C68                   MOV.B       R6H,R0L
+    000014 5E                     JSR         @_asci_0_recv_ir:24
+           <000000>     
+    000018              L161:                             
+                    78:                    }
+                    79:    }
+    000018 6D76                   POP.W       R6
+    00001A 5470                   RTS
+                    80:    
+                    81:    /***************************************************
+                    82:            ŠÖ”–¼  Fasci_0_ER
+                    83:            ˆ—“à—eFˆÙíŽóMŠ„‚èž‚Ýˆ—
+                    84:    
+                    85:                            name            i/o             explanation
+                    86:    parameter:      -
+                    87:    return   :      -
+                    88:    ***************************************************/
+                    89:    void asci_0_ER( void )
+    00001C              _asci_0_ER:                      ; function: asci_0_ER
+    00001C 6DF6                   PUSH.W      R6
+                    90:    {
+                    91:                    unsigned char   status;
+                    92:                    unsigned char   data;
+                    93:    
+                    94:                    status = SCI0.SSR.BYTE; /*Š„‚èž‚ÝƒXƒe[ƒ^ƒX‚Ì“Çž‚Ý*/
+    00001E 2EB4                   MOV.B       @16777140:8,R6L
+                    95:                    if( status & 0x40 ){    /*ŽóMƒf[ƒ^—L‚èH*/
+    000020 736E                   BTST.B      #6,R6L
+    000022 470A                   BEQ         L162:8
+                    96:                            data = SCI0.RDR;
+    000024 26B5                   MOV.B       @16777141:8,R6H
+                    97:                            asci_0_recv_ir( data, status );
+    000026 0CE0                   MOV.B       R6L,R0H
+    000028 0C68                   MOV.B       R6H,R0L
+    00002A 5E                     JSR         @_asci_0_recv_ir:24
+           <000000>     
+    00002E              L162:                             
+                    98:                    }
+                    99:                    SCI0.SSR.BYTE = (unsigned char)(status & ~0x78);        /*ŽóMƒGƒ‰[‚ðŠÜ‚ÞƒXƒe[ƒ^ƒXƒNƒŠƒA*/
+    00002E EE87                   AND.B       #-121:8,R6L
+    000030 3EB4                   MOV.B       R6L,@16777140:8
+                   100:    }
+    000032 6D76                   POP.W       R6
+    000034 5470                   RTS
+                   101:    
+                   102:    /***************************************************
+                   103:            ŠÖ”–¼  Fasci_0_TX
+                   104:            ˆ—“à—eF‘—MŠ„‚èž‚Ýˆ—
+                   105:    
+                   106:                            name            i/o             explanation
+                   107:    parameter:      -
+                   108:    return   :      -
+                   109:    ***************************************************/
+                   110:    void asci_0_TX( void )
+    000036              _asci_0_TX:                      ; function: asci_0_TX
+                   111:    {
+                   112:                    if( SCI0.SSR.BIT.TEND ){
+    000036 7EB47720               BLD.B       #2,@16777140:8
+    00003A 4406                   BCC         L163:8
+                   113:                            asci_0_send_ir( 1 );
+    00003C F801                   MOV.B       #1:8,R0L
+    00003E 5A                     JMP         @_asci_0_send_ir:24
+           <000000>     
+    000042              L163:                             
+                   114:                    }
+                   115:                    else if( SCI0.SSR.BIT.TDRE ){
+    000042 28B4                   MOV.B       @16777140:8,R0L
+    000044 4A06                   BPL         L165:8
+                   116:                            asci_0_send_ir( 0 );
+    000046 1888                   SUB.B       R0L,R0L
+    000048 5E                     JSR         @_asci_0_send_ir:24
+           <000000>     
+    00004C              L165:                             
+                   117:                    }
+                   118:    }
+    00004C 5470                   RTS
+                   119:    
+                   120:    /***************************************************
+                   121:            ŠÖ”–¼  Fasci_0_TE
+                   122:            ˆ—“à—eF‘—MI—¹Š„‚èž‚Ýˆ—
+                   123:    
+                   124:                            name            i/o             explanation
+                   125:    parameter:      -
+                   126:    return   :      -
+                   127:    ***************************************************/
+                   128:    void asci_0_TE( void )
+    00004E              _asci_0_TE:                      ; function: asci_0_TE
+                   129:    {
+                   130:                    if( SCI0.SSR.BIT.TEND ){
+    00004E 7EB47720               BLD.B       #2,@16777140:8
+    000052 4406                   BCC         L166:8
+                   131:                            asci_0_send_ir( 1 );
+    000054 F801                   MOV.B       #1:8,R0L
+    000056 5A                     JMP         @_asci_0_send_ir:24
+           <000000>     
+    00005A              L166:                             
+                   132:                    }
+                   133:                    else if( SCI0.SSR.BIT.TDRE ){
+    00005A 28B4                   MOV.B       @16777140:8,R0L
+    00005C 4A06                   BPL         L168:8
+                   134:                            asci_0_send_ir( 0 );
+    00005E 1888                   SUB.B       R0L,R0L
+    000060 5E                     JSR         @_asci_0_send_ir:24
+           <000000>     
+    000064              L168:                             
+                   135:                    }
+                   136:    }
+    000064 5470                   RTS
+                   137:    
+                   138:    /***************************************************
+                   139:            ŠÖ”–¼  Fasci_1_RX
+                   140:            ˆ—“à—eF³íŽóMŠ„‚èž‚Ýˆ—
+                   141:    
+                   142:                            name            i/o             explanation
+                   143:    parameter:      -
+                   144:    return   :      -
+                   145:    ***************************************************/
+                   146:    void asci_1_RX( void )
+    000066              _asci_1_RX:                      ; function: asci_1_RX
+    000066 6DF6                   PUSH.W      R6
+                   147:    {
+                   148:                    unsigned char   status;
+                   149:                    unsigned char   data;
+                   150:    
+                   151:                    status = SCI1.SSR.BYTE;                 /*Š„‚èž‚ÝƒXƒe[ƒ^ƒX‚Ì“Çž‚Ý*/
+    000068 2EBC                   MOV.B       @16777148:8,R6L
+                   152:                    if( status & 0x40 ){                    /*ŽóMƒf[ƒ^—L‚èH*/
+    00006A 736E                   BTST.B      #6,R6L
+    00006C 4710                   BEQ         L169:8
+                   153:                            data = SCI1.RDR;
+    00006E 26BD                   MOV.B       @16777149:8,R6H
+                   154:                            SCI1.SSR.BYTE = (unsigned char)(status & ~0x78);        /*ŽóMƒGƒ‰[‚ðŠÜ‚ÞƒXƒe[ƒ^ƒXƒNƒŠƒA*/
+    000070 0CE8                   MOV.B       R6L,R0L
+    000072 E887                   AND.B       #-121:8,R0L
+    000074 38BC                   MOV.B       R0L,@16777148:8
+                   155:                            asci_1_recv_ir( data, status );
+    000076 0CE0                   MOV.B       R6L,R0H
+    000078 0C68                   MOV.B       R6H,R0L
+    00007A 5E                     JSR         @_asci_1_recv_ir:24
+           <000000>     
+    00007E              L169:                             
+                   156:                    }
+                   157:    }
+    00007E 6D76                   POP.W       R6
+    000080 5470                   RTS
+                   158:    
+                   159:    /***************************************************
+                   160:            ŠÖ”–¼  Fasci_1_ER
+                   161:            ˆ—“à—eFˆÙíŽóMŠ„‚èž‚Ýˆ—
+                   162:    
+                   163:                            name            i/o             explanation
+                   164:    parameter:      -
+                   165:    return   :      -
+                   166:    ***************************************************/
+                   167:    void asci_1_ER( void )
+    000082              _asci_1_ER:                      ; function: asci_1_ER
+    000082 6DF6                   PUSH.W      R6
+                   168:    {
+                   169:                    unsigned char   status;
+                   170:                    unsigned char   data;
+                   171:    
+                   172:                    status = SCI1.SSR.BYTE; /*Š„‚èž‚ÝƒXƒe[ƒ^ƒX‚Ì“Çž‚Ý*/
+    000084 2EBC                   MOV.B       @16777148:8,R6L
+                   173:                    if( status & 0x40 ){    /*ŽóMƒf[ƒ^—L‚èH*/
+    000086 736E                   BTST.B      #6,R6L
+    000088 470A                   BEQ         L170:8
+                   174:                            data = SCI1.RDR;
+    00008A 26BD                   MOV.B       @16777149:8,R6H
+                   175:                            asci_1_recv_ir( data, status );
+    00008C 0CE0                   MOV.B       R6L,R0H
+    00008E 0C68                   MOV.B       R6H,R0L
+    000090 5E                     JSR         @_asci_1_recv_ir:24
+           <000000>     
+    000094              L170:                             
+                   176:                    }
+                   177:                    SCI1.SSR.BYTE = (unsigned char)(status & ~0x78);        /*ŽóMƒGƒ‰[‚ðŠÜ‚ÞƒXƒe[ƒ^ƒXƒNƒŠƒA*/
+    000094 EE87                   AND.B       #-121:8,R6L
+    000096 3EBC                   MOV.B       R6L,@16777148:8
+                   178:    }
+    000098 6D76                   POP.W       R6
+    00009A 5470                   RTS
+                   179:    
+                   180:    /***************************************************
+                   181:            ŠÖ”–¼  Fasci_1_TX
+                   182:            ˆ—“à—eF‘—MŠ„‚èž‚Ýˆ—
+                   183:    
+                   184:                            name            i/o             explanation
+                   185:    parameter:      -
+                   186:    return   :      -
+                   187:    ***************************************************/
+                   188:    void asci_1_TX( void )
+    00009C              _asci_1_TX:                      ; function: asci_1_TX
+                   189:    {
+                   190:                    if( SCI1.SSR.BIT.TEND ){
+    00009C 7EBC7720               BLD.B       #2,@16777148:8
+    0000A0 4406                   BCC         L171:8
+                   191:                            asci_1_send_ir( 1 );
+    0000A2 F801                   MOV.B       #1:8,R0L
+    0000A4 5A                     JMP         @_asci_1_send_ir:24
+           <000000>     
+    0000A8              L171:                             
+                   192:                    }
+                   193:                    else if( SCI1.SSR.BIT.TDRE ){
+    0000A8 28BC                   MOV.B       @16777148:8,R0L
+    0000AA 4A06                   BPL         L173:8
+                   194:                            asci_1_send_ir( 0 );
+    0000AC 1888                   SUB.B       R0L,R0L
+    0000AE 5E                     JSR         @_asci_1_send_ir:24
+           <000000>     
+    0000B2              L173:                             
+                   195:                    }
+                   196:    }
+    0000B2 5470                   RTS
+                   197:    
+                   198:    /***************************************************
+                   199:            ŠÖ”–¼  Fasci_1_TE
+                   200:            ˆ—“à—eF‘—MI—¹Š„‚èž‚Ýˆ—
+                   201:    
+                   202:                            name            i/o             explanation
+                   203:    parameter:      -
+                   204:    return   :      -
+                   205:    ***************************************************/
+                   206:    void asci_1_TE( void )
+    0000B4              _asci_1_TE:                      ; function: asci_1_TE
+                   207:    {
+                   208:                    if( SCI1.SSR.BIT.TEND ){
+    0000B4 7EBC7720               BLD.B       #2,@16777148:8
+    0000B8 4406                   BCC         L174:8
+                   209:                            asci_1_send_ir( 1 );
+    0000BA F801                   MOV.B       #1:8,R0L
+    0000BC 5A                     JMP         @_asci_1_send_ir:24
+           <000000>     
+    0000C0              L174:                             
+                   210:                    }
+                   211:                    else if( SCI1.SSR.BIT.TDRE ){
+    0000C0 28BC                   MOV.B       @16777148:8,R0L
+    0000C2 4A06                   BPL         L176:8
+                   212:                            asci_1_send_ir( 0 );
+    0000C4 1888                   SUB.B       R0L,R0L
+    0000C6 5E                     JSR         @_asci_1_send_ir:24
+           <000000>     
+    0000CA              L176:                             
+                   213:                    }
+                   214:    }
+    0000CA 5470                   RTS
+                   215:    
+                   216:    /************************************************************************
+                   217:    *                                                                                                                                               *
+                   218:    *       Function name   << asci_0_Initialize >> 
+                   219:    *                                       ‰ŠúÝ’è
+                   220:    *       Syntax                  asci_0_Initialize( int baud, int data, int parity, int stop );
+                   221:    *       Argument                none                                                                                            *
+                   222:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   223:    *       Revision                a00 2000/06/27                                                                          *
+                   224:    *                                                                                                                                               *
+                   225:    *************************************************************************/
+                   226:    void asci_0_Initialize( int baud, char data, char parity, char stop )
+    0000CC              _asci_0_Initialize:              ; function: asci_0_Initialize
+    0000CC 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   227:    {
+    0000D0 0D06                   MOV.W       R0,R6
+                   228:                    SCI0.SMR.BYTE = 0;
+    0000D2 18AA                   SUB.B       R2L,R2L
+    0000D4 3AB0                   MOV.B       R2L,@16777136:8
+                   229:                    SCI0.SMR.BIT.CA   = 0;  /* ’²•à“¯Šú */
+    0000D6 7FB07270               BCLR.B      #7,@16777136:8
+                   230:                    if( data==8 ){
+    0000DA A908                   CMP.B       #8:8,R1L
+    0000DC 4606                   BNE         L177:8
+                   231:                            SCI0.SMR.BIT.CHR  = 0;  
+    0000DE 7FB07260               BCLR.B      #6,@16777136:8
+    0000E2 4004                   BRA         L178:8
+    0000E4              L177:                             
+                   232:                    }
+                   233:                    else {
+                   234:                            SCI0.SMR.BIT.CHR  = 1;  
+    0000E4 7FB07060               BSET.B      #6,@16777136:8
+    0000E8              L178:                             
+                   235:                    }
+                   236:                    if( parity=='E' ){
+    0000E8 A145                   CMP.B       #69:8,R1H
+    0000EA 460A                   BNE         L179:8
+                   237:                            SCI0.SMR.BIT.PE   = 1;
+    0000EC 7FB07050               BSET.B      #5,@16777136:8
+                   238:                            SCI0.SMR.BIT.OE   = 0;
+    0000F0 7FB07240               BCLR.B      #4,@16777136:8
+    0000F4 4012                   BRA         L180:8
+    0000F6              L179:                             
+                   239:                    }
+                   240:                    else if( parity=='O' ){
+    0000F6 A14F                   CMP.B       #79:8,R1H
+    0000F8 460A                   BNE         L181:8
+                   241:                            SCI0.SMR.BIT.PE   = 1;
+    0000FA 7FB07050               BSET.B      #5,@16777136:8
+                   242:                            SCI0.SMR.BIT.OE   = 1;
+    0000FE 7FB07040               BSET.B      #4,@16777136:8
+    000102 4004                   BRA         L182:8
+    000104              L181:                             
+                   243:                    }
+                   244:                    else {
+                   245:                            SCI0.SMR.BIT.PE   = 0;
+    000104 7FB07250               BCLR.B      #5,@16777136:8
+    000108              L182:                             
+    000108              L180:                             
+                   246:                    }
+                   247:                    if( stop==0 ){
+    000108 6E780019               MOV.B       @(25:16,SP),R0L
+    00010C 4606                   BNE         L183:8
+                   248:                            SCI0.SMR.BIT.STOP = 0;
+    00010E 7FB07230               BCLR.B      #3,@16777136:8
+    000112 4004                   BRA         L184:8
+    000114              L183:                             
+                   249:                    }
+                   250:                    else {
+                   251:                            SCI0.SMR.BIT.STOP = 1;
+    000114 7FB07030               BSET.B      #3,@16777136:8
+    000118              L184:                             
+                   252:                    }
+                   253:                    SCI0.SMR.BIT.MP   = 0;
+    000118 7FB07220               BCLR.B      #2,@16777136:8
+                   254:                    if( baud>=2400 ){
+    00011C 79260960               CMP.W       #2400:16,R6
+    000120 4D1E                   BLT         L185:8
+                   255:                            SCI0.SMR.BIT.CKS  = 0;                                  /* 1/1 Clock */
+    000122 28B0                   MOV.B       @16777136:8,R0L
+    000124 E8FC                   AND.B       #-4:8,R0L
+    000126 38B0                   MOV.B       R0L,@16777136:8
+                   256:                            SCI0.BRR = 191/( baud / 2400 );         /* 14.7456MHz */
+    000128 17F6                   EXTS.L      ER6
+    00012A 79000960               MOV.W       #2400:16,R0
+    00012E 01D05306               DIVXS.W     R0,ER6
+    000132 790000BF               MOV.W       #191:16,R0
+    000136 17F0                   EXTS.L      ER0
+    000138 01D05360               DIVXS.W     R6,ER0
+    00013C 38B1                   MOV.B       R0L,@16777137:8
+    00013E 401E                   BRA         L186:8
+    000140              L185:                             
+                   257:                    }
+                   258:                    else {
+                   259:                            SCI0.SMR.BIT.CKS  = 1;                                  /* 1/4 Clock */
+    000140 28B0                   MOV.B       @16777136:8,R0L
+    000142 E8FC                   AND.B       #-4:8,R0L
+    000144 C801                   OR.B        #1:8,R0L
+    000146 38B0                   MOV.B       R0L,@16777136:8
+                   260:                            SCI0.BRR = 191/( baud / 600 );          /* 14.7456MHz */
+    000148 17F6                   EXTS.L      ER6
+    00014A 79000258               MOV.W       #600:16,R0
+    00014E 01D05306               DIVXS.W     R0,ER6
+    000152 790000BF               MOV.W       #191:16,R0
+    000156 17F0                   EXTS.L      ER0
+    000158 01D05360               DIVXS.W     R6,ER0
+    00015C 38B1                   MOV.B       R0L,@16777137:8
+    00015E              L186:                             
+                   261:                    }
+                   262:    
+                   263:                    PA.DR.BIT.B1 = 1;                                       /* RTS OFF */
+    00015E 7FD37010               BSET.B      #1,@16777171:8
+                   264:    
+                   265:                    ERI0Jump = asci_0_ER;
+    000162 7A00                   MOV.L       #_asci_0_ER:32,ER0
+           <00000000>   
+    000168 01006BA000             MOV.L       ER0,@_ERI0Jump:24
+           <000000>     
+                   266:                    RXI0Jump = asci_0_RX;
+    000170 7A00                   MOV.L       #_asci_0_RX:32,ER0
+           <00000000>   
+    000176 01006BA000             MOV.L       ER0,@_RXI0Jump:24
+           <000000>     
+                   267:                    TXI0Jump = asci_0_TX;
+    00017E 7A00                   MOV.L       #_asci_0_TX:32,ER0
+           <00000000>   
+    000184 01006BA000             MOV.L       ER0,@_TXI0Jump:24
+           <000000>     
+                   268:                    TEI0Jump = asci_0_TE;
+    00018C 7A00                   MOV.L       #_asci_0_TE:32,ER0
+           <00000000>   
+    000192 01006BA000             MOV.L       ER0,@_TEI0Jump:24
+           <000000>     
+                   269:    
+                   270:                    SCI0.SCR.BIT.RIE  = 1;
+    00019A 7FB27060               BSET.B      #6,@16777138:8
+                   271:                    SCI0.SCR.BIT.TE   = 1;
+    00019E 7FB27050               BSET.B      #5,@16777138:8
+                   272:                    SCI0.SCR.BIT.RE   = 1;
+    0001A2 7FB27040               BSET.B      #4,@16777138:8
+                   273:    }
+    0001A6 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   274:    
+                   275:    /************************************************************************
+                   276:    *                                                                                                                                               *
+                   277:    *       Function name   << asci_0_tx_enable >>  
+                   278:    *                                       ‘—M‹–‰Âˆ—                                                                            *
+                   279:    *       Syntax                  asci_0_tx_enable( void );                                                                       *
+                   280:    *       Argument                none                                                                                            *
+                   281:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   282:    *       Revision                a00 2000/06/27                                                                          *
+                   283:    *                                                                                                                                               *
+                   284:    *************************************************************************/
+                   285:    void asci_0_tx_enable( void )
+    0001AA              _asci_0_tx_enable:               ; function: asci_0_tx_enable
+                   286:    {
+                   287:                    SCI0.SCR.BIT.RE  = 0;
+    0001AA 7FB27240               BCLR.B      #4,@16777138:8
+                   288:                    SCI0.SCR.BIT.RIE  = 0;
+    0001AE 7FB27260               BCLR.B      #6,@16777138:8
+                   289:                    PA.DR.BIT.B1 = 0;               /* RTS ON */
+    0001B2 7FD37210               BCLR.B      #1,@16777171:8
+                   290:    }
+    0001B6 5470                   RTS
+                   291:    
+                   292:    /************************************************************************
+                   293:    *                                                                                                                                               *
+                   294:    *       Function name   << asci_0_tx_disable >> 
+                   295:    *                                       ‘—M‹ÖŽ~ˆ—                                                                            *
+                   296:    *       Syntax                  asci_0_tx_disable( void );                                                                      *
+                   297:    *       Argument                none                                                                                            *
+                   298:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   299:    *       Revision                a00 2000/06/27                                                                          *
+                   300:    *                                                                                                                                               *
+                   301:    *************************************************************************/
+                   302:    void asci_0_tx_disable( char tend )
+    0001B8              _asci_0_tx_disable:              ; function: asci_0_tx_disable
+    0001B8 6DF6                   PUSH.W      R6
+                   303:    {
+    0001BA 0C8E                   MOV.B       R0L,R6L
+                   304:                    SCI0.SCR.BIT.TIE = 0;                   /* TIE off */
+    0001BC 7FB27270               BCLR.B      #7,@16777138:8
+                   305:                    if( tend ){
+    0001C0 0CEE                   MOV.B       R6L,R6L
+    0001C2 4710                   BEQ         L187:8
+                   306:                            SCI0.SCR.BIT.TEIE = 0;          /* TEIE off */
+    0001C4 7FB27220               BCLR.B      #2,@16777138:8
+                   307:                            PA.DR.BIT.B1 = 1;                       /* RTS OFF */
+    0001C8 7FD37010               BSET.B      #1,@16777171:8
+                   308:                            SCI0.SCR.BIT.RE  = 1;
+    0001CC 7FB27040               BSET.B      #4,@16777138:8
+                   309:                            SCI0.SCR.BIT.RIE  = 1;
+    0001D0 7FB27060               BSET.B      #6,@16777138:8
+    0001D4              L187:                             
+                   310:                    }
+                   311:    }
+    0001D4 6D76                   POP.W       R6
+    0001D6 5470                   RTS
+                   312:    
+                   313:    /************************************************************************
+                   314:    *                                                                                                                                               *
+                   315:    *       Function name   << asci_0_transmit >>   
+                   316:    *                                       ‚PƒoƒCƒg‘—Mˆ—                                        
+                   317:    *       Syntax                  asci_0_transmit( unsigned char data );  
+                   318:    *       Argument                none                                                                                            *
+                   319:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   320:    *       Revision                a00 2000/06/27                                                                          *
+                   321:    *                                                                                                                                               *
+                   322:    *************************************************************************/
+                   323:    void asci_0_transmit( unsigned char data )
+    0001D8              _asci_0_transmit:                ; function: asci_0_transmit
+                   324:    {
+                   325:                    SCI0.TDR = data;                                /*‘—Mƒf[ƒ^ƒZƒbƒg*/
+    0001D8 38B3                   MOV.B       R0L,@16777139:8
+                   326:                    SCI0.SSR.BIT.TDRE = 0;                  /*‘—Mƒf[ƒ^—L‚èƒZƒbƒg*/
+    0001DA 7FB47270               BCLR.B      #7,@16777140:8
+                   327:                    SCI0.SCR.BIT.TIE = 1;                   /* TIE on */
+    0001DE 7FB27070               BSET.B      #7,@16777138:8
+                   328:                    SCI0.SCR.BIT.TEIE = 1;                  /* TEIE on */
+    0001E2 7FB27020               BSET.B      #2,@16777138:8
+                   329:    }
+    0001E6 5470                   RTS
+                   330:    
+                   331:    
+                   332:    
+                   333:    /************************************************************************
+                   334:    *                                                                                                                                               *
+                   335:    *       Function name   << asci_1_Initialize >> 
+                   336:    *                                       ‰ŠúÝ’è
+                   337:    *       Syntax                  asci_1_Initialize( int baud, int data, int parity, int stop );
+                   338:    *       Argument                none                                                                                            *
+                   339:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   340:    *       Revision                a00 2000/06/27                                                                          *
+                   341:    *                                                                                                                                               *
+                   342:    *************************************************************************/
+                   343:    void asci_1_Initialize( int baud, char data, char parity, char stop )
+    0001E8              _asci_1_Initialize:              ; function: asci_1_Initialize
+    0001E8 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   344:    {
+    0001EC 0D06                   MOV.W       R0,R6
+                   345:                    SCI1.SMR.BYTE = 0;
+    0001EE 18AA                   SUB.B       R2L,R2L
+    0001F0 3AB8                   MOV.B       R2L,@16777144:8
+                   346:                    SCI1.SMR.BIT.CA   = 0;  /* ’²•à“¯Šú */
+    0001F2 7FB87270               BCLR.B      #7,@16777144:8
+                   347:                    if( data==8 ){
+    0001F6 A908                   CMP.B       #8:8,R1L
+    0001F8 4606                   BNE         L188:8
+                   348:                            SCI1.SMR.BIT.CHR  = 0;  
+    0001FA 7FB87260               BCLR.B      #6,@16777144:8
+    0001FE 4004                   BRA         L189:8
+    000200              L188:                             
+                   349:                    }
+                   350:                    else {
+                   351:                            SCI1.SMR.BIT.CHR  = 1;  
+    000200 7FB87060               BSET.B      #6,@16777144:8
+    000204              L189:                             
+                   352:                    }
+                   353:                    if( parity=='E' ){
+    000204 A145                   CMP.B       #69:8,R1H
+    000206 460A                   BNE         L190:8
+                   354:                            SCI1.SMR.BIT.PE   = 1;
+    000208 7FB87050               BSET.B      #5,@16777144:8
+                   355:                            SCI1.SMR.BIT.OE   = 0;
+    00020C 7FB87240               BCLR.B      #4,@16777144:8
+    000210 4012                   BRA         L191:8
+    000212              L190:                             
+                   356:                    }
+                   357:                    else if( parity=='O' ){
+    000212 A14F                   CMP.B       #79:8,R1H
+    000214 460A                   BNE         L192:8
+                   358:                            SCI1.SMR.BIT.PE   = 1;
+    000216 7FB87050               BSET.B      #5,@16777144:8
+                   359:                            SCI1.SMR.BIT.OE   = 1;
+    00021A 7FB87040               BSET.B      #4,@16777144:8
+    00021E 4004                   BRA         L193:8
+    000220              L192:                             
+                   360:                    }
+                   361:                    else {
+                   362:                            SCI1.SMR.BIT.PE   = 0;
+    000220 7FB87250               BCLR.B      #5,@16777144:8
+    000224              L193:                             
+    000224              L191:                             
+                   363:                    }
+                   364:                    if( stop==0 ){
+    000224 6E780019               MOV.B       @(25:16,SP),R0L
+    000228 4606                   BNE         L194:8
+                   365:                            SCI1.SMR.BIT.STOP = 0;
+    00022A 7FB87230               BCLR.B      #3,@16777144:8
+    00022E 4004                   BRA         L195:8
+    000230              L194:                             
+                   366:                    }
+                   367:                    else {
+                   368:                            SCI1.SMR.BIT.STOP = 1;
+    000230 7FB87030               BSET.B      #3,@16777144:8
+    000234              L195:                             
+                   369:                    }
+                   370:                    SCI1.SMR.BIT.MP   = 0;
+    000234 7FB87220               BCLR.B      #2,@16777144:8
+                   371:                    if( baud>=2400 ){
+    000238 79260960               CMP.W       #2400:16,R6
+    00023C 4D1E                   BLT         L196:8
+                   372:                            SCI1.SMR.BIT.CKS  = 0;                                  /* 1/1 Clock */
+    00023E 28B8                   MOV.B       @16777144:8,R0L
+    000240 E8FC                   AND.B       #-4:8,R0L
+    000242 38B8                   MOV.B       R0L,@16777144:8
+                   373:                            SCI1.BRR = 191/( baud / 2400 );         /* 14.7456MHz */
+    000244 17F6                   EXTS.L      ER6
+    000246 79000960               MOV.W       #2400:16,R0
+    00024A 01D05306               DIVXS.W     R0,ER6
+    00024E 790000BF               MOV.W       #191:16,R0
+    000252 17F0                   EXTS.L      ER0
+    000254 01D05360               DIVXS.W     R6,ER0
+    000258 38B9                   MOV.B       R0L,@16777145:8
+    00025A 401E                   BRA         L197:8
+    00025C              L196:                             
+                   374:                    }
+                   375:                    else {
+                   376:                            SCI1.SMR.BIT.CKS  = 1;                                  /* 1/4 Clock */
+    00025C 28B8                   MOV.B       @16777144:8,R0L
+    00025E E8FC                   AND.B       #-4:8,R0L
+    000260 C801                   OR.B        #1:8,R0L
+    000262 38B8                   MOV.B       R0L,@16777144:8
+                   377:                            SCI1.BRR = 191/( baud / 600 );          /* 14.7456MHz */
+    000264 17F6                   EXTS.L      ER6
+    000266 79000258               MOV.W       #600:16,R0
+    00026A 01D05306               DIVXS.W     R0,ER6
+    00026E 790000BF               MOV.W       #191:16,R0
+    000272 17F0                   EXTS.L      ER0
+    000274 01D05360               DIVXS.W     R6,ER0
+    000278 38B9                   MOV.B       R0L,@16777145:8
+    00027A              L197:                             
+                   378:                    }
+                   379:    
+                   380:                    PA.DR.BIT.B0 = 1;               /* RTS OFF */
+    00027A 7FD37000               BSET.B      #0,@16777171:8
+                   381:    
+                   382:                    ERI1Jump = asci_1_ER;
+    00027E 7A00                   MOV.L       #_asci_1_ER:32,ER0
+           <00000000>   
+    000284 01006BA000             MOV.L       ER0,@_ERI1Jump:24
+           <000000>     
+                   383:                    RXI1Jump = asci_1_RX;
+    00028C 7A00                   MOV.L       #_asci_1_RX:32,ER0
+           <00000000>   
+    000292 01006BA000             MOV.L       ER0,@_RXI1Jump:24
+           <000000>     
+                   384:                    TXI1Jump = asci_1_TX;
+    00029A 7A00                   MOV.L       #_asci_1_TX:32,ER0
+           <00000000>   
+    0002A0 01006BA000             MOV.L       ER0,@_TXI1Jump:24
+           <000000>     
+                   385:                    TEI1Jump = asci_1_TE;
+    0002A8 7A00                   MOV.L       #_asci_1_TE:32,ER0
+           <00000000>   
+    0002AE 01006BA000             MOV.L       ER0,@_TEI1Jump:24
+           <000000>     
+                   386:    
+                   387:                    SCI1.SCR.BIT.RIE  = 1;
+    0002B6 7FBA7060               BSET.B      #6,@16777146:8
+                   388:                    SCI1.SCR.BIT.TE   = 1;
+    0002BA 7FBA7050               BSET.B      #5,@16777146:8
+                   389:                    SCI1.SCR.BIT.RE   = 1;
+    0002BE 7FBA7040               BSET.B      #4,@16777146:8
+                   390:    }
+    0002C2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   391:    
+                   392:    
+                   393:    /************************************************************************
+                   394:    *                                                                                                                                               *
+                   395:    *       Function name   << asci_1_tx_enable >>  
+                   396:    *                                       ‘—M‹–‰Âˆ—                                                                            *
+                   397:    *       Syntax                  asci_1_tx_enable( void );                                                                       *
+                   398:    *       Argument                none                                                                                            *
+                   399:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   400:    *       Revision                a00 2000/06/27                                                                          *
+                   401:    *                                                                                                                                               *
+                   402:    *************************************************************************/
+                   403:    void asci_1_tx_enable( void )
+    0002C6              _asci_1_tx_enable:               ; function: asci_1_tx_enable
+                   404:    {
+                   405:                    SCI1.SCR.BIT.RE  = 0;
+    0002C6 7FBA7240               BCLR.B      #4,@16777146:8
+                   406:                    SCI1.SCR.BIT.RIE  = 0;
+    0002CA 7FBA7260               BCLR.B      #6,@16777146:8
+                   407:                    PA.DR.BIT.B0 = 0;               /* RTS ON */
+    0002CE 7FD37200               BCLR.B      #0,@16777171:8
+                   408:    }
+    0002D2 5470                   RTS
+                   409:    
+                   410:    /************************************************************************
+                   411:    *                                                                                                                                               *
+                   412:    *       Function name   << asci_1_tx_disable >> 
+                   413:    *                                       ‘—M‹ÖŽ~ˆ—                                                                            *
+                   414:    *       Syntax                  asci_1_tx_disable( void );                                                                      *
+                   415:    *       Argument                none                                                                                            *
+                   416:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   417:    *       Revision                a00 2000/06/27                                                                          *
+                   418:    *                                                                                                                                               *
+                   419:    *************************************************************************/
+                   420:    void asci_1_tx_disable( char tend )
+    0002D4              _asci_1_tx_disable:              ; function: asci_1_tx_disable
+    0002D4 6DF6                   PUSH.W      R6
+                   421:    {
+    0002D6 0C8E                   MOV.B       R0L,R6L
+                   422:                    SCI1.SCR.BIT.TIE = 0;                   /* TIE off */
+    0002D8 7FBA7270               BCLR.B      #7,@16777146:8
+                   423:                    if( tend ){
+    0002DC 0CEE                   MOV.B       R6L,R6L
+    0002DE 4710                   BEQ         L198:8
+                   424:                            SCI1.SCR.BIT.TEIE = 0;                  /* TEIE off */
+    0002E0 7FBA7220               BCLR.B      #2,@16777146:8
+                   425:                            SCI1.SCR.BIT.RE  = 1;
+    0002E4 7FBA7040               BSET.B      #4,@16777146:8
+                   426:                            SCI1.SCR.BIT.RIE  = 1;
+    0002E8 7FBA7060               BSET.B      #6,@16777146:8
+                   427:                            PA.DR.BIT.B0 = 1;               /* RTS OFF */
+    0002EC 7FD37000               BSET.B      #0,@16777171:8
+    0002F0              L198:                             
+                   428:                    }
+                   429:    }
+    0002F0 6D76                   POP.W       R6
+    0002F2 5470                   RTS
+                   430:    
+                   431:    /************************************************************************
+                   432:    *                                                                                                                                               *
+                   433:    *       Function name   << asci_1_transmit >>   
+                   434:    *                                       ‚PƒoƒCƒg‘—Mˆ—                                        
+                   435:    *       Syntax                  asci_1_transmit( unsigned char data );  
+                   436:    *       Argument                none                                                                                            *
+                   437:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   438:    *       Revision                a00 2000/06/27                                                                          *
+                   439:    *                                                                                                                                               *
+                   440:    *************************************************************************/
+                   441:    void asci_1_transmit( unsigned char data )
+    0002F4              _asci_1_transmit:                ; function: asci_1_transmit
+                   442:    {
+                   443:                    SCI1.TDR = data;                                /*‘—Mƒf[ƒ^ƒZƒbƒg*/
+    0002F4 38BB                   MOV.B       R0L,@16777147:8
+                   444:                    SCI1.SSR.BIT.TDRE = 0;                  /*‘—Mƒf[ƒ^—L‚èƒZƒbƒg*/
+    0002F6 7FBC7270               BCLR.B      #7,@16777148:8
+                   445:                    SCI1.SCR.BIT.TIE = 1;                   /* TIE on */
+    0002FA 7FBA7070               BSET.B      #7,@16777146:8
+                   446:                    SCI1.SCR.BIT.TEIE = 1;                  /* TEIE on */
+    0002FE 7FBA7020               BSET.B      #2,@16777146:8
+                   447:    }
+    000302 5470                   RTS
+                   448:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:51  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000304 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000304 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000304 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       14 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       16 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         64 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\commlib.c -object=.\obj\commlib.obj
+CPU         : 300ha:24

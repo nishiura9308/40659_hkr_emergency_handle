@@ -1,0 +1,911 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     13-Oct-2000  22:37:47  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\boot.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    #include <stdio.h>
+                     2:    
+                     3:    #include "iodefine.h"
+                     4:    #include "table.h"
+                     5:    
+                     6:    /*************************************************************************
+                     7:                    改行文字の削除
+                     8:    *************************************************************************/
+                     9:    void crlf( char *p )
+    000000              _crlf:                           ; function: crlf
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    10:    {
+    000004 0F85                   MOV.L       ER0,ER5
+                    11:                    int             len;
+                    12:    
+                    13:                    while( (len=strlen(p))!=0 ){
+    000006 401E                   BRA         L119:8
+    000008              L118:                             
+                    14:                            if( *( p+len-1 )=='\n' )
+    000008 17F4                   EXTS.L      ER4
+    00000A 0AD4                   ADD.L       ER5,ER4
+    00000C 1B74                   DEC.L       #1,ER4
+    00000E 0FC1                   MOV.L       ER4,ER1
+    000010 684C                   MOV.B       @ER4,R4L
+    000012 AC0A                   CMP.B       #10:8,R4L
+    000014 4606                   BNE         L120:8
+                    15:                                    *( p+len-1 )='\0';
+    000016 1888                   SUB.B       R0L,R0L
+    000018 6898                   MOV.B       R0L,@ER1
+    00001A 400A                   BRA         L121:8
+    00001C              L120:                             
+                    16:                            else if( *( p+len-1 )=='\r' )
+    00001C 6818                   MOV.B       @ER1,R0L
+    00001E A80D                   CMP.B       #13:8,R0L
+    000020 460E                   BNE         L124:8
+                    17:                                    *( p+len-1 )='\0';
+    000022 1888                   SUB.B       R0L,R0L
+    000024 6898                   MOV.B       R0L,@ER1
+                    18:                            else
+                    19:                                    break;
+    000026              L121:                             
+    000026              L119:                             
+    000026 0FD0                   MOV.L       ER5,ER0
+    000028 5E                     JSR         @_strlen:24
+           <000000>     
+    00002C 0D04                   MOV.W       R0,R4
+    00002E 46D8                   BNE         L118:8
+    000030              L124:                             
+                    20:                    }
+                    21:    }
+    000030 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                    22:    
+                    23:    /*************************************************************************
+                    24:                    １バイト分のＨＥＸコードを変換する
+                    25:    *************************************************************************/
+                    26:    int hextobin( char *p, unsigned short *data )
+    000034              _hextobin:                       ; function: hextobin
+    000034 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    27:    {
+    000038 0F86                   MOV.L       ER0,ER6
+    00003A 0F95                   MOV.L       ER1,ER5
+                    28:                    int             i;
+                    29:    
+                    30:                    *data = 0;
+    00003C 1922                   SUB.W       R2,R2
+    00003E 69D2                   MOV.W       R2,@ER5
+                    31:                    for( i=0; i<2; i++ ){
+    000040 1999                   SUB.W       E1,E1
+    000042 4046                   BRA         L126:8
+    000044              L125:                             
+                    32:                            *data *= 16;
+    000044 6950                   MOV.W       @ER5,R0
+    000046 79080010               MOV.W       #16:16,E0
+    00004A 5280                   MULXU.W     E0,ER0
+    00004C 69D0                   MOV.W       R0,@ER5
+                    33:                            if( *p<'0' )    return 1;
+    00004E 6868                   MOV.B       @ER6,R0L
+    000050 A830                   CMP.B       #48:8,R0L
+    000052 4C06                   BGE         L127:8
+    000054 79000001               MOV.W       #1:16,R0
+    000058 4038                   BRA         L128:8
+    00005A              L127:                             
+                    34:                            if( *p>'9' ){
+    00005A 6868                   MOV.B       @ER6,R0L
+    00005C A839                   CMP.B       #57:8,R0L
+    00005E 4F18                   BLE         L129:8
+                    35:                                    if( *p<'A' )    return 2;
+    000060 A841                   CMP.B       #65:8,R0L
+    000062 4D04                   BLT         L183:8
+                    36:                                    if( *p>'F' )    return 2;
+    000064 A846                   CMP.B       #70:8,R0L
+    000066 4F06                   BLE         L131:8
+    000068              L183:                             
+    000068 79000002               MOV.W       #2:16,R0
+    00006C 4024                   BRA         L128:8
+    00006E              L131:                             
+                    37:                                    *data += ((*p)-'A')+0x0A;
+    00006E 6868                   MOV.B       @ER6,R0L
+    000070 17D0                   EXTS.W      R0
+    000072 7910FFC9               ADD.W       #-55:16,R0
+    000076 4008                   BRA         L184:8
+    000078              L129:                             
+                    38:                            }
+                    39:                            else {
+                    40:                                    *data += ((*p)-'0')+0x00;
+    000078 6868                   MOV.B       @ER6,R0L
+    00007A 17D0                   EXTS.W      R0
+    00007C 7910FFD0               ADD.W       #-48:16,R0
+    000080              L184:                             
+    000080 6951                   MOV.W       @ER5,R1
+    000082 0901                   ADD.W       R0,R1
+    000084 69D1                   MOV.W       R1,@ER5
+                    41:                            }
+                    42:                            p++;
+    000086 0B76                   INC.L       #1,ER6
+    000088 0B59                   INC.W       #1,E1
+    00008A              L126:                             
+    00008A 79290002               CMP.W       #2:16,E1
+    00008E 4DB4                   BLT         L125:8
+                    43:                    }
+                    44:                    return 0;
+    000090 1900                   SUB.W       R0,R0
+                    45:    }
+    000092              L128:                             
+    000092 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                    46:    
+                    47:    /*************************************************************************
+                    48:                    Ｓフォーマット変換
+                    49:    
+                    50:                    INPUT:
+                    51:                            p = 文字列バッファー
+                    52:    
+                    53:                    OUTPUT:
+                    54:                            data = データバッファー
+                    55:                                            Address(Record Code Bytes) + Data + Sum
+                    56:                            len = データバイト数
+                    57:                                            Address(Record Code Bytes) + Data + Sum
+                    58:    
+                    59:                    RETURN:
+                    60:                            0 > 異常
+                    61:                            0 = S0 Record  Start Address
+                    62:                            1 = S1 Record  Word Address
+                    63:                            2 = S2 Record  3 Byte Address
+                    64:                            3 = S3 Record  DWord Address
+                    65:                            4 = S4 Record
+                    66:                            5 = S5 Record  Check Lines
+                    67:                            8 = S8 Record  End Record
+                    68:    *************************************************************************/
+                    69:    int sformtobin( char *p, unsigned char *data, int *len )
+    000096              _sformtobin:                     ; function: sformtobin
+    000096 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00009A 1B97                   SUBS.L      #4,SP
+    00009C 1B97                   SUBS.L      #4,SP
+                    70:    {
+    00009E 1AB3                   SUB.L       ER3,ER3
+    0000A0 FB02                   MOV.B       #2:8,R3L
+    0000A2 0F86                   MOV.L       ER0,ER6
+    0000A4 01006FF100             MOV.L       ER1,@(4:16,SP)
+           04           
+    0000AA 01006F7400             MOV.L       @(32:16,SP),ER4
+           20           
+                    71:                    unsigned short  bdata;
+                    72:                    int             sum,i,ret;
+                    73:    
+                    74:                    if( *p!='S' )
+    0000B0 686A                   MOV.B       @ER6,R2L
+    0000B2 AA53                   CMP.B       #83:8,R2L
+    0000B4 4706                   BEQ         L133:8
+                    75:                            return( -1 );           /*Ｓフォーマットでない*/
+    0000B6 7900FFFF               MOV.W       #-1:16,R0
+    0000BA 4076                   BRA         L134:8
+    0000BC              L133:                             
+                    76:    
+                    77:                    p++;
+    0000BC 0B76                   INC.L       #1,ER6
+                    78:                    ret = (int)(*p-'0')&0x0F;
+    0000BE 6868                   MOV.B       @ER6,R0L
+    0000C0 17D0                   EXTS.W      R0
+    0000C2 79300030               SUB.W       #48:16,R0
+    0000C6 7960000F               AND.W       #15:16,R0
+    0000CA 0D0A                   MOV.W       R0,E2
+                    79:    
+                    80:                    p++;
+    0000CC 0B76                   INC.L       #1,ER6
+                    81:                    if( hextobin( p, &bdata ) )
+    0000CE 0FF1                   MOV.L       SP,ER1
+    0000D0 0FE0                   MOV.L       ER6,ER0
+    0000D2 5E                     JSR         @_hextobin:24
+           <000000>     
+    0000D6 0D00                   MOV.W       R0,R0
+    0000D8 461C                   BNE         L185:8
+                    82:                            return( -3 );           /*ＨＥＸコードでない*/
+                    83:                    p+=2;
+    0000DA 0AB6                   ADD.L       ER3,ER6
+                    84:                    *len = (int)(bdata & 0x0FF);
+    0000DC 6E780001               MOV.B       @(1:16,SP),R0L
+    0000E0 1750                   EXTU.W      R0
+    0000E2 69C0                   MOV.W       R0,@ER4
+                    85:                    sum = *len;
+    0000E4 6945                   MOV.W       @ER4,R5
+                    86:                    for( i=0; i<*len; i++ ){
+    0000E6 19DD                   SUB.W       E5,E5
+    0000E8 4032                   BRA         L137:8
+    0000EA              L136:                             
+                    87:                            if( hextobin( p, &bdata ) )
+    0000EA 0FF1                   MOV.L       SP,ER1
+    0000EC 0FE0                   MOV.L       ER6,ER0
+    0000EE 5E                     JSR         @_hextobin:24
+           <000000>     
+    0000F2 0D00                   MOV.W       R0,R0
+    0000F4 4706                   BEQ         L138:8
+                    88:                                    return( -3 );           /*ＨＥＸコードでない*/
+    0000F6              L185:                             
+    0000F6 7900FFFD               MOV.W       #-3:16,R0
+    0000FA 4036                   BRA         L134:8
+    0000FC              L138:                             
+                    89:                            p+=2;
+    0000FC 0AB6                   ADD.L       ER3,ER6
+                    90:                            *(data+i) = (unsigned char)bdata;
+    0000FE 0DD0                   MOV.W       E5,R0
+    000100 17F0                   EXTS.L      ER0
+    000102 01006F7100             MOV.L       @(4:16,SP),ER1
+           04           
+    000108 0A81                   ADD.L       ER0,ER1
+    00010A 6E780001               MOV.B       @(1:16,SP),R0L
+    00010E 6898                   MOV.B       R0L,@ER1
+                    91:                            sum += bdata;
+    000110 6970                   MOV.W       @SP,R0
+    000112 0905                   ADD.W       R0,R5
+                    92:                            sum &= 0x0FF;
+    000114 0CD8                   MOV.B       R5L,R0L
+    000116 1750                   EXTU.W      R0
+    000118 0D05                   MOV.W       R0,R5
+    00011A 0B5D                   INC.W       #1,E5
+    00011C              L137:                             
+    00011C 6940                   MOV.W       @ER4,R0
+    00011E 1D0D                   CMP.W       R0,E5
+    000120 4DC8                   BLT         L136:8
+                    93:                    }
+                    94:    
+                    95:                    sum++;
+    000122 0B55                   INC.W       #1,R5
+                    96:                    sum &= 0x0FF;
+    000124 1755                   EXTU.W      R5
+    000126 0D56                   MOV.W       R5,R6
+                    97:    
+                    98:                    if( sum ){
+    000128 4706                   BEQ         L139:8
+                    99:                            return( -2 );
+    00012A 7900FFFE               MOV.W       #-2:16,R0
+    00012E 4002                   BRA         L134:8
+    000130              L139:                             
+                   100:                    }
+                   101:    
+                   102:                    return( ret );
+    000130 0DA0                   MOV.W       E2,R0
+                   103:    }
+    000132              L134:                             
+    000132 0B97                   ADDS.L      #4,SP
+    000134 0B97                   ADDS.L      #4,SP
+    000136 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   104:    
+                   105:    /*************************************************************************
+                   106:                    ＩＮＴＥＬフォーマット変換
+                   107:    
+                   108:                    INPUT:
+                   109:                            p = 文字列バッファー
+                   110:    
+                   111:                    OUTPUT:
+                   112:                            data = データバッファー
+                   113:                                            Address(Record Code Bytes) + Data + Sum
+                   114:                            len = データバイト数
+                   115:                                            Address(Record Code Bytes) + Data + Sum
+                   116:    
+                   117:                    RETURN:
+                   118:                            0 > 異常
+                   119:                            0 = Data Record  Word Address
+                   120:                            1 = End Record
+                   121:                            2 = Segment Record  Segment Address
+                   122:                            3 = 
+                   123:                            4 = Segment Record  Segment Address
+                   124:    *************************************************************************/
+                   125:    int iformtobin( char *p, unsigned char *data, int *len )
+    00013A              _iformtobin:                     ; function: iformtobin
+    00013A 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    00013E 1B97                   SUBS.L      #4,SP
+                   126:    {
+    000140 1AC4                   SUB.L       ER4,ER4
+    000142 FC02                   MOV.B       #2:8,R4L
+    000144 0F85                   MOV.L       ER0,ER5
+    000146 0F93                   MOV.L       ER1,ER3
+                   127:                    unsigned short  bdata;
+                   128:                    int             sum,i,ret;
+                   129:    
+                   130:                    if( *p!=':' )
+    000148 685A                   MOV.B       @ER5,R2L
+    00014A AA3A                   CMP.B       #58:8,R2L
+    00014C 4708                   BEQ         L140:8
+                   131:                            return( -1 );           /*ＩＮＴＥＬフォーマットでない*/
+    00014E 7900FFFF               MOV.W       #-1:16,R0
+    000152 5A                     JMP         @L141:24
+           <000000>     
+    000156              L140:                             
+                   132:    
+                   133:                    p++;
+    000156 0B75                   INC.L       #1,ER5
+                   134:                    if( hextobin( p, &bdata ) )
+    000158 0FF1                   MOV.L       SP,ER1
+    00015A 0FD0                   MOV.L       ER5,ER0
+    00015C 5E                     JSR         @_hextobin:24
+           <000000>     
+    000160 0D00                   MOV.W       R0,R0
+    000162 58600096               BNE         L189:16
+                   135:                            return( -3 );           /*ＨＥＸコードでない*/
+                   136:                    p+=2;
+    000166 0AC5                   ADD.L       ER4,ER5
+                   137:                    *len = (int)(bdata & 0x0FF);                    /*変換バイト数*/
+    000168 6E780001               MOV.B       @(1:16,SP),R0L
+    00016C 1750                   EXTU.W      R0
+    00016E 01006F7100             MOV.L       @(28:16,SP),ER1
+           1C           
+    000174 6990                   MOV.W       R0,@ER1
+                   138:                    sum = *len;
+    000176 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    00017C 6906                   MOV.W       @ER0,R6
+                   139:    
+                   140:                    if( hextobin( p, &bdata ) )
+    00017E 0FF1                   MOV.L       SP,ER1
+    000180 0FD0                   MOV.L       ER5,ER0
+    000182 5E                     JSR         @_hextobin:24
+           <000000>     
+    000186 0D00                   MOV.W       R0,R0
+    000188 4672                   BNE         L189:8
+                   141:                            return( -3 );           /*ＨＥＸコードでない*/
+                   142:                    p+=2;
+    00018A 0AC5                   ADD.L       ER4,ER5
+                   143:                    *data = (unsigned char)bdata;   /*Address High*/
+    00018C 6E780001               MOV.B       @(1:16,SP),R0L
+    000190 68B8                   MOV.B       R0L,@ER3
+                   144:                    data++;
+    000192 0B73                   INC.L       #1,ER3
+                   145:                    sum += bdata;
+    000194 6970                   MOV.W       @SP,R0
+    000196 0906                   ADD.W       R0,R6
+                   146:                    sum &= 0x0FF;
+    000198 0CE8                   MOV.B       R6L,R0L
+    00019A 1750                   EXTU.W      R0
+    00019C 0D06                   MOV.W       R0,R6
+                   147:    
+                   148:                    if( hextobin( p, &bdata ) )
+    00019E 0FF1                   MOV.L       SP,ER1
+    0001A0 0FD0                   MOV.L       ER5,ER0
+    0001A2 5E                     JSR         @_hextobin:24
+           <000000>     
+    0001A6 0D00                   MOV.W       R0,R0
+    0001A8 4652                   BNE         L189:8
+                   149:                            return( -3 );           /*ＨＥＸコードでない*/
+                   150:                    p+=2;
+    0001AA 0AC5                   ADD.L       ER4,ER5
+                   151:                    *data = (unsigned char)bdata;   /*Address Low*/
+    0001AC 6E780001               MOV.B       @(1:16,SP),R0L
+    0001B0 68B8                   MOV.B       R0L,@ER3
+                   152:                    data++;
+    0001B2 0B73                   INC.L       #1,ER3
+                   153:                    sum += bdata;
+    0001B4 6970                   MOV.W       @SP,R0
+    0001B6 0906                   ADD.W       R0,R6
+                   154:                    sum &= 0x0FF;
+    0001B8 0CE8                   MOV.B       R6L,R0L
+    0001BA 1750                   EXTU.W      R0
+    0001BC 0D06                   MOV.W       R0,R6
+                   155:    
+                   156:                    if( hextobin( p, &bdata ) )
+    0001BE 0FF1                   MOV.L       SP,ER1
+    0001C0 0FD0                   MOV.L       ER5,ER0
+    0001C2 5E                     JSR         @_hextobin:24
+           <000000>     
+    0001C6 0D00                   MOV.W       R0,R0
+    0001C8 4632                   BNE         L189:8
+                   157:                            return( -3 );           /*ＨＥＸコードでない*/
+                   158:                    p+=2;
+    0001CA 0AC5                   ADD.L       ER4,ER5
+                   159:                    ret = (int)(bdata & 0x0FF);             /*Hex Change Mark*/
+    0001CC 6E780001               MOV.B       @(1:16,SP),R0L
+    0001D0 1750                   EXTU.W      R0
+    0001D2 0D0A                   MOV.W       R0,E2
+                   160:                    sum += bdata;
+    0001D4 6970                   MOV.W       @SP,R0
+    0001D6 0906                   ADD.W       R0,R6
+                   161:                    sum &= 0x0FF;
+    0001D8 0CE8                   MOV.B       R6L,R0L
+    0001DA 1750                   EXTU.W      R0
+    0001DC 0D06                   MOV.W       R0,R6
+                   162:    
+                   163:                    *len = *len + 2 + 1;
+    0001DE 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    0001E4 6901                   MOV.W       @ER0,R1
+    0001E6 79110003               ADD.W       #3:16,R1
+    0001EA 6981                   MOV.W       R1,@ER0
+                   164:                    for( i=0; i<*len-2; i++ ){
+    0001EC 19EE                   SUB.W       E6,E6
+    0001EE 402C                   BRA         L147:8
+    0001F0              L146:                             
+                   165:                            if( hextobin( p, &bdata ) )
+    0001F0 0FF1                   MOV.L       SP,ER1
+    0001F2 0FD0                   MOV.L       ER5,ER0
+    0001F4 5E                     JSR         @_hextobin:24
+           <000000>     
+    0001F8 0D00                   MOV.W       R0,R0
+    0001FA 4706                   BEQ         L148:8
+                   166:                                    return( -3 );           /*ＨＥＸコードでない*/
+    0001FC              L189:                             
+    0001FC 7900FFFD               MOV.W       #-3:16,R0
+    000200 4034                   BRA         L141:8
+    000202              L148:                             
+                   167:                            p+=2;
+    000202 0AC5                   ADD.L       ER4,ER5
+                   168:                            *(data+i) = (unsigned char)bdata;
+    000204 0DE0                   MOV.W       E6,R0
+    000206 17F0                   EXTS.L      ER0
+    000208 0AB0                   ADD.L       ER3,ER0
+    00020A 6E790001               MOV.B       @(1:16,SP),R1L
+    00020E 6889                   MOV.B       R1L,@ER0
+                   169:                            sum += bdata;
+    000210 6970                   MOV.W       @SP,R0
+    000212 0906                   ADD.W       R0,R6
+                   170:                            sum &= 0x0FF;
+    000214 0CE8                   MOV.B       R6L,R0L
+    000216 1750                   EXTU.W      R0
+    000218 0D06                   MOV.W       R0,R6
+    00021A 0B5E                   INC.W       #1,E6
+    00021C              L147:                             
+    00021C 01006F7000             MOV.L       @(28:16,SP),ER0
+           1C           
+    000222 6900                   MOV.W       @ER0,R0
+    000224 1BD0                   DEC.W       #2,R0
+    000226 1D0E                   CMP.W       R0,E6
+    000228 4DC6                   BLT         L146:8
+                   171:                    }
+                   172:    
+                   173:    /**             sum++; **/
+                   174:                    sum &= 0x0FF;
+    00022A 1756                   EXTU.W      R6
+                   175:                    if( sum ){
+    00022C 4706                   BEQ         L149:8
+                   176:                            return( -2 );
+    00022E 7900FFFE               MOV.W       #-2:16,R0
+    000232 4002                   BRA         L141:8
+    000234              L149:                             
+                   177:                    }
+                   178:    
+                   179:                    return( ret );
+    000234 0DA0                   MOV.W       E2,R0
+                   180:    }
+    000236              L141:                             
+    000236 0B97                   ADDS.L      #4,SP
+    000238 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   181:    
+                   182:    
+                   183:    /*************************************************************************
+                   184:                    ＲＯＭブート処理（下位用）
+                   185:    *************************************************************************/
+                   186:    int boot2( char *filename )
+    00023C              _boot2:                          ; function: boot2
+    00023C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000240 7A37000002             SUB.L       #536:32,SP
+           18           
+                   187:    {
+    000246 7A04000C00             MOV.L       #786432:32,ER4
+           00           
+    00024C 7A05000001             MOV.L       #256:32,ER5
+           00           
+    000252 0AF5                   ADD.L       SP,ER5
+    000254 0F86                   MOV.L       ER0,ER6
+                   188:                    FILE    *fd;
+                   189:                    char    buff[128];
+                   190:                    unsigned char data[128];
+                   191:                    int             len,i;
+                   192:                    long    adr,line;
+                   193:                    unsigned short  step;
+                   194:                    unsigned short  wdata[128];
+                   195:                    int             wlen;
+                   196:                    int             wadr;
+                   197:                    unsigned short  sts;
+                   198:                    int             first;
+                   199:                    int             format;
+                   200:                    unsigned char   *p;
+                   201:                    long    start_adr,end_adr;
+                   202:                    long    lwait;
+                   203:    
+                   204:                    start_adr = 0x40000;
+    000256 7A01000400             MOV.L       #262144:32,ER1
+           00           
+    00025C 01006FF102             MOV.L       ER1,@(518:16,SP)
+           06           
+                   205:                    end_adr = 0x57FFF;
+    000262 7A0100057F             MOV.L       #360447:32,ER1
+           FF           
+    000268 01006FF102             MOV.L       ER1,@(514:16,SP)
+           02           
+                   206:    
+                   207:                    fd = fopen( filename, "r" );
+    00026E 7A01                   MOV.L       #L98:32,ER1
+           <00000000>   
+    000274 5E                     JSR         @_fopen:24
+           <000000>     
+    000278 01006FF002             MOV.L       ER0,@(532:16,SP)
+           14           
+                   208:                    if( fd==NULL ){
+    00027E 4608                   BNE         L150:8
+                   209:                            return( 2 );
+    000280 79000002               MOV.W       #2:16,R0
+    000284 5A                     JMP         @L151:24
+           <000000>     
+    000288              L150:                             
+                   210:                    }
+                   211:    
+                   212:                    first=1;
+    000288 79000001               MOV.W       #1:16,R0
+    00028C 6FF00212               MOV.W       R0,@(530:16,SP)
+                   213:                    line=0;
+    000290 1A80                   SUB.L       ER0,ER0
+    000292 01006FF002             MOV.L       ER0,@(522:16,SP)
+           0A           
+                   214:                    while( fgets( buff, sizeof(buff), fd )!=NULL ){
+    000298 5A                     JMP         @L153:24
+           <000000>     
+    00029C              L152:                             
+                   215:                            crlf( buff );
+    00029C 7A00000001             MOV.L       #384:32,ER0
+           80           
+    0002A2 0AF0                   ADD.L       SP,ER0
+    0002A4 5E                     JSR         @_crlf:24
+           <000000>     
+                   216:    
+                   217:                            if( buff[0]<0x20 )
+    0002A8 6E780180               MOV.B       @(384:16,SP),R0L
+    0002AC A820                   CMP.B       #32:8,R0L
+    0002AE 58D001D6               BLT         L153:16
+                   218:                                    continue;
+                   219:                            format = sformtobin( buff, data, &len );
+    0002B2 7A00000002             MOV.L       #512:32,ER0
+           00           
+    0002B8 0AF0                   ADD.L       SP,ER0
+    0002BA 01006DF0               PUSH.L      ER0
+    0002BE 0FD1                   MOV.L       ER5,ER1
+    0002C0 7A00000001             MOV.L       #388:32,ER0
+           84           
+    0002C6 0AF0                   ADD.L       SP,ER0
+    0002C8 5E                     JSR         @_sformtobin:24
+           <000000>     
+    0002CC 0B97                   ADDS.L      #4,SP
+    0002CE 0D06                   MOV.W       R0,R6
+                   220:                            if( format<0 ){
+    0002D0 4C0C                   BGE         L155:8
+                   221:                                    if( first )
+    0002D2 6F700212               MOV.W       @(530:16,SP),R0
+    0002D6 586001AE               BNE         L153:16
+                   222:                                            continue;
+                   223:                                    fclose( fd );
+                   224:                                    return( 3 );
+    0002DA 5A                     JMP         @L190:24
+           <000000>     
+    0002DE              L155:                             
+                   225:                            }
+                   226:                            
+                   227:                            if( format==1 && len>3 ){
+    0002DE 0FD0                   MOV.L       ER5,ER0
+    0002E0 0B70                   INC.L       #1,ER0
+    0002E2 0F82                   MOV.L       ER0,ER2
+    0002E4 79260001               CMP.W       #1:16,R6
+    0002E8 4636                   BNE         L157:8
+    0002EA 6F700200               MOV.W       @(512:16,SP),R0
+    0002EE 79200003               CMP.W       #3:16,R0
+    0002F2 4F2C                   BLE         L157:8
+                   228:                                    line++;
+    0002F4 01006F7002             MOV.L       @(522:16,SP),ER0
+           0A           
+    0002FA 0B70                   INC.L       #1,ER0
+    0002FC 01006FF002             MOV.L       ER0,@(522:16,SP)
+           0A           
+                   229:                                    adr = (long)data[0]&0xFF;       adr<<=8;
+    000302 1AE6                   SUB.L       ER6,ER6
+    000304 685E                   MOV.B       @ER5,R6L
+    000306 F808                   MOV.B       #8:8,R0L
+    000308              L158:                             
+    000308 1036                   SHLL.L      ER6
+    00030A 1A08                   DEC.B       R0L
+    00030C 4EFA                   BGT         L158:8
+                   230:                                    adr |= (long)data[1]&0xFF;
+    00030E 0FA0                   MOV.L       ER2,ER0
+    000310 1A91                   SUB.L       ER1,ER1
+    000312 6809                   MOV.B       @ER0,R1L
+    000314 01F06416               OR.L        ER1,ER6
+                   231:                                    i=2;
+    000318 79030002               MOV.W       #2:16,R3
+    00031C 5A                     JMP         @L159:24
+           <000000>     
+    000320              L157:                             
+                   232:                            }
+                   233:                            else if( format==2 && len>4 ){
+    000320 79260002               CMP.W       #2:16,R6
+    000324 4646                   BNE         L160:8
+    000326 6F700200               MOV.W       @(512:16,SP),R0
+    00032A 79200004               CMP.W       #4:16,R0
+    00032E 4F3C                   BLE         L160:8
+                   234:                                    line++;
+    000330 01006F7002             MOV.L       @(522:16,SP),ER0
+           0A           
+    000336 0B70                   INC.L       #1,ER0
+    000338 01006FF002             MOV.L       ER0,@(522:16,SP)
+           0A           
+                   235:                                    adr = (long)data[0]&0xFF;       adr<<=8;
+    00033E 1AE6                   SUB.L       ER6,ER6
+    000340 685E                   MOV.B       @ER5,R6L
+    000342 F808                   MOV.B       #8:8,R0L
+    000344              L161:                             
+    000344 1036                   SHLL.L      ER6
+    000346 1A08                   DEC.B       R0L
+    000348 4EFA                   BGT         L161:8
+                   236:                                    adr |= (long)data[1]&0xFF;      adr<<=8;
+    00034A 0FA0                   MOV.L       ER2,ER0
+    00034C 1A91                   SUB.L       ER1,ER1
+    00034E 6809                   MOV.B       @ER0,R1L
+    000350 01F06416               OR.L        ER1,ER6
+    000354 F808                   MOV.B       #8:8,R0L
+    000356              L162:                             
+    000356 1036                   SHLL.L      ER6
+    000358 1A08                   DEC.B       R0L
+    00035A 4EFA                   BGT         L162:8
+                   237:                                    adr |= (long)data[2]&0xFF;
+    00035C 1A80                   SUB.L       ER0,ER0
+    00035E 6E580002               MOV.B       @(2:16,ER5),R0L
+    000362 01F06406               OR.L        ER0,ER6
+                   238:                                    i=3;
+    000366 79030003               MOV.W       #3:16,R3
+    00036A 4046                   BRA         L163:8
+    00036C              L160:                             
+                   239:                            }
+                   240:                            else if( format==5 && len>2 ){
+    00036C 79260005               CMP.W       #5:16,R6
+    000370 58600114               BNE         L153:16
+    000374 6F700200               MOV.W       @(512:16,SP),R0
+    000378 79200002               CMP.W       #2:16,R0
+    00037C 58F00108               BLE         L153:16
+                   241:                                    adr = (long)data[0]&0xFF;       adr<<=8;
+    000380 1AE6                   SUB.L       ER6,ER6
+    000382 685E                   MOV.B       @ER5,R6L
+    000384 F808                   MOV.B       #8:8,R0L
+    000386              L165:                             
+    000386 1036                   SHLL.L      ER6
+    000388 1A08                   DEC.B       R0L
+    00038A 4EFA                   BGT         L165:8
+                   242:                                    adr |= (long)data[1]&0xFF;
+    00038C 0FA0                   MOV.L       ER2,ER0
+    00038E 1A91                   SUB.L       ER1,ER1
+    000390 6809                   MOV.B       @ER0,R1L
+    000392 01F06416               OR.L        ER1,ER6
+                   243:                                    if( adr!=line ){
+    000396 01006F7002             MOV.L       @(522:16,SP),ER0
+           0A           
+    00039C 1F86                   CMP.L       ER0,ER6
+    00039E 4712                   BEQ         L167:8
+                   244:                                            fclose( fd );
+    0003A0 01006F7002             MOV.L       @(532:16,SP),ER0
+           14           
+    0003A6 5E                     JSR         @_fclose:24
+           <000000>     
+                   245:                                            return( 4 );
+    0003AA 79000004               MOV.W       #4:16,R0
+    0003AE 5A                     JMP         @L151:24
+           <000000>     
+                   246:                                    }
+                   247:                            }
+                   248:                            else {
+                   249:                                    continue;
+    0003B2              L167:                             
+    0003B2              L163:                             
+    0003B2              L159:                             
+                   250:                            }
+                   251:    
+                   252:                            if( adr>=start_adr && adr<end_adr ){
+    0003B2 01006F7002             MOV.L       @(518:16,SP),ER0
+           06           
+    0003B8 1F86                   CMP.L       ER0,ER6
+    0003BA 58D000CA               BLT         L168:16
+    0003BE 01006F7002             MOV.L       @(514:16,SP),ER0
+           02           
+    0003C4 1F86                   CMP.L       ER0,ER6
+    0003C6 58C000BE               BGE         L168:16
+                   253:                                    DUALBOOT.request = 0x0001;
+    0003CA F801                   MOV.B       #1:8,R0L
+    0003CC 6EC807FF               MOV.B       R0L,@(2047:16,ER4)
+                   254:                                    for( lwait=0; lwait<100000; lwait++ ){
+    0003D0 1A80                   SUB.L       ER0,ER0
+    0003D2 400C                   BRA         L191:8
+    0003D4              L169:                             
+                   255:                                            if( DUALBOOT.ack == 0x0001 ){
+    0003D4 6E4807FE               MOV.B       @(2046:16,ER4),R0L
+    0003D8 A801                   CMP.B       #1:8,R0L
+    0003DA 470E                   BEQ         L172:8
+                   256:                                                    break;
+    0003DC 0FA0                   MOV.L       ER2,ER0
+    0003DE 0B70                   INC.L       #1,ER0
+    0003E0              L191:                             
+    0003E0 0F82                   MOV.L       ER0,ER2
+    0003E2 7A20000186             CMP.L       #100000:32,ER0
+           A0           
+    0003E8 4DEA                   BLT         L169:8
+    0003EA              L172:                             
+                   257:                                            }
+                   258:                                    }
+                   259:    
+                   260:                                    if( first ){
+    0003EA 6F700212               MOV.W       @(530:16,SP),R0
+    0003EE 4706                   BEQ         L173:8
+                   261:                                            first = 0;
+    0003F0 1900                   SUB.W       R0,R0
+    0003F2 6FF00212               MOV.W       R0,@(530:16,SP)
+    0003F6              L173:                             
+                   262:                                    }
+                   263:                                    wlen=0;
+    0003F6 19BB                   SUB.W       E3,E3
+                   264:                                    data[len-1]=0xFF;
+    0003F8 6F700200               MOV.W       @(512:16,SP),R0
+    0003FC 17F0                   EXTS.L      ER0
+    0003FE 0AD0                   ADD.L       ER5,ER0
+    000400 F9FF                   MOV.B       #-1:8,R1L
+    000402 6C89                   MOV.B       R1L,@-ER0
+                   265:                                    for( ; i<len-1; i++,adr++ ){
+    000404 4046                   BRA         L175:8
+    000406              L174:                             
+                   266:                                            if( adr>=start_adr && adr<=end_adr ){
+    000406 01006F7002             MOV.L       @(518:16,SP),ER0
+           06           
+    00040C 1F86                   CMP.L       ER0,ER6
+    00040E 4D38                   BLT         L176:8
+    000410 01006F7002             MOV.L       @(514:16,SP),ER0
+           02           
+    000416 1F86                   CMP.L       ER0,ER6
+    000418 4E2E                   BGT         L176:8
+                   267:                                                    if( wlen==0 ){
+    00041A 0DBB                   MOV.W       E3,E3
+    00041C 4612                   BNE         L177:8
+                   268:                                                            DUALBOOT.address = adr;
+    00041E 0FE0                   MOV.L       ER6,ER0
+    000420 6EC00002               MOV.B       R0H,@(2:16,ER4)
+    000424 6EC80003               MOV.B       R0L,@(3:16,ER4)
+    000428 0D80                   MOV.W       E0,R0
+    00042A 68C0                   MOV.B       R0H,@ER4
+    00042C 6EC80001               MOV.B       R0L,@(1:16,ER4)
+    000430              L177:                             
+                   269:                                                    }
+                   270:                                                    DUALBOOT.data[wlen++] = data[i];
+    000430 0DB0                   MOV.W       E3,R0
+    000432 0B5B                   INC.W       #1,E3
+    000434 17F0                   EXTS.L      ER0
+    000436 1A91                   SUB.L       ER1,ER1
+    000438 F908                   MOV.B       #8:8,R1L
+    00043A 0AC1                   ADD.L       ER4,ER1
+    00043C 0A81                   ADD.L       ER0,ER1
+    00043E 0D30                   MOV.W       R3,R0
+    000440 17F0                   EXTS.L      ER0
+    000442 0AD0                   ADD.L       ER5,ER0
+    000444 6808                   MOV.B       @ER0,R0L
+    000446 6898                   MOV.B       R0L,@ER1
+    000448              L176:                             
+    000448 0B53                   INC.W       #1,R3
+    00044A 0B76                   INC.L       #1,ER6
+    00044C              L175:                             
+    00044C 6F700200               MOV.W       @(512:16,SP),R0
+    000450 1B50                   DEC.W       #1,R0
+    000452 1D03                   CMP.W       R0,R3
+    000454 4DB0                   BLT         L174:8
+                   271:                                            }
+                   272:                                    }
+                   273:                                    DUALBOOT.len = wlen;
+    000456 0DB0                   MOV.W       E3,R0
+    000458 17F0                   EXTS.L      ER0
+    00045A 6EC00006               MOV.B       R0H,@(6:16,ER4)
+    00045E 6EC80007               MOV.B       R0L,@(7:16,ER4)
+    000462 0D80                   MOV.W       E0,R0
+    000464 6EC00004               MOV.B       R0H,@(4:16,ER4)
+    000468 6EC80005               MOV.B       R0L,@(5:16,ER4)
+                   274:                                    DUALBOOT.request = 0x0002;
+    00046C F802                   MOV.B       #2:8,R0L
+    00046E 6EC807FF               MOV.B       R0L,@(2047:16,ER4)
+                   275:                                    for( lwait=0; lwait<100000; lwait++ ){
+    000472 1AE6                   SUB.L       ER6,ER6
+    000474 400A                   BRA         L179:8
+    000476              L178:                             
+                   276:                                            if( DUALBOOT.ack == 0x0002 ){
+    000476 6E4807FE               MOV.B       @(2046:16,ER4),R0L
+    00047A A802                   CMP.B       #2:8,R0L
+    00047C 470A                   BEQ         L181:8
+                   277:                                                    break;
+    00047E 0B76                   INC.L       #1,ER6
+    000480              L179:                             
+    000480 7A26000186             CMP.L       #100000:32,ER6
+           A0           
+    000486 4DEE                   BLT         L178:8
+    000488              L181:                             
+    000488              L168:                             
+    000488              L153:                             
+    000488 01006F7202             MOV.L       @(532:16,SP),ER2
+           14           
+    00048E 01006DF2               PUSH.L      ER2
+    000492 79010080               MOV.W       #128:16,R1
+    000496 7A00000001             MOV.L       #388:32,ER0
+           84           
+    00049C 0AF0                   ADD.L       SP,ER0
+    00049E 5E                     JSR         @_fgets:24
+           <000000>     
+    0004A2 0B97                   ADDS.L      #4,SP
+    0004A4 0F80                   MOV.L       ER0,ER0
+    0004A6 5860FDF2               BNE         L152:16
+                   278:                                            }
+                   279:                                    }
+                   280:    
+                   281:                            }
+                   282:                    }
+                   283:    
+                   284:                    if( first ){
+    0004AA 6F700212               MOV.W       @(530:16,SP),R0
+    0004AE 4710                   BEQ         L182:8
+                   285:                            fclose( fd );
+                   286:                            return( 3 );
+    0004B0              L190:                             
+    0004B0 01006F7002             MOV.L       @(532:16,SP),ER0
+           14           
+    0004B6 5E                     JSR         @_fclose:24
+           <000000>     
+    0004BA 79000003               MOV.W       #3:16,R0
+    0004BE 4012                   BRA         L151:8
+    0004C0              L182:                             
+                   287:                    }
+                   288:    
+                   289:                    fclose( fd );
+    0004C0 01006F7002             MOV.L       @(532:16,SP),ER0
+           14           
+    0004C6 5E                     JSR         @_fclose:24
+           <000000>     
+                   290:    
+                   291:                    DUALBOOT.request = 0x0003;
+    0004CA F803                   MOV.B       #3:8,R0L
+    0004CC 6EC807FF               MOV.B       R0L,@(2047:16,ER4)
+                   292:    
+                   293:                    return( 0 );
+    0004D0 1900                   SUB.W       R0,R0
+                   294:    }
+    0004D2              L151:                             
+    0004D2 7A17000002             ADD.L       #536:32,SP
+           18           
+    0004D8 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   295:    
+  C                                                      ; section
+    000000              L98:
+    000000 7200                   .SDATAZ     "r"
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     13-Oct-2000  22:37:47  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000004DC Byte(s)
+CONSTANT SECTION(C):                                0x00000002 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000004DC Byte(s)
+TOTAL CONSTANT SECTION: 0x00000002 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000004DE Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        6 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        5 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         67 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\INC,..\COMMINC,..\DVA1BOOT\INC .\src\boot.c -object=.\obj\boot.obj
+CPU         : 300ha:24

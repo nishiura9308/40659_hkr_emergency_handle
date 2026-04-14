@@ -1,0 +1,228 @@
+##############################################################################
+#                                                                            #
+# IAR Z80/64180 C-Compiler V4.04D/386                                        #
+# Front End V4.20N                                     17/Dec/2002  10:32:19 #
+# Global Optimizer V1.05D                                                    #
+#                                                                            #
+#       Target option =  64180                                               #
+#       Memory model  =  large                                               #
+#       Source file   =  .\src\paatimer.c                                    #
+#       List file     =  .\obj\paatimer.lst                                  #
+#       Object file   =  .\obj\paatimer.r01                                  #
+#       ASM file      =  .\obj\paatimer.s01                                  #
+#       Command line  =  .\src\paaTimer.c -o .\obj\paaTimer.r01 -P -gA -s    #
+#                        -v1 -rn -ml -I.\inc\ -I..\comminc\ -DSIM=0 -a       #
+#                        .\obj\paaTimer.s01 -l .\obj\paaTimer.lst -q         #
+#                                                                            #
+#                                             (c) Copyright IAR Systems 1996 #
+##############################################################################
+
+   \   0000                    NAME    paatimer(16)
+   \   0000                    RSEG    CODE(0)
+   \   0000                    EXTERN  amp1Active
+   \   0000                    EXTERN  amp2Active
+   \   0000                    EXTERN  ampFailCount1
+   \   0000                    EXTERN  ampFailCount2
+   \   0000                    EXTERN  ledCount
+   \   0000                    EXTERN  noise_checkCount
+   \   0000                    EXTERN  nowReadIO
+   \   0000                    EXTERN  paaSignalIn
+   \   0000                    EXTERN  testCount
+   \   0000                    PUBLIC  timer_0_func
+   \   0000                    PUBLIC  timer_1_func
+   \   0000                    EXTERN  ?CL64180L_4_04_L00
+   \   0000                    RSEG    CODE
+   \   0000            timer_0_func:
+      1          /********************************************************************
+      2                  【香港地下鉄向け自動列車放送制御装置】
+      3          *-------------------------------------------------------------------*
+      4                  時間制御モジュール
+      5          *-------------------------------------------------------------------*
+      6                  Author          TOA Corporation
+      7          
+      8                  Revision        a00. 2000/06/27         K.Honda
+      9          
+     10          *********************************************************************/
+     11          
+     12          #include "IOFUNC.h"
+     13          
+     14          #include "COMMDEF.h"
+     15          
+     16          /*@@@S*/
+     17          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     18                  グローバル変数
+     19          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     20          
+     21          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     22                  ローカル定数定義
+     23          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     24          
+     25          
+     26          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     27                  ローカル構造体定義
+     28          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     29          
+     30          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     31                  ローカルテーブル
+     32          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     33          
+     34          
+     35          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     36                          外部参照
+     37          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     38          extern  short   noise_checkCount;               /* 騒音検出カウンター */
+     39          extern  char    amp1Active;
+     40          extern  char    amp2Active;
+     41          extern  short   ampFailCount1;          /* アンプフェイルカウンターＣＨ。１ */
+     42          extern  short   ampFailCount2;          /* アンプフェイルカウンターＣＨ。２ */
+     43          extern  short   testCount;                      /* テスト用カウンター */
+     44          extern  char    ledCount;                       /* ＬＥＤ点滅カウンター */
+     45          
+     46          /** スイッチデータ **/
+     47          extern  short   nowReadIO;
+     48          #define IN_24V  0x1000
+     49          #define AMPON1  0x0400
+     50          #define AMPON2  0x0800
+     51          #define MICON   0x0020
+     52          
+     53          /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+     54                          ローカル変数
+     55          ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+     56          
+     57          
+     58          /*@@@E*/
+     59          /************************************************************************
+     60          
+     61                  Function name   << timer_0_func >>
+     62                                                  １０ｍＳタイマー割り込み処理
+     63                  Syntax                  timer_0_func( void );
+     64                  Argument                none
+     65                  Author                  TOA Corporation  K.Honda
+     66                  Revision                a00 2000/06/27
+     67          
+     68          *************************************************************************/
+     69          void timer_0_func( void )
+     70          {
+   \   0000  C5                PUSH    BC
+     71          extern  void paaSignalIn( void );
+     72          extern  void paaSignalOut( void );
+     73          
+     74                          paaSignalIn();
+   \   0001  CD0000            CALL    paaSignalIn
+     75          
+     76                          noise_checkCount++;             /* 騒音検出カウンター */
+   \   0004  2A0000            LD      HL,(noise_checkCount)
+   \   0007  23                INC     HL
+   \   0008  220000            LD      (noise_checkCount),HL
+     77          
+     78                          if( nowReadIO & IN_24V ){               /* DC24V ON?*/
+   \   000B  2A0000            LD      HL,(nowReadIO)
+   \   000E  7D                LD      A,L
+   \   000F  E600              AND     0
+   \   0011  47                LD      B,A
+   \   0012  7C                LD      A,H
+   \   0013  E610              AND     16
+   \   0015  B0                OR      B
+   \   0016  281C              JR      Z,?0001
+   \   0018            ?0000:
+     79                                  if( amp1Active )
+   \   0018  3A0000            LD      A,(amp1Active)
+   \   001B  B7                OR      A
+   \   001C  2807              JR      Z,?0003
+   \   001E            ?0002:
+     80                                          ampFailCount1++;
+   \   001E  2A0000            LD      HL,(ampFailCount1)
+   \   0021  23                INC     HL
+   \   0022  220000            LD      (ampFailCount1),HL
+   \   0025            ?0003:
+     81                                  if( amp2Active )
+   \   0025  3A0000            LD      A,(amp2Active)
+   \   0028  B7                OR      A
+   \   0029  2807              JR      Z,?0005
+   \   002B            ?0004:
+     82                                          ampFailCount2++;
+   \   002B  2A0000            LD      HL,(ampFailCount2)
+   \   002E  23                INC     HL
+   \   002F  220000            LD      (ampFailCount2),HL
+   \   0032            ?0005:
+     83                          }
+     84                          else {
+   \   0032  180C              JR      ?0006
+   \   0034            ?0001:
+     85                                  ampFailCount1=0;
+   \   0034  210000            LD      HL,0
+   \   0037  220000            LD      (ampFailCount1),HL
+     86                                  ampFailCount2=0;
+   \   003A  210000            LD      HL,0
+   \   003D  220000            LD      (ampFailCount2),HL
+   \   0040            ?0006:
+     87                          }
+     88          
+     89                          /* アンプがＯＮになれば　正常 */
+     90                          if( nowReadIO & AMPON1 ){
+   \   0040  2A0000            LD      HL,(nowReadIO)
+   \   0043  7D                LD      A,L
+   \   0044  E600              AND     0
+   \   0046  47                LD      B,A
+   \   0047  7C                LD      A,H
+   \   0048  E604              AND     4
+   \   004A  B0                OR      B
+   \   004B  2806              JR      Z,?0008
+   \   004D            ?0007:
+     91                                  ampFailCount1 = 0;
+   \   004D  210000            LD      HL,0
+   \   0050  220000            LD      (ampFailCount1),HL
+   \   0053            ?0008:
+     92                          }
+     93                          if( nowReadIO & AMPON2 ){
+   \   0053  2A0000            LD      HL,(nowReadIO)
+   \   0056  7D                LD      A,L
+   \   0057  E600              AND     0
+   \   0059  47                LD      B,A
+   \   005A  7C                LD      A,H
+   \   005B  E608              AND     8
+   \   005D  B0                OR      B
+   \   005E  2806              JR      Z,?0010
+   \   0060            ?0009:
+     94                                  ampFailCount2 = 0;
+   \   0060  210000            LD      HL,0
+   \   0063  220000            LD      (ampFailCount2),HL
+   \   0066            ?0010:
+     95                          }
+     96          
+     97                          testCount++;
+   \   0066  2A0000            LD      HL,(testCount)
+   \   0069  23                INC     HL
+   \   006A  220000            LD      (testCount),HL
+     98                          ledCount++;
+   \   006D  210000            LD      HL,ledCount
+   \   0070  34                INC     (HL)
+     99          }
+   \   0071  C1                POP     BC
+   \   0072  C9                RET
+   \   0073            timer_1_func:
+    100          
+    101          /************************************************************************
+    102          
+    103                  Function name   << timer_1_func >>
+    104                                                  １ｍＳタイマー割り込み処理
+    105                  Syntax                  timer_1_func( void );
+    106                  Argument                none
+    107                  Author                  TOA Corporation  K.Honda
+    108                  Revision                a00 2000/06/27
+    109          
+    110          *************************************************************************/
+    111          void timer_1_func( void )
+    112          {
+    113          
+    114          }
+   \   0073  C9                RET
+    115          
+   \   0074                    END
+
+Errors: none
+Warnings: none
+Code size: 116
+Constant size: 0
+Static variable size: Data(0) Iram(0)
+

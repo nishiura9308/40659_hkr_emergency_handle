@@ -1,0 +1,1740 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)      9-Jan-2025  15:32:42  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvaeids.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            ＥＩＤＳ制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/08/07         K.Honda
+                     9:    
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include        <string.h>
+                    14:    #include        <limits.h>
+                    15:    
+                    16:    #include        "timer.h"
+                    17:    #include        "table.h"
+                    18:    
+                    19:    /*@@@S*/
+                    20:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    21:            グローバル変数
+                    22:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    23:    
+                    24:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    25:            定数定義
+                    26:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    27:    #define         STX                     (0x02)                          /* テキスト開始                 */
+                    28:    #define         ETX                     (0x03)                          /* テキスト終了                 */
+                    29:    #define         DLE                     (0x10)                          /* ＤＬＥ拡張                   */
+                    30:    #define         ACK                     (0x06)                          /* 正常送信応答                 */
+                    31:    #define         NAK                     (0x15)                          /* 異常送信応答                 */
+                    32:    #define         SPC                     (0x20)                          /* データの区切り               */
+                    33:    
+                    34:    
+                    35:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    36:            構造体定義
+                    37:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    38:    
+                    39:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    40:            テーブル
+                    41:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    42:    
+                    43:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    44:                    外部参照
+                    45:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    46:    extern  struct  TIMER_CONTROL   timedata;
+                    47:    
+                    48:    extern  void asci_1_Initialize( int baud, char data, char parity, char stop );
+                    49:    extern  void asci_1_tx_enable( void );
+                    50:    extern  void asci_1_tx_disable( char tend );
+                    51:    extern  void asci_1_transmit( unsigned char data );
+                    52:    
+                    53:    
+                    54:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    55:                    ローカル変数
+                    56:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    57:    /** 送信エリア **/
+                    58:    static  struct  EIDS_FORMAT             eidsarea;
+                    59:    static  unsigned char   *sendp;                         /*送信バッファー*/
+                    60:    static  unsigned char   sendlen;                        /*送信バイト数*/
+                    61:    static  unsigned char   sendcnt;                        /*送信カウンター*/
+                    62:    
+                    63:    static  unsigned char   recvbuff[512];          /*受信バッファー*/
+                    64:    static  unsigned short  recvlen;                        /*受信バイト数*/
+                    65:    static  unsigned char   recvphase;                      /*受信フェーズ*/
+                    66:    
+                    67:    
+                    68:    static  struct EIDS_MSG befEIDS;                // 前回送信情報
+                    69:    static  unsigned char   befMessage;             // 前回送信メッセージコード
+                    70:    static  unsigned char   eidsResetCounter;       // リセット信号５秒間保持カウンター 2001/07/04
+                    71:    static  unsigned char   eidsMessageCounter;     // メッセージ５秒間保持カウンター       2001/07/04
+                    72:    
+                    73:    
+                    74:    
+                    75:    // for RTIF
+                    76:    static  const unsigned char     rtifcmd_modemsense[6] = { 0x52,0x46,0x46,0x41,0x45,0x0d };      // "RFFAE"
+                    77:                                                                                                                                    // 1+1+1+12+11+1+2+1=30
+                    78:    static  const unsigned char     rtifrcv_example[30] = { 0x2c,           // 1
+                    79:                                                                                                            0x26,           // 1
+                    80:                                                                                                            0x52,           // 1
+                    81:                                                                                                            0x2d,0x3b,0x34,0x64,0x26,0x61,0x45,0x4b,0x24,0x3d,0x25,0x71,    // 12
+                    82:                                                                                                            0x68,0x65,0x6c,0x6c,0x6f,0x20,0x77,0x6f,0x72,0x6c,0x64,                 // 11
+                    83:                                                                                                            0x5f,           // 1
+                    84:                                                                                                            0x50,0x20,      // 2
+                    85:                                                                                                            0x25 };         // 1
+                    86:    
+                    87:    static  const unsigned char     CRC_ERROR[11] = { 0x43,0x52,0x43,0x20,0x45,0x72,0x72,0x6f,0x72,0x0d }; // "CRC Error"
+                    88:    static  const unsigned char     TIMEOUT_ERROR[10] = { 0x54,0x69,0x6d,0x65,0x20,0x4F,0x75,0x74,0x0d }; // "Time Out"
+                    89:    
+                    90:    
+                    91:    int rtif_ph = 0;                                        /* RTIF制御フェーズ */
+                    92:    int rtif_status = 0;                            /* RTIF 0:未接続/1:接続中 */
+                    93:    int rtifarea_recvsize = 0;                      /* RTIF受信サイズ */
+                    94:    int rtifarea_delimiter_pos = 0;         /* RTIF受信デリミタ検出位置 */
+                    95:    unsigned char rtifarea[256];            /* RTIF受信バッファー */
+                    96:    int rtifmessage_flag = 0;                       /* RTIFバッファ状態フラグ 0:データ無し/1:データ有り/2:編成間通信へ送出済み */
+                    97:    unsigned char rtifmessage[256];         /* RTIFメッセージ */
+                    98:    int rtifmessage_size = 0;                       /* RTIFメッセージサイズ */
+                    99:    
+                   100:    
+                   101:    #define MAX_LENGTH  256
+                   102:    
+                   103:    typedef struct{
+                   104:        int array[MAX_LENGTH];
+                   105:        int first;
+                   106:        int last;
+                   107:    }QUEUE;
+                   108:    
+                   109:    QUEUE rtif_recv_q;                                      /* RTIF受信キュー */
+                   110:    
+                   111:    void queueinit(QUEUE*);
+                   112:    int enqueu(QUEUE*,unsigned char);
+                   113:    int dequeue(QUEUE*,unsigned char*);
+                   114:    void dvauRTIFCtrl( void );
+                   115:    
+                   116:    /*@@@E*/
+                   117:    /************************************************************************
+                   118:    
+                   119:            Function name   << asci_1_recv_ir >>
+                   120:                                            受信割り込み処理
+                   121:            Syntax                  asci_1_recv_ir( char data, char status );
+                   122:            Argument                none
+                   123:            Author                  TOA Corporation  K.Honda
+                   124:            Revision                a00 2000/08/07
+                   125:    
+                   126:    *************************************************************************/
+                   127:    void asci_1_recv_ir( char data, char status )
+    000000              _asci_1_recv_ir:                 ; function: asci_1_recv_ir
+    000000 6DF6                   PUSH.W      R6
+                   128:    {
+    000002 0C86                   MOV.B       R0L,R6H
+    000004 0C0E                   MOV.B       R0H,R6L
+                   129:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   130:    　・ハンドラーの定義のみ、使用していない
+                   131:            ------------------------------------------------------------------[@@@E]*/
+                   132:                    if( status & 0x38 ){            // Framing Error, Parity Error?
+    000006 EE38                   AND.B       #56:8,R6L
+    000008 460E                   BNE         L193:8
+                   133:                            return;
+                   134:                    }
+                   135:                    enqueue(&rtif_recv_q,data);
+    00000A 0C69                   MOV.B       R6H,R1L
+    00000C 17D1                   EXTS.W      R1
+    00000E 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    000014 5E                     JSR         @_enqueue:24
+           <000000>     
+                   136:    }
+    000018              L193:                             
+    000018 6D76                   POP.W       R6
+    00001A 5470                   RTS
+                   137:    
+                   138:    /************************************************************************
+                   139:    
+                   140:            Function name   << asci_1_send_ir >>
+                   141:                                            送信割り込み処理
+                   142:            Syntax                  asci_1_send_ir( int tend );
+                   143:            Argument                none
+                   144:            Author                  TOA Corporation  K.Honda
+                   145:            Revision                a00 2000/08/07
+                   146:                                    a01 2000/09/07  送信終了・継続を追加
+                   147:    
+                   148:    *************************************************************************/
+                   149:    void asci_1_send_ir( char tend )
+    00001C              _asci_1_send_ir:                 ; function: asci_1_send_ir
+    00001C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   150:    {
+                   151:                    if( sendcnt==sendlen ){ /*すべて送信したとき*/
+    000020 7A06                   MOV.L       #_$sendcnt:32,ER6
+           <00000000>   
+    000026 6869                   MOV.B       @ER6,R1L
+    000028 6A2A00                 MOV.B       @_$sendlen:24,R2L
+           <000000>     
+    00002E 1CA9                   CMP.B       R2L,R1L
+    000030 4606                   BNE         L194:8
+                   152:                            asci_1_tx_disable( tend );              /*受信へ切り替え*/
+    000032 5E                     JSR         @_asci_1_tx_disable:24
+           <000000>     
+                   153:                            return;
+    000036 401C                   BRA         L195:8
+    000038              L194:                             
+                   154:                    }
+                   155:    
+                   156:                    sendcnt++;
+    000038 6868                   MOV.B       @ER6,R0L
+    00003A 0A08                   INC.B       R0L
+    00003C 68E8                   MOV.B       R0L,@ER6
+                   157:                    asci_1_transmit( *sendp++ );    /*１バイトの送信*/
+    00003E 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000046 6C18                   MOV.B       @ER1+,R0L
+    000048 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000050 5E                     JSR         @_asci_1_transmit:24
+           <000000>     
+                   158:    }
+    000054              L195:                             
+    000054 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   159:    
+                   160:    /************************************************************************
+                   161:    
+                   162:            Function name   << dvauEIDSInitialize >>
+                   163:                                            ＥＩＤＳ通信初期設定
+                   164:            Syntax                  dvauEIDSInitialize( void );
+                   165:            Argument                none
+                   166:            Author                  TOA Corporation  K.Honda
+                   167:            Revision                a00 2000/08/07
+                   168:                                            a01 2001/07/04  比較エリアの初期設定を追加
+                   169:                                                                            ドア信号のクローズ
+                   170:    
+                   171:    *************************************************************************/
+                   172:    void dvauEIDSInitialize( void )
+    000058              _dvauEIDSInitialize:             ; function: dvauEIDSInitialize
+                   173:    {
+                   174:    
+                   175:                    asci_1_Initialize( 2400, 8, 'N', 1 );
+    000058 F801                   MOV.B       #1:8,R0L
+    00005A 6DF0                   PUSH.W      R0
+    00005C F14E                   MOV.B       #78:8,R1H
+    00005E F908                   MOV.B       #8:8,R1L
+    000060 79000960               MOV.W       #2400:16,R0
+    000064 5E                     JSR         @_asci_1_Initialize:24
+           <000000>     
+    000068 0B87                   ADDS.L      #2,SP
+                   176:    
+                   177:                    memset( &eidsarea, 0, sizeof(eidsarea) );
+    00006A 1A80                   SUB.L       ER0,ER0
+    00006C F807                   MOV.B       #7:8,R0L
+    00006E 01006DF0               PUSH.L      ER0
+    000072 1911                   SUB.W       R1,R1
+    000074 7A00                   MOV.L       #_$eidsarea:32,ER0
+           <00000000>   
+    00007A 5E                     JSR         @_memset:24
+           <000000>     
+    00007E 0B97                   ADDS.L      #4,SP
+                   178:    
+                   179:                    eidsarea.Messages = 0x20;
+    000080 F820                   MOV.B       #32:8,R0L
+    000082 6AA800                 MOV.B       R0L,@_$eidsarea+1:24
+           <000000>     
+                   180:                    eidsarea.status.BIT.All1 = 1;
+    000088 7A00                   MOV.L       #_$eidsarea+2:32,ER0
+           <00000000>   
+    00008E 7D007050               BSET.B      #5,@ER0
+                   181:                    eidsarea.status.BIT.reset = 0;
+    000092 7D007240               BCLR.B      #4,@ER0
+                   182:                    eidsarea.status.BIT.doorstatus = 1;
+    000096 7D007030               BSET.B      #3,@ER0
+                   183:    
+                   184:                    memset( &befEIDS, 0, sizeof(befEIDS) ); // 2001/07/04 比較エリアの初期設定
+    00009A 1A80                   SUB.L       ER0,ER0
+    00009C F807                   MOV.B       #7:8,R0L
+    00009E 01006DF0               PUSH.L      ER0
+    0000A2 1911                   SUB.W       R1,R1
+    0000A4 7A00                   MOV.L       #_$befEIDS:32,ER0
+           <00000000>   
+    0000AA 5E                     JSR         @_memset:24
+           <000000>     
+    0000AE 0B97                   ADDS.L      #4,SP
+                   185:    
+                   186:                    timedata.eidstimer = 20;
+    0000B0 79000014               MOV.W       #20:16,R0
+    0000B4 6AA000                 MOV.B       R0H,@_timedata:24
+           <000000>     
+    0000BA 6AA800                 MOV.B       R0L,@_timedata+1:24
+           <000000>     
+                   187:    
+                   188:                    queueinit(&rtif_recv_q);                // RTIF 受信キュー初期化
+    0000C0 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    0000C6 5A                     JMP         @_queueinit:24
+           <000000>     
+                   189:    }
+                   190:    
+                   191:    /************************************************************************
+                   192:    
+                   193:            Function name   << dvauEIDSSend >>
+                   194:                                            送信準備処理
+                   195:            Syntax                  dvauEIDSSend( void );
+                   196:            Argument                none
+                   197:            Author                  TOA Corporation  K.Honda
+                   198:            Revision                a00 2000/08/07
+                   199:    
+                   200:    *************************************************************************/
+                   201:    void dvauEIDSSend( void )
+    0000CA              _dvauEIDSSend:                   ; function: dvauEIDSSend
+    0000CA 01006DF5               PUSH.L      ER5
+                   202:    {
+                   203:                    asci_1_tx_enable();             /*送信開始  RTS=ON*/
+    0000CE 5E                     JSR         @_asci_1_tx_enable:24
+           <000000>     
+                   204:    
+                   205:                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+    0000D2 7A01                   MOV.L       #_$sendcnt:32,ER1
+           <00000000>   
+    0000D8 1888                   SUB.B       R0L,R0L
+    0000DA 6898                   MOV.B       R0L,@ER1
+                   206:    
+                   207:                    eidsarea.stx = STX;
+    0000DC F802                   MOV.B       #2:8,R0L
+    0000DE 6AA800                 MOV.B       R0L,@_$eidsarea:24
+           <000000>     
+                   208:                    eidsarea.etx = ETX;
+    0000E4 F803                   MOV.B       #3:8,R0L
+    0000E6 6AA800                 MOV.B       R0L,@_$eidsarea+6:24
+           <000000>     
+                   209:    
+                   210:                    sendp = (unsigned char *)&eidsarea;
+    0000EC 7A05                   MOV.L       #_$sendp:32,ER5
+           <00000000>   
+    0000F2 7A00                   MOV.L       #_$eidsarea:32,ER0
+           <00000000>   
+    0000F8 010069D0               MOV.L       ER0,@ER5
+                   211:                    sendlen = sizeof(eidsarea);
+    0000FC F807                   MOV.B       #7:8,R0L
+    0000FE 6AA800                 MOV.B       R0L,@_$sendlen:24
+           <000000>     
+                   212:    
+                   213:                    sendcnt++;
+    000104 6818                   MOV.B       @ER1,R0L
+    000106 0A08                   INC.B       R0L
+    000108 6898                   MOV.B       R0L,@ER1
+                   214:                    asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+    00010A 01006951               MOV.L       @ER5,ER1
+    00010E 6C18                   MOV.B       @ER1+,R0L
+    000110 010069D1               MOV.L       ER1,@ER5
+    000114 5E                     JSR         @_asci_1_transmit:24
+           <000000>     
+                   215:    }
+    000118 01006D75               POP.L       ER5
+    00011C 5470                   RTS
+                   216:    
+                   217:    /************************************************************************
+                   218:    
+                   219:            Function name   << dvauEIDSSendCheck >>
+                   220:                                            ２００ｍＳ毎の送信起動
+                   221:            Syntax                  dvauEIDSSendCheck( void );
+                   222:            Argument                none
+                   223:            Author                  TOA Corporation  K.Honda
+                   224:            Revision                a00 2000/08/07
+                   225:                                    a01 2000/11/13 ５秒間の送信後、データが変化しなければ送信停止
+                   226:                                    a02 2001/01/15 非常放送・スペシャル放送のコードを送信していなかった
+                   227:                                                               ５秒間の送信後、非常放送・スペシャル放送のコードを２０ｈに戻していなかった
+                   228:                                    a03 2001/07/04 連続して送信するように変更
+                   229:                                                                    リセット信号とメッセージは、変化を確認後、リセットする
+                   230:                                                                    リセット信号の状態をメインＣＰＵへ通知する
+                   231:                                                                    リセット信号がＯＮになれば、メッセージを２０ｈにする
+                   232:                                                                    逆にメッセージが２０ｈ以外になれば、リセット信号をＯＦＦにする
+                   233:    
+                   234:    *************************************************************************/
+                   235:    void dvauEIDSSendCheck( void )
+    00011E              _dvauEIDSSendCheck:              ; function: dvauEIDSSendCheck
+    00011E 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   236:    {
+    000122 7A03                   MOV.L       #_$eidsarea:32,ER3
+           <00000000>   
+    000128 7A04                   MOV.L       #_$eidsResetCounter:32,ER4
+           <00000000>   
+    00012E 7A05                   MOV.L       #_$befEIDS:32,ER5
+           <00000000>   
+    000134 7A06000C00             MOV.L       #786432:32,ER6
+           00           
+                   237:                    if( DUALPORT2.activeDVAU && DUALPORT2.activeDVAUrequest==0 ){   // 切り替え中でないこと
+    00013A 6868                   MOV.B       @ER6,R0L
+    00013C 58700132               BEQ         L196:16
+    000140 6E680002               MOV.B       @(2:16,ER6),R0L
+    000144 5860012A               BNE         L196:16
+                   238:    
+                   239:                            if( timedata.eidstimer==0 ){
+    000148 6A2000                 MOV.B       @_timedata:24,R0H
+           <000000>     
+    00014E 6A2800                 MOV.B       @_timedata+1:24,R0L
+           <000000>     
+    000154 0D00                   MOV.W       R0,R0
+    000156 58600114               BNE         L197:16
+                   240:                                    timedata.eidstimer = 20;                // 200mS Wait
+    00015A 79000014               MOV.W       #20:16,R0
+    00015E 6AA000                 MOV.B       R0H,@_timedata:24
+           <000000>     
+    000164 6AA800                 MOV.B       R0L,@_timedata+1:24
+           <000000>     
+                   241:    
+                   242:                                    // リセット信号の確認
+                   243:                                    if( befEIDS.Reset != DUALPORT2.eids.Reset ){    // リセット信号変化時 2001/07/04
+    00016A 6858                   MOV.B       @ER5,R0L
+    00016C 6E6900FE               MOV.B       @(254:16,ER6),R1L
+    000170 1C98                   CMP.B       R1L,R0L
+    000172 473E                   BEQ         L198:8
+                   244:                                            befEIDS.Reset = DUALPORT2.eids.Reset;
+    000174 6E6800FE               MOV.B       @(254:16,ER6),R0L
+    000178 68D8                   MOV.B       R0L,@ER5
+                   245:                                            DUALPORT2.eids.Reset = 0;               // リセット信号の終了
+    00017A 1888                   SUB.B       R0L,R0L
+    00017C 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+                   246:                                            if( befEIDS.Reset ){                    // Reset 0->1 Detect
+    000180 6858                   MOV.B       @ER5,R0L
+    000182 472E                   BEQ         L199:8
+                   247:                                                    if( eidsarea.status.BIT.reset==0 ){
+    000184 6A2800                 MOV.B       @_$eidsarea+2:24,R0L
+           <000000>     
+    00018A 7748                   BLD.B       #4,R0L
+    00018C 4504                   BCS         L200:8
+                   248:                                                            eidsResetCounter = 5*5;         // タイマーのリセット
+    00018E F819                   MOV.B       #25:8,R0L
+    000190 4002                   BRA         L251:8
+    000192              L200:                             
+                   249:                                                    }
+                   250:                                                    else {
+                   251:                                                            eidsResetCounter = 2;           // タイマーのリセット
+    000192 F802                   MOV.B       #2:8,R0L
+    000194              L251:                             
+    000194 68C8                   MOV.B       R0L,@ER4
+                   252:                                                    }
+                   253:                                                    eidsarea.status.BIT.reset = 1;  // リセット信号の送信
+    000196 7A00                   MOV.L       #_$eidsarea+2:32,ER0
+           <00000000>   
+    00019C 7D007040               BSET.B      #4,@ER0
+                   254:    
+                   255:                                                    DUALPORT2.eids.ResetStatus = 1; // リセット信号の通知 2001/07/10 add
+    0001A0 F801                   MOV.B       #1:8,R0L
+    0001A2 6EE80104               MOV.B       R0L,@(260:16,ER6)
+                   256:    
+                   257:                                                    eidsarea.Messages = 0x20;       // メッセージのＯＦＦ
+    0001A6 F820                   MOV.B       #32:8,R0L
+    0001A8 6EB80001               MOV.B       R0L,@(1:16,ER3)
+                   258:                                                    DUALPORT2.eids.Message = 0;             // メッセージの終了
+    0001AC 1888                   SUB.B       R0L,R0L
+    0001AE 6EE800FF               MOV.B       R0L,@(255:16,ER6)
+    0001B2              L199:                             
+    0001B2              L198:                             
+                   259:                                            }
+                   260:                                    }
+                   261:    
+                   262:                                    // リセット信号の終了チェック
+                   263:                                    if( eidsResetCounter ){
+    0001B2 6848                   MOV.B       @ER4,R0L
+    0001B4 4728                   BEQ         L202:8
+                   264:                                            eidsResetCounter--;
+    0001B6 1A08                   DEC.B       R0L
+    0001B8 68C8                   MOV.B       R0L,@ER4
+                   265:                                            if( eidsResetCounter==0 ){              // リセット信号のタイムアップ
+    0001BA 4622                   BNE         L203:8
+                   266:                                                    if( DUALPORT2.eids.Reset==0 ){
+    0001BC 6E6800FE               MOV.B       @(254:16,ER6),R0L
+    0001C0 4612                   BNE         L204:8
+                   267:                                                            eidsarea.status.BIT.reset = 0;  // リセット信号のＯＦＦ
+    0001C2 7A00                   MOV.L       #_$eidsarea+2:32,ER0
+           <00000000>   
+    0001C8 7D007240               BCLR.B      #4,@ER0
+                   268:                                                            DUALPORT2.eids.ResetStatus = 0; // リセット信号の通知 2001/07/10 add
+    0001CC 1888                   SUB.B       R0L,R0L
+    0001CE 6EE80104               MOV.B       R0L,@(260:16,ER6)
+    0001D2 400A                   BRA         L205:8
+    0001D4              L204:                             
+                   269:                                                    }
+                   270:                                                    else {
+                   271:                                                            DUALPORT2.eids.Reset = 0;               // リセット信号の終了
+    0001D4 1888                   SUB.B       R0L,R0L
+    0001D6 6EE800FE               MOV.B       R0L,@(254:16,ER6)
+                   272:                                                            eidsResetCounter=1;                             // 次回に再度チェックする
+    0001DA F801                   MOV.B       #1:8,R0L
+    0001DC 68C8                   MOV.B       R0L,@ER4
+    0001DE              L205:                             
+    0001DE              L203:                             
+    0001DE              L202:                             
+                   273:                                                    }
+                   274:                                            }
+                   275:                                    }
+                   276:    
+                   277:                                    // メッセージと駅案内の確認
+                   278:                                    if( DUALPORT2.eids.sendreq ){           // 送信要求あり
+    0001DE 6E680103               MOV.B       @(259:16,ER6),R0L
+    0001E2 474C                   BEQ         L206:8
+                   279:                                            DUALPORT2.eids.sendreq = 0;
+    0001E4 1888                   SUB.B       R0L,R0L
+    0001E6 6EE80103               MOV.B       R0L,@(259:16,ER6)
+                   280:    
+                   281:                                            if( befEIDS.Message != DUALPORT2.eids.Message ){        // メッセージ変化あり 2001/07/04
+    0001EA 6E580001               MOV.B       @(1:16,ER5),R0L
+    0001EE 6E6900FF               MOV.B       @(255:16,ER6),R1L
+    0001F2 1C98                   CMP.B       R1L,R0L
+    0001F4 472A                   BEQ         L207:8
+                   282:                                                    befEIDS.Message = DUALPORT2.eids.Message;
+    0001F6 6E6800FF               MOV.B       @(255:16,ER6),R0L
+    0001FA 6ED80001               MOV.B       R0L,@(1:16,ER5)
+                   283:                                                    if( befEIDS.Message!=0 ){
+    0001FE 4720                   BEQ         L208:8
+                   284:                                                            eidsMessageCounter = 5*5;               // メッセージタイマーのリセット
+    000200 F819                   MOV.B       #25:8,R0L
+    000202 6AA800                 MOV.B       R0L,@_$eidsMessageCounter:24
+           <000000>     
+                   285:                                                            eidsarea.Messages = befEIDS.Message;    // メッセージの送信
+    000208 6E580001               MOV.B       @(1:16,ER5),R0L
+    00020C 6EB80001               MOV.B       R0L,@(1:16,ER3)
+                   286:    
+                   287:                                                            eidsarea.status.BIT.reset = 0;  // リセット信号のＯＦＦ
+    000210 7A00                   MOV.L       #_$eidsarea+2:32,ER0
+           <00000000>   
+    000216 7D007240               BCLR.B      #4,@ER0
+                   288:                                                            DUALPORT2.eids.ResetStatus = 0; // リセット信号の通知 2001/07/10 add
+    00021A 1888                   SUB.B       R0L,R0L
+    00021C 6EE80104               MOV.B       R0L,@(260:16,ER6)
+    000220              L208:                             
+    000220              L207:                             
+                   289:                                                    }
+                   290:                                            }
+                   291:    
+                   292:                                            eidsarea.Station = DUALPORT2.eids.Station;                              // 駅名情報を送信
+    000220 6E680102               MOV.B       @(258:16,ER6),R0L
+    000224 6EB80005               MOV.B       R0L,@(5:16,ER3)
+                   293:                                            eidsarea.Route = DUALPORT2.eids.Route;                                  // ルート情報を送信
+    000228 6E680101               MOV.B       @(257:16,ER6),R0L
+    00022C 6EB80004               MOV.B       R0L,@(4:16,ER3)
+    000230              L206:                             
+                   294:                                    }
+                   295:    
+                   296:                                    // メッセージの終了チェック
+                   297:                                    if( eidsMessageCounter ){
+    000230 6A2800                 MOV.B       @_$eidsMessageCounter:24,R0L
+           <000000>     
+    000236 4726                   BEQ         L209:8
+                   298:                                            eidsMessageCounter--;
+    000238 7A00                   MOV.L       #_$eidsMessageCounter:32,ER0
+           <00000000>   
+    00023E 6809                   MOV.B       @ER0,R1L
+    000240 1A09                   DEC.B       R1L
+    000242 6889                   MOV.B       R1L,@ER0
+                   299:                                            if( eidsMessageCounter==0 ){            // メッセージのタイムアップ
+    000244 6A2800                 MOV.B       @_$eidsMessageCounter:24,R0L
+           <000000>     
+    00024A 4612                   BNE         L210:8
+                   300:                                                    eidsarea.Messages = 0x20;       // メッセージのＯＦＦ
+    00024C F820                   MOV.B       #32:8,R0L
+    00024E 6EB80001               MOV.B       R0L,@(1:16,ER3)
+                   301:                                                    DUALPORT2.eids.Message = 0;             // メッセージの終了
+    000252 1888                   SUB.B       R0L,R0L
+    000254 6EE800FF               MOV.B       R0L,@(255:16,ER6)
+                   302:                                                    befEIDS.Message = 0;
+    000258 1888                   SUB.B       R0L,R0L
+    00025A 6ED80001               MOV.B       R0L,@(1:16,ER5)
+    00025E              L210:                             
+    00025E              L209:                             
+                   303:                                            }
+                   304:                                    }
+                   305:    
+                   306:                                    eidsarea.status.BIT.doorstatus = DUALPORT2.eids.Door;   // ドア情報を送信
+    00025E 7A00                   MOV.L       #_$eidsarea+2:32,ER0
+           <00000000>   
+    000264 6E690100               MOV.B       @(256:16,ER6),R1L
+    000268 7709                   BLD.B       #0,R1L
+    00026A 7D006730               BST.B       #3,@ER0
+    00026E              L197:                             
+                   307:    
+                   308:    //                              dvauEIDSSend();                 // ２００ｍＳ毎の送信起動
+                   309:                            }
+                   310:                            dvauRTIFCtrl();                 // RTIF制御
+    00026E 5E                     JSR         @_dvauRTIFCtrl:24
+           <000000>     
+    000272              L196:                             
+                   311:                    }
+                   312:    }
+    000272 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   313:    
+                   314:    /************************************************************************
+                   315:    
+                   316:            Function name   << dvauRTIF >>
+                   317:                                            ＲＴＩＦメッセージ制御
+                   318:            Syntax                  dvauRTIF( void );
+                   319:            Argument                none
+                   320:            Author                  TOA Corporation  h.nishiura
+                   321:            Revision                a00 2020/09/16
+                   322:                                            a01 2024/11/21 デリミタを0x5fに変更
+                   323:    *************************************************************************/
+                   324:    
+                   325:    static const unsigned long crc32tab[256] = {
+                   326:            0x00000000, 0x77073096, 0xee0e612c, 0x990951ba,
+                   327:            0x076dc419, 0x706af48f, 0xe963a535, 0x9e6495a3,
+                   328:            0x0edb8832, 0x79dcb8a4, 0xe0d5e91e, 0x97d2d988,
+                   329:            0x09b64c2b, 0x7eb17cbd, 0xe7b82d07, 0x90bf1d91,
+                   330:            0x1db71064, 0x6ab020f2, 0xf3b97148, 0x84be41de,
+                   331:            0x1adad47d, 0x6ddde4eb, 0xf4d4b551, 0x83d385c7,
+                   332:            0x136c9856, 0x646ba8c0, 0xfd62f97a, 0x8a65c9ec,
+                   333:            0x14015c4f, 0x63066cd9, 0xfa0f3d63, 0x8d080df5,
+                   334:            0x3b6e20c8, 0x4c69105e, 0xd56041e4, 0xa2677172,
+                   335:            0x3c03e4d1, 0x4b04d447, 0xd20d85fd, 0xa50ab56b,
+                   336:            0x35b5a8fa, 0x42b2986c, 0xdbbbc9d6, 0xacbcf940,
+                   337:            0x32d86ce3, 0x45df5c75, 0xdcd60dcf, 0xabd13d59,
+                   338:            0x26d930ac, 0x51de003a, 0xc8d75180, 0xbfd06116,
+                   339:            0x21b4f4b5, 0x56b3c423, 0xcfba9599, 0xb8bda50f,
+                   340:            0x2802b89e, 0x5f058808, 0xc60cd9b2, 0xb10be924,
+                   341:            0x2f6f7c87, 0x58684c11, 0xc1611dab, 0xb6662d3d,
+                   342:            0x76dc4190, 0x01db7106, 0x98d220bc, 0xefd5102a,
+                   343:            0x71b18589, 0x06b6b51f, 0x9fbfe4a5, 0xe8b8d433,
+                   344:            0x7807c9a2, 0x0f00f934, 0x9609a88e, 0xe10e9818,
+                   345:            0x7f6a0dbb, 0x086d3d2d, 0x91646c97, 0xe6635c01,
+                   346:            0x6b6b51f4, 0x1c6c6162, 0x856530d8, 0xf262004e,
+                   347:            0x6c0695ed, 0x1b01a57b, 0x8208f4c1, 0xf50fc457,
+                   348:            0x65b0d9c6, 0x12b7e950, 0x8bbeb8ea, 0xfcb9887c,
+                   349:            0x62dd1ddf, 0x15da2d49, 0x8cd37cf3, 0xfbd44c65,
+                   350:            0x4db26158, 0x3ab551ce, 0xa3bc0074, 0xd4bb30e2,
+                   351:            0x4adfa541, 0x3dd895d7, 0xa4d1c46d, 0xd3d6f4fb,
+                   352:            0x4369e96a, 0x346ed9fc, 0xad678846, 0xda60b8d0,
+                   353:            0x44042d73, 0x33031de5, 0xaa0a4c5f, 0xdd0d7cc9,
+                   354:            0x5005713c, 0x270241aa, 0xbe0b1010, 0xc90c2086,
+                   355:            0x5768b525, 0x206f85b3, 0xb966d409, 0xce61e49f,
+                   356:            0x5edef90e, 0x29d9c998, 0xb0d09822, 0xc7d7a8b4,
+                   357:            0x59b33d17, 0x2eb40d81, 0xb7bd5c3b, 0xc0ba6cad,
+                   358:            0xedb88320, 0x9abfb3b6, 0x03b6e20c, 0x74b1d29a,
+                   359:            0xead54739, 0x9dd277af, 0x04db2615, 0x73dc1683,
+                   360:            0xe3630b12, 0x94643b84, 0x0d6d6a3e, 0x7a6a5aa8,
+                   361:            0xe40ecf0b, 0x9309ff9d, 0x0a00ae27, 0x7d079eb1,
+                   362:            0xf00f9344, 0x8708a3d2, 0x1e01f268, 0x6906c2fe,
+                   363:            0xf762575d, 0x806567cb, 0x196c3671, 0x6e6b06e7,
+                   364:            0xfed41b76, 0x89d32be0, 0x10da7a5a, 0x67dd4acc,
+                   365:            0xf9b9df6f, 0x8ebeeff9, 0x17b7be43, 0x60b08ed5,
+                   366:            0xd6d6a3e8, 0xa1d1937e, 0x38d8c2c4, 0x4fdff252,
+                   367:            0xd1bb67f1, 0xa6bc5767, 0x3fb506dd, 0x48b2364b,
+                   368:            0xd80d2bda, 0xaf0a1b4c, 0x36034af6, 0x41047a60,
+                   369:            0xdf60efc3, 0xa867df55, 0x316e8eef, 0x4669be79,
+                   370:            0xcb61b38c, 0xbc66831a, 0x256fd2a0, 0x5268e236,
+                   371:            0xcc0c7795, 0xbb0b4703, 0x220216b9, 0x5505262f,
+                   372:            0xc5ba3bbe, 0xb2bd0b28, 0x2bb45a92, 0x5cb36a04,
+                   373:            0xc2d7ffa7, 0xb5d0cf31, 0x2cd99e8b, 0x5bdeae1d,
+                   374:            0x9b64c2b0, 0xec63f226, 0x756aa39c, 0x026d930a,
+                   375:            0x9c0906a9, 0xeb0e363f, 0x72076785, 0x05005713,
+                   376:            0x95bf4a82, 0xe2b87a14, 0x7bb12bae, 0x0cb61b38,
+                   377:            0x92d28e9b, 0xe5d5be0d, 0x7cdcefb7, 0x0bdbdf21,
+                   378:            0x86d3d2d4, 0xf1d4e242, 0x68ddb3f8, 0x1fda836e,
+                   379:            0x81be16cd, 0xf6b9265b, 0x6fb077e1, 0x18b74777,
+                   380:            0x88085ae6, 0xff0f6a70, 0x66063bca, 0x11010b5c,
+                   381:            0x8f659eff, 0xf862ae69, 0x616bffd3, 0x166ccf45,
+                   382:            0xa00ae278, 0xd70dd2ee, 0x4e048354, 0x3903b3c2,
+                   383:            0xa7672661, 0xd06016f7, 0x4969474d, 0x3e6e77db,
+                   384:            0xaed16a4a, 0xd9d65adc, 0x40df0b66, 0x37d83bf0,
+                   385:            0xa9bcae53, 0xdebb9ec5, 0x47b2cf7f, 0x30b5ffe9,
+                   386:            0xbdbdf21c, 0xcabac28a, 0x53b39330, 0x24b4a3a6,
+                   387:            0xbad03605, 0xcdd70693, 0x54de5729, 0x23d967bf,
+                   388:            0xb3667a2e, 0xc4614ab8, 0x5d681b02, 0x2a6f2b94,
+                   389:            0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
+                   390:    };
+                   391:    
+                   392:    // ＣＲＣ３２算出
+                   393:    unsigned long crc32(unsigned char *p, int len)
+    000276              _crc32:                          ; function: crc32
+    000276 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   394:    {
+    00027A 0F84                   MOV.L       ER0,ER4
+    00027C 0D1D                   MOV.W       R1,E5
+                   395:            unsigned long crc = 0;
+    00027E 1AE6                   SUB.L       ER6,ER6
+                   396:            int i;
+                   397:    
+                   398:            for( i=0 ; i<len; i++,p++)
+    000280 1955                   SUB.W       R5,R5
+    000282 402A                   BRA         L212:8
+    000284              L211:                             
+                   399:            {
+                   400:                    crc = (crc>>8)^crc32tab[*p^(crc&0xff)];
+    000284 6848                   MOV.B       @ER4,R0L
+    000286 15E8                   XOR.B       R6L,R0L
+    000288 1750                   EXTU.W      R0
+    00028A 1770                   EXTU.L      ER0
+    00028C 1030                   SHLL.L      ER0
+    00028E 1030                   SHLL.L      ER0
+    000290 0FE1                   MOV.L       ER6,ER1
+    000292 FA08                   MOV.B       #8:8,R2L
+    000294              L213:                             
+    000294 1131                   SHLR.L      ER1
+    000296 1A0A                   DEC.B       R2L
+    000298 4EFA                   BGT         L213:8
+    00029A 010078006B             MOV.L       @(_$crc32tab:24,ER0),ER0
+           2000         
+           <000000>     
+    0002A4 01F06510               XOR.L       ER1,ER0
+    0002A8 0F86                   MOV.L       ER0,ER6
+    0002AA 0B55                   INC.W       #1,R5
+    0002AC 0B74                   INC.L       #1,ER4
+    0002AE              L212:                             
+    0002AE 1DD5                   CMP.W       E5,R5
+    0002B0 4DD2                   BLT         L211:8
+                   401:            }
+                   402:            return crc;
+    0002B2 0FE0                   MOV.L       ER6,ER0
+                   403:    }
+    0002B4 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   404:    
+                   405:    //  スタックの初期化
+                   406:    void queueinit(QUEUE* pQueue)
+    0002B8              _queueinit:                      ; function: queueinit
+    0002B8 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   407:    {
+    0002BC 0F85                   MOV.L       ER0,ER5
+                   408:        int i;
+                   409:        for(i = 0; i < MAX_LENGTH; i++){
+    0002BE 1966                   SUB.W       R6,R6
+    0002C0              L215:                             
+                   410:            pQueue->array[i] = 0;
+    0002C0 17F6                   EXTS.L      ER6
+    0002C2 0FE0                   MOV.L       ER6,ER0
+    0002C4 1030                   SHLL.L      ER0
+    0002C6 0FD1                   MOV.L       ER5,ER1
+    0002C8 0A81                   ADD.L       ER0,ER1
+    0002CA 79000000               MOV.W       #0:16,R0
+    0002CE 6890                   MOV.B       R0H,@ER1
+    0002D0 6E980001               MOV.B       R0L,@(1:16,ER1)
+    0002D4 0B56                   INC.W       #1,R6
+    0002D6 79260100               CMP.W       #256:16,R6
+    0002DA 4DE4                   BLT         L215:8
+                   411:        }
+                   412:        //  最初と最後の位置を先頭に。
+                   413:        pQueue->first = 0;
+    0002DC 6ED00200               MOV.B       R0H,@(512:16,ER5)
+    0002E0 6ED80201               MOV.B       R0L,@(513:16,ER5)
+                   414:        pQueue->last = 0;
+    0002E4 6ED00202               MOV.B       R0H,@(514:16,ER5)
+    0002E8 6ED80203               MOV.B       R0L,@(515:16,ER5)
+                   415:    }
+    0002EC 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   416:    //  値のプッシュ
+                   417:    int enqueue(QUEUE* pQueue,unsigned char value)
+    0002F0              _enqueue:                        ; function: enqueue
+    0002F0 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   418:    {
+    0002F4 0F86                   MOV.L       ER0,ER6
+    0002F6 0C9D                   MOV.B       R1L,R5L
+                   419:    //  lastの次が、firstならば、失敗
+                   420:        if((pQueue->last + 1) % MAX_LENGTH == pQueue->first){
+    0002F8 6E620202               MOV.B       @(514:16,ER6),R2H
+    0002FC 6E6A0203               MOV.B       @(515:16,ER6),R2L
+    000300 0B52                   INC.W       #1,R2
+    000302 17F2                   EXTS.L      ER2
+    000304 79030100               MOV.W       #256:16,R3
+    000308 01D05332               DIVXS.W     R3,ER2
+    00030C 6E620200               MOV.B       @(512:16,ER6),R2H
+    000310 6E6A0201               MOV.B       @(513:16,ER6),R2L
+    000314 1D2A                   CMP.W       R2,E2
+    000316 4604                   BNE         L216:8
+                   421:            return 0;
+    000318 1900                   SUB.W       R0,R0
+    00031A 403A                   BRA         L217:8
+    00031C              L216:                             
+                   422:        }
+                   423:        pQueue->array[pQueue->last] = value;          // キューに新しい値を入れる
+    00031C 1755                   EXTU.W      R5
+    00031E 6E600202               MOV.B       @(514:16,ER6),R0H
+    000322 6E680203               MOV.B       @(515:16,ER6),R0L
+    000326 17F0                   EXTS.L      ER0
+    000328 1030                   SHLL.L      ER0
+    00032A 0FE1                   MOV.L       ER6,ER1
+    00032C 0A81                   ADD.L       ER0,ER1
+    00032E 6895                   MOV.B       R5H,@ER1
+    000330 6E9D0001               MOV.B       R5L,@(1:16,ER1)
+                   424:        pQueue->last = (pQueue->last + 1) % MAX_LENGTH;   // lastの更新
+    000334 6E600202               MOV.B       @(514:16,ER6),R0H
+    000338 6E680203               MOV.B       @(515:16,ER6),R0L
+    00033C 0B50                   INC.W       #1,R0
+    00033E 17F0                   EXTS.L      ER0
+    000340 79010100               MOV.W       #256:16,R1
+    000344 01D05310               DIVXS.W     R1,ER0
+    000348 0D80                   MOV.W       E0,R0
+    00034A 6EE00202               MOV.B       R0H,@(514:16,ER6)
+    00034E 6EE80203               MOV.B       R0L,@(515:16,ER6)
+                   425:        //  データを格納しきれなかった
+                   426:        return 1;
+    000352 79000001               MOV.W       #1:16,R0
+                   427:    }
+    000356              L217:                             
+    000356 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   428:    //  値のポップ
+                   429:    int dequeue(QUEUE* pQueue,unsigned char* pValue)
+    00035A              _dequeue:                        ; function: dequeue
+    00035A 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   430:    {
+    00035E 0F86                   MOV.L       ER0,ER6
+    000360 0F95                   MOV.L       ER1,ER5
+                   431:        //  キューにデータが一つもないなら、失敗
+                   432:        if(pQueue->first == pQueue->last)
+    000362 6E620200               MOV.B       @(512:16,ER6),R2H
+    000366 6E6A0201               MOV.B       @(513:16,ER6),R2L
+    00036A 6E630202               MOV.B       @(514:16,ER6),R3H
+    00036E 6E6B0203               MOV.B       @(515:16,ER6),R3L
+    000372 1D32                   CMP.W       R3,R2
+    000374 4604                   BNE         L218:8
+                   433:        {
+                   434:            return 0;
+    000376 1900                   SUB.W       R0,R0
+    000378 4038                   BRA         L219:8
+    00037A              L218:                             
+                   435:        }
+                   436:        *pValue = pQueue->array[pQueue->first];           // いちばん先頭のキューを返す準備
+    00037A 6E600200               MOV.B       @(512:16,ER6),R0H
+    00037E 6E680201               MOV.B       @(513:16,ER6),R0L
+    000382 17F0                   EXTS.L      ER0
+    000384 1030                   SHLL.L      ER0
+    000386 0FE1                   MOV.L       ER6,ER1
+    000388 0A81                   ADD.L       ER0,ER1
+    00038A 6E180001               MOV.B       @(1:16,ER1),R0L
+    00038E 68D8                   MOV.B       R0L,@ER5
+                   437:        pQueue->first = (pQueue->first+1) % MAX_LENGTH;   // キューの先頭を次に移動する
+    000390 6E600200               MOV.B       @(512:16,ER6),R0H
+    000394 6E680201               MOV.B       @(513:16,ER6),R0L
+    000398 0B50                   INC.W       #1,R0
+    00039A 17F0                   EXTS.L      ER0
+    00039C 79010100               MOV.W       #256:16,R1
+    0003A0 01D05310               DIVXS.W     R1,ER0
+    0003A4 0D80                   MOV.W       E0,R0
+    0003A6 6EE00200               MOV.B       R0H,@(512:16,ER6)
+    0003AA 6EE80201               MOV.B       R0L,@(513:16,ER6)
+                   438:        return 1;
+    0003AE 79000001               MOV.W       #1:16,R0
+                   439:    
+                   440:    }
+    0003B2              L219:                             
+    0003B2 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   441:    //  ＲＴＩＦ制御
+                   442:    void dvauRTIFCtrl( void )
+    0003B6              _dvauRTIFCtrl:                   ; function: dvauRTIFCtrl
+    0003B6 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0003BA 7A37000000             SUB.L       #12:32,SP
+           0C           
+                   443:    {
+    0003C0 7A03                   MOV.L       #_rtifarea:32,ER3
+           <00000000>   
+    0003C6 1944                   SUB.W       R4,R4
+    0003C8 7A05                   MOV.L       #_rtif_ph:32,ER5
+           <00000000>   
+    0003CE 7A06                   MOV.L       #_rtifarea_recvsize:32,ER6
+           <00000000>   
+                   444:            int i;
+                   445:            unsigned char c;
+                   446:            unsigned long crc;
+                   447:            unsigned char crcdiv6[6];
+                   448:    
+                   449:            switch(rtif_ph)
+    0003D4 6950                   MOV.W       @ER5,R0
+    0003D6 0C00                   MOV.B       R0H,R0H
+    0003D8 58600324               BNE         L220:16
+    0003DC A800                   CMP.B       #0:8,R0L
+    0003DE 4720                   BEQ         L186:8
+    0003E0 A801                   CMP.B       #1:8,R0L
+    0003E2 4776                   BEQ         L187:8
+    0003E4 A802                   CMP.B       #2:8,R0L
+    0003E6 587000C6               BEQ         L188:16
+    0003EA A803                   CMP.B       #3:8,R0L
+    0003EC 58700124               BEQ         L189:16
+    0003F0 A804                   CMP.B       #4:8,R0L
+    0003F2 587001B2               BEQ         L190:16
+    0003F6 A805                   CMP.B       #5:8,R0L
+    0003F8 5870022C               BEQ         L191:16
+    0003FC 5A                     JMP         @L220:24
+           <000000>     
+                   450:            {
+                   451:            case 0:         // LTEmodem検出
+    000400              L186:                             
+                   452:                    sendp = (unsigned char *)&rtifcmd_modemsense;   // "RFFAE"
+    000400 7A00                   MOV.L       #_$rtifcmd_modemsense:32,ER0
+           <00000000>   
+    000406 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   453:                    sendlen = sizeof(rtifcmd_modemsense);
+    00040E F806                   MOV.B       #6:8,R0L
+    000410 6AA800                 MOV.B       R0L,@_$sendlen:24
+           <000000>     
+                   454:    
+                   455:                    asci_1_tx_enable();                             /* 送信開始  RTS=ON*/
+    000416 5E                     JSR         @_asci_1_tx_enable:24
+           <000000>     
+                   456:                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+    00041A 1888                   SUB.B       R0L,R0L
+                   457:                    sendcnt++;
+    00041C 0A08                   INC.B       R0L
+    00041E 6AA800                 MOV.B       R0L,@_$sendcnt:24
+           <000000>     
+                   458:                    asci_1_transmit( *sendp++ );    /* 最初の１バイトを送信*/
+    000424 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    00042C 6C18                   MOV.B       @ER1+,R0L
+    00042E 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000436 5E                     JSR         @_asci_1_transmit:24
+           <000000>     
+                   459:    
+                   460:                    timedata.rtiftimer = 25;                // 250mS TimeOut
+    00043A 79000019               MOV.W       #25:16,R0
+    00043E 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    000444 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   461:                    rtif_status = 0;                                // 非接続中
+    00044A 1900                   SUB.W       R0,R0
+    00044C 6BA000                 MOV.W       R0,@_rtif_status:24
+           <000000>     
+                   462:                    rtif_ph = 1;
+    000452 79000001               MOV.W       #1:16,R0
+                   463:                    break;
+    000456 5A                     JMP         @L257:24
+           <000000>     
+    00045A              L187:                             
+                   464:    
+                   465:            case 1:
+                   466:                    if( timedata.rtiftimer==0 ){
+    00045A 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    000460 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    000466 0D00                   MOV.W       R0,R0
+    000468 462C                   BNE         L223:8
+                   467:                            rtif_ph = 0;                            // 250mS TimeOut
+    00046A 1900                   SUB.W       R0,R0
+                   468:                            break;
+    00046C 5A                     JMP         @L257:24
+           <000000>     
+                   469:                    }
+                   470:                    while(dequeue(&rtif_recv_q,&c))
+    000470              L222:                             
+                   471:                    {
+                   472:                            if( ( c == 0x30 ) || ( c == 0x38 ))
+    000470 6E780007               MOV.B       @(7:16,SP),R0L
+    000474 A830                   CMP.B       #48:8,R0L
+    000476 4708                   BEQ         L225:8
+    000478 6E780007               MOV.B       @(7:16,SP),R0L
+    00047C A838                   CMP.B       #56:8,R0L
+    00047E 4616                   BNE         L224:8
+    000480              L225:                             
+                   473:                            {                                                       // 応答有り
+                   474:                                    timedata.rtiftimer = 25;                // 250mS TimeOut
+    000480 79000019               MOV.W       #25:16,R0
+    000484 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    00048A 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   475:                                    rtif_ph = 2;
+    000490 79000002               MOV.W       #2:16,R0
+    000494 69D0                   MOV.W       R0,@ER5
+    000496              L224:                             
+    000496              L223:                             
+    000496 7A01000000             MOV.L       #7:32,ER1
+           07           
+    00049C 0AF1                   ADD.L       SP,ER1
+    00049E 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    0004A4 5E                     JSR         @_dequeue:24
+           <000000>     
+    0004A8 0D00                   MOV.W       R0,R0
+    0004AA 46C4                   BNE         L222:8
+                   476:                            }
+                   477:                    }
+                   478:                    break;
+    0004AC 5A                     JMP         @L220:24
+           <000000>     
+    0004B0              L188:                             
+                   479:    
+                   480:            case 2:
+                   481:                    if( timedata.rtiftimer==0 ){
+    0004B0 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    0004B6 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    0004BC 0D00                   MOV.W       R0,R0
+    0004BE 463A                   BNE         L228:8
+                   482:                            rtif_ph = 0;                            // 250mS TimeOut
+    0004C0 1900                   SUB.W       R0,R0
+                   483:                            break;
+    0004C2 5A                     JMP         @L257:24
+           <000000>     
+                   484:                    }
+                   485:                    while(dequeue(&rtif_recv_q,&c))
+    0004C6              L227:                             
+                   486:                    {
+                   487:                            if( ( c == 0x30 ) || ( c == 0x30 ))
+    0004C6 6E780007               MOV.B       @(7:16,SP),R0L
+    0004CA A830                   CMP.B       #48:8,R0L
+    0004CC 4708                   BEQ         L230:8
+    0004CE 6E780007               MOV.B       @(7:16,SP),R0L
+    0004D2 A830                   CMP.B       #48:8,R0L
+    0004D4 4624                   BNE         L229:8
+    0004D6              L230:                             
+                   488:                            {                                                       // 応答有り
+                   489:                                    rtif_status = 1;                // 接続中
+    0004D6 79000001               MOV.W       #1:16,R0
+    0004DA 6BA000                 MOV.W       R0,@_rtif_status:24
+           <000000>     
+                   490:                                    rtifarea_recvsize = 0;
+    0004E0 1900                   SUB.W       R0,R0
+    0004E2 69E0                   MOV.W       R0,@ER6
+                   491:                                    timedata.rtiftimer = 25;                // 250mS TimeOut
+    0004E4 79000019               MOV.W       #25:16,R0
+    0004E8 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    0004EE 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   492:                                    rtif_ph = 3;
+    0004F4 79000003               MOV.W       #3:16,R0
+    0004F8 69D0                   MOV.W       R0,@ER5
+    0004FA              L229:                             
+    0004FA              L228:                             
+    0004FA 7A01000000             MOV.L       #7:32,ER1
+           07           
+    000500 0AF1                   ADD.L       SP,ER1
+    000502 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    000508 5E                     JSR         @_dequeue:24
+           <000000>     
+    00050C 0D00                   MOV.W       R0,R0
+    00050E 46B6                   BNE         L227:8
+                   493:                            }
+                   494:                    }
+                   495:                    break;
+    000510 5A                     JMP         @L220:24
+           <000000>     
+    000514              L189:                             
+                   496:    
+                   497:            case 3:         // RTTF message
+                   498:                    if( timedata.rtiftimer==0 ){
+    000514 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    00051A 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    000520 0D00                   MOV.W       R0,R0
+    000522 466A                   BNE         L233:8
+                   499:    
+                   500:    #if 0
+                   501:                            if( rtifarea_recvsize != 0 )
+                   502:                            {
+                   503:                                    sendp = (unsigned char *)&TIMEOUT_ERROR;
+                   504:                                    sendlen = sizeof(TIMEOUT_ERROR);
+                   505:    
+                   506:                                    asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   507:    
+                   508:                                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   509:                                    sendcnt++;
+                   510:                                    asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   511:    
+                   512:    
+                   513:                                    for(i = 0 ; i < 10000 ; i++ ) i+=1;
+                   514:            //                      while( sendcnt!=sendlen );
+                   515:    
+                   516:                                    sendp = (unsigned char *)&rtifarea;
+                   517:                                    sendlen = rtifarea_recvsize;
+                   518:    
+                   519:                                    asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   520:    
+                   521:                                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   522:                                    sendcnt++;
+                   523:                                    asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   524:                            }
+                   525:    #endif
+                   526:                            rtifarea_recvsize = 0;          // キャラクタ間タイムアウトでバッファクリア
+    000524 1900                   SUB.W       R0,R0
+    000526 69E0                   MOV.W       R0,@ER6
+                   527:                            timedata.rtiftimer = 25;        // 250mS TimeOut
+    000528 79000019               MOV.W       #25:16,R0
+    00052C 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    000532 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   528:                            break;
+    000538 5A                     JMP         @L220:24
+           <000000>     
+                   529:                    }
+                   530:                    while(dequeue(&rtif_recv_q,&c))
+    00053C              L232:                             
+                   531:                    {
+                   532:                            timedata.rtiftimer = 25;        // 250mS TimeOut
+    00053C 79000019               MOV.W       #25:16,R0
+    000540 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    000546 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   533:                            if( c == 0x5f )
+    00054C 6E780007               MOV.B       @(7:16,SP),R0L
+    000550 A85F                   CMP.B       #95:8,R0L
+    000552 4622                   BNE         L234:8
+                   534:                            {       //      デリミタ
+                   535:                                    rtifarea_delimiter_pos = rtifarea_recvsize;
+    000554 6960                   MOV.W       @ER6,R0
+    000556 6BA000                 MOV.W       R0,@_rtifarea_delimiter_pos:24
+           <000000>     
+                   536:                                    rtifarea[rtifarea_recvsize++] = c;
+    00055C 6960                   MOV.W       @ER6,R0
+    00055E 0B50                   INC.W       #1,R0
+    000560 69E0                   MOV.W       R0,@ER6
+    000562 1B50                   DEC.W       #1,R0
+    000564 17F0                   EXTS.L      ER0
+    000566 0AB0                   ADD.L       ER3,ER0
+    000568 6E790007               MOV.B       @(7:16,SP),R1L
+    00056C 6889                   MOV.B       R1L,@ER0
+                   537:                                    if(rtifarea_recvsize == 256) rtifarea_recvsize == 255;
+                   538:                                    rtif_ph = 4;
+    00056E 79000004               MOV.W       #4:16,R0
+                   539:                                    break;
+    000572 5A                     JMP         @L257:24
+           <000000>     
+    000576              L234:                             
+                   540:                            }
+                   541:                            else
+                   542:                            {
+                   543:                                    rtifarea[rtifarea_recvsize++] = c;
+    000576 6960                   MOV.W       @ER6,R0
+    000578 0B50                   INC.W       #1,R0
+    00057A 69E0                   MOV.W       R0,@ER6
+    00057C 1B50                   DEC.W       #1,R0
+    00057E 17F0                   EXTS.L      ER0
+    000580 0AB0                   ADD.L       ER3,ER0
+    000582 6E790007               MOV.B       @(7:16,SP),R1L
+    000586 6889                   MOV.B       R1L,@ER0
+                   544:                                    if(rtifarea_recvsize == 256) rtifarea_recvsize == 255;
+    000588 0D44                   MOV.W       R4,R4
+                   545:                            }
+                   546:                            break;
+    00058A 5A                     JMP         @L220:24
+           <000000>     
+    00058E              L233:                             
+    00058E 7A01000000             MOV.L       #7:32,ER1
+           07           
+    000594 0AF1                   ADD.L       SP,ER1
+    000596 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    00059C 5E                     JSR         @_dequeue:24
+           <000000>     
+    0005A0 0D00                   MOV.W       R0,R0
+    0005A2 4698                   BNE         L232:8
+                   547:                    }
+                   548:                    break;
+    0005A4 5A                     JMP         @L220:24
+           <000000>     
+    0005A8              L190:                             
+                   549:            case 4:         // Message Structure 完成まで15byte追加で読み込み
+                   550:                    if( timedata.rtiftimer==0 ){
+    0005A8 6A2000                 MOV.B       @_timedata+2:24,R0H
+           <000000>     
+    0005AE 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    0005B4 0D00                   MOV.W       R0,R0
+    0005B6 4656                   BNE         L241:8
+                   551:    #if 0
+                   552:                            if( rtifarea_recvsize != 0 )
+                   553:                            {
+                   554:                                    sendp = (unsigned char *)&TIMEOUT_ERROR;
+                   555:                                    sendlen = sizeof(TIMEOUT_ERROR);
+                   556:    
+                   557:                                    asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   558:    
+                   559:                                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   560:                                    sendcnt++;
+                   561:                                    asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   562:    
+                   563:    
+                   564:                                    for(i = 0 ; i < 10000 ; i++ ) i+=1;
+                   565:            //                      while( sendcnt!=sendlen );
+                   566:    
+                   567:                                    sendp = (unsigned char *)&rtifarea;
+                   568:                                    sendlen = rtifarea_recvsize;
+                   569:    
+                   570:                                    asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   571:    
+                   572:                                    sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   573:                                    sendcnt++;
+                   574:                                    asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   575:                            }
+                   576:    #endif
+                   577:    
+                   578:                            rtifarea_recvsize = 0;          // キャラクタ間タイムアウトでバッファクリア
+    0005B8 1900                   SUB.W       R0,R0
+    0005BA 69E0                   MOV.W       R0,@ER6
+                   579:                            timedata.rtiftimer = 25;        // 250mS TimeOut
+    0005BC 79000019               MOV.W       #25:16,R0
+    0005C0 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    0005C6 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   580:                            rtif_ph = 3;                            // デリミタハントに戻る。
+    0005CC 79000003               MOV.W       #3:16,R0
+                   581:                            break;
+    0005D0 5A                     JMP         @L257:24
+           <000000>     
+                   582:                    }
+                   583:                    while(dequeue(&rtif_recv_q,&c))
+    0005D4              L240:                             
+                   584:                    {
+                   585:                            timedata.rtiftimer = 25;        // 250mS TimeOut
+    0005D4 79000019               MOV.W       #25:16,R0
+    0005D8 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    0005DE 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   586:                            rtifarea[rtifarea_recvsize++] = c;
+    0005E4 6960                   MOV.W       @ER6,R0
+    0005E6 0B50                   INC.W       #1,R0
+    0005E8 69E0                   MOV.W       R0,@ER6
+    0005EA 1B50                   DEC.W       #1,R0
+    0005EC 17F0                   EXTS.L      ER0
+    0005EE 0AB0                   ADD.L       ER3,ER0
+    0005F0 6E790007               MOV.B       @(7:16,SP),R1L
+    0005F4 6889                   MOV.B       R1L,@ER0
+                   587:                            if(rtifarea_recvsize == 256) rtifarea_recvsize == 255;
+                   588:                            if( ( rtifarea_recvsize - rtifarea_delimiter_pos ) == (16+2) ) // CRC2 XX XX XX XX XX XX の代わりに00 00 0D 0A 0D 0A 0D 0Aとなり＋２とする。
+    0005F6 6960                   MOV.W       @ER6,R0
+    0005F8 6B2100                 MOV.W       @_rtifarea_delimiter_pos:24,R1
+           <000000>     
+    0005FE 1910                   SUB.W       R1,R0
+    000600 79200012               CMP.W       #18:16,R0
+    000604 4608                   BNE         L243:8
+                   589:                            {
+                   590:                                    rtif_ph = 5;
+    000606 79000005               MOV.W       #5:16,R0
+                   591:                                    break;
+    00060A 5A                     JMP         @L257:24
+           <000000>     
+    00060E              L243:                             
+    00060E              L241:                             
+    00060E 7A01000000             MOV.L       #7:32,ER1
+           07           
+    000614 0AF1                   ADD.L       SP,ER1
+    000616 7A00                   MOV.L       #_rtif_recv_q:32,ER0
+           <00000000>   
+    00061C 5E                     JSR         @_dequeue:24
+           <000000>     
+    000620 0D00                   MOV.W       R0,R0
+    000622 46B0                   BNE         L240:8
+                   592:                            }
+                   593:                    }
+                   594:                    break;
+    000624 5A                     JMP         @L220:24
+           <000000>     
+    000628              L191:                             
+                   595:            case 5:
+                   596:    #if 0
+                   597:                    for( i = 0 ; i < sizeof(rtifrcv_example) ; i++ )
+                   598:                    {
+                   599:                            rtifarea[i] = rtifrcv_example[i];
+                   600:                    }
+                   601:                    crc = crc32(&rtifarea[1],26);
+                   602:                    rtifarea[sizeof(rtifrcv_example)] = (unsigned char)((crc >> 24) & 0xff);
+                   603:                    rtifarea[sizeof(rtifrcv_example)+1] = (unsigned char)((crc >> 16) & 0xff);
+                   604:                    rtifarea[sizeof(rtifrcv_example)+2] = (unsigned char)((crc >> 8) & 0xff);
+                   605:                    rtifarea[sizeof(rtifrcv_example)+3] = (unsigned char)((crc) & 0xff);
+                   606:    
+                   607:                    rtifarea_recvsize = sizeof(rtifrcv_example)+12; // +CRC12byte
+                   608:    #endif
+                   609:    
+                   610:                    crc = crc32(&rtifarea[0],rtifarea_recvsize-12-2);
+    000628 6961                   MOV.W       @ER6,R1
+    00062A 7911FFF2               ADD.W       #-14:16,R1
+    00062E 0FB0                   MOV.L       ER3,ER0
+    000630 5E                     JSR         @_crc32:24
+           <000000>     
+    000634 0F82                   MOV.L       ER0,ER2
+                   611:                    crcdiv6[0] = (unsigned char)( ( crc >> 26 ) & 0x3f) + 0x30;
+    000636 0D81                   MOV.W       E0,R1
+    000638 0C19                   MOV.B       R1H,R1L
+    00063A 1811                   SUB.B       R1H,R1H
+    00063C 1999                   SUB.W       E1,E1
+    00063E 1131                   SHLR.L      ER1
+    000640 1131                   SHLR.L      ER1
+    000642 E93F                   AND.B       #63:8,R1L
+    000644 8930                   ADD.B       #48:8,R1L
+    000646 6EF90001               MOV.B       R1L,@(1:16,SP)
+                   612:                    crcdiv6[1] = (unsigned char)( ( crc >> 20 ) & 0x3f) + 0x30;
+    00064A 0D80                   MOV.W       E0,R0
+    00064C 1988                   SUB.W       E0,E0
+    00064E 1130                   SHLR.L      ER0
+    000650 1130                   SHLR.L      ER0
+    000652 1130                   SHLR.L      ER0
+    000654 1130                   SHLR.L      ER0
+    000656 E83F                   AND.B       #63:8,R0L
+    000658 8830                   ADD.B       #48:8,R0L
+    00065A 6EF80002               MOV.B       R0L,@(2:16,SP)
+                   613:                    crcdiv6[2] = (unsigned char)( ( crc >> 14 ) & 0x3f) + 0x30;
+    00065E 0FA0                   MOV.L       ER2,ER0
+    000660 F90E                   MOV.B       #14:8,R1L
+    000662              L245:                             
+    000662 1130                   SHLR.L      ER0
+    000664 1A09                   DEC.B       R1L
+    000666 4EFA                   BGT         L245:8
+    000668 E83F                   AND.B       #63:8,R0L
+    00066A 8830                   ADD.B       #48:8,R0L
+    00066C 6EF80003               MOV.B       R0L,@(3:16,SP)
+                   614:                    crcdiv6[3] = (unsigned char)( ( crc >> 8 ) & 0x3f) + 0x30;
+    000670 0FA0                   MOV.L       ER2,ER0
+    000672 F908                   MOV.B       #8:8,R1L
+    000674              L246:                             
+    000674 1130                   SHLR.L      ER0
+    000676 1A09                   DEC.B       R1L
+    000678 4EFA                   BGT         L246:8
+    00067A E83F                   AND.B       #63:8,R0L
+    00067C 8830                   ADD.B       #48:8,R0L
+    00067E 6EF80004               MOV.B       R0L,@(4:16,SP)
+                   615:                    crcdiv6[4] = (unsigned char)( ( crc >> 2 ) & 0x3f) + 0x30;
+    000682 0FA0                   MOV.L       ER2,ER0
+    000684 1130                   SHLR.L      ER0
+    000686 1130                   SHLR.L      ER0
+    000688 E83F                   AND.B       #63:8,R0L
+    00068A 8830                   ADD.B       #48:8,R0L
+    00068C 6EF80005               MOV.B       R0L,@(5:16,SP)
+                   616:                    crcdiv6[5] = (unsigned char)( ( crc << 4 ) & 0x3f) + 0x30;
+    000690 0FA0                   MOV.L       ER2,ER0
+    000692 1030                   SHLL.L      ER0
+    000694 1030                   SHLL.L      ER0
+    000696 1030                   SHLL.L      ER0
+    000698 1030                   SHLL.L      ER0
+    00069A E83F                   AND.B       #63:8,R0L
+    00069C 8830                   ADD.B       #48:8,R0L
+    00069E 6EF80006               MOV.B       R0L,@(6:16,SP)
+                   617:    
+                   618:    //              if( ( rtifarea[rtifarea_recvsize-12-2] == crcdiv6[0] ) &&
+                   619:    //                      ( rtifarea[rtifarea_recvsize-11-2] == crcdiv6[1] ) &&
+                   620:    //                      ( rtifarea[rtifarea_recvsize-10-2] == crcdiv6[2] ) &&
+                   621:    //                      ( rtifarea[rtifarea_recvsize-9-2] == crcdiv6[3] ) &&
+                   622:    //                      ( rtifarea[rtifarea_recvsize-8-2] == crcdiv6[4] ) &&
+                   623:    //                      ( rtifarea[rtifarea_recvsize-7-2] == crcdiv6[5] ) )
+                   624:    //              {       // crc1が一致すればmessage structureと認める。
+                   625:                    if( (rtifmessage_flag == 0) || (rtifmessage_flag == 2) )
+    0006A2 6B2000                 MOV.W       @_rtifmessage_flag:24,R0
+           <000000>     
+    0006A8 4706                   BEQ         L248:8
+    0006AA 79200002               CMP.W       #2:16,R0
+    0006AE 4636                   BNE         L247:8
+    0006B0              L248:                             
+                   626:                    {
+                   627:                            rtifmessage_size = rtifarea_recvsize;
+    0006B0 6960                   MOV.W       @ER6,R0
+    0006B2 6BA000                 MOV.W       R0,@_rtifmessage_size:24
+           <000000>     
+                   628:                            for( i = 0 ; i <  rtifmessage_size ; i++ )
+    0006B8 19CC                   SUB.W       E4,E4
+    0006BA 4016                   BRA         L250:8
+    0006BC              L249:                             
+                   629:                            {
+                   630:                                    rtifmessage[i] = rtifarea[i];
+    0006BC 0DC0                   MOV.W       E4,R0
+    0006BE 17F0                   EXTS.L      ER0
+    0006C0 0F82                   MOV.L       ER0,ER2
+    0006C2 0FA1                   MOV.L       ER2,ER1
+    0006C4 0AB1                   ADD.L       ER3,ER1
+    0006C6 6819                   MOV.B       @ER1,R1L
+    0006C8 78006AA900             MOV.B       R1L,@(_rtifmessage:24,ER0)
+           <000000>     
+    0006D0 0B5C                   INC.W       #1,E4
+    0006D2              L250:                             
+    0006D2 6B2000                 MOV.W       @_rtifmessage_size:24,R0
+           <000000>     
+    0006D8 1D0C                   CMP.W       R0,E4
+    0006DA 4DE0                   BLT         L249:8
+                   631:                            }
+                   632:                            rtifmessage_flag = 1;           // 空いていれば編成間通信へ流す。
+    0006DC 79000001               MOV.W       #1:16,R0
+    0006E0 6BA000                 MOV.W       R0,@_rtifmessage_flag:24
+           <000000>     
+    0006E6              L247:                             
+                   633:    #if 0
+                   634:                            sendp = (unsigned char *)&rtifmessage;
+                   635:                            sendlen = rtifmessage_size;
+                   636:    
+                   637:                            asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   638:    
+                   639:                            sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   640:                            sendcnt++;
+                   641:                            asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   642:    #endif
+                   643:                    }
+                   644:                    rtifarea_recvsize = 0;          // バッファクリア
+    0006E6 1900                   SUB.W       R0,R0
+    0006E8 69E0                   MOV.W       R0,@ER6
+                   645:                    timedata.rtiftimer = 25;        // 250mS TimeOut
+    0006EA 79000019               MOV.W       #25:16,R0
+    0006EE 6AA000                 MOV.B       R0H,@_timedata+2:24
+           <000000>     
+    0006F4 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   646:                    rtif_ph = 3;                            // デリミタハントに戻る。
+    0006FA 79000003               MOV.W       #3:16,R0
+                   647:    //              }
+                   648:    //              else
+                   649:    //              {
+                   650:    #if 0
+                   651:                            sendp = (unsigned char *)&CRC_ERROR;
+                   652:                            sendlen = sizeof(CRC_ERROR);
+                   653:    
+                   654:                            asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   655:    
+                   656:                            sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   657:                            sendcnt++;
+                   658:                            asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   659:    
+                   660:    
+                   661:                            for(i = 0 ; i < 10000 ; i++ ) i+=1;
+                   662:    //                      while( sendcnt!=sendlen );
+                   663:    
+                   664:                            sendp = (unsigned char *)&rtifarea;
+                   665:                            sendlen = rtifarea_recvsize;
+                   666:    
+                   667:                            asci_1_tx_enable();                             /*送信開始  RTS=ON*/
+                   668:    
+                   669:                            sendcnt = 0;                                    /* 送信ポインター０クリア */
+                   670:                            sendcnt++;
+                   671:                            asci_1_transmit( *sendp++ );    /*最初の１バイトを送信*/
+                   672:    
+                   673:    #endif
+                   674:    
+                   675:    //                      rtifarea_recvsize = 0;          // バッファクリア
+                   676:    //                      timedata.rtiftimer = 25;        // 250mS TimeOut
+                   677:    //                      rtif_ph = 3;                            // デリミタハントに戻る。
+                   678:    //              }
+                   679:    
+                   680:                    break;
+    0006FE              L257:                             
+    0006FE 69D0                   MOV.W       R0,@ER5
+    000700              L220:                             
+                   681:            }
+                   682:    }
+    000700 7A17000000             ADD.L       #12:32,SP
+           0C           
+    000706 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   683:    
+  C                                                      ; section
+    000000              _$rtifcmd_modemsense:            ; static: rtifcmd_modemsense
+    000000 5246464145             .DATA.B     H'52,H'46,H'46,H'41,H'45,H'0D
+           0D           
+    000006              _$rtifrcv_example:               ; static: rtifrcv_example
+    000006 2C26522D3B             .DATA.B     H'2C,H'26,H'52,H'2D,H'3B,H'34,H'64,H'26,H'61,H'45,H'4B,H'24,H'3D,H'25,H'71,H'68,H'65,H'6C,H'6C,H'6F,H'20,H'77,H'6F,H'72,H'6C,H'64,H'5F,H'50,H'20,H'25
+           3464266145   
+           4B243D2571   
+           68656C6C6F   
+           20776F726C   
+           645F502025   
+    000024              _$CRC_ERROR:                     ; static: CRC_ERROR
+    000024 4352432045             .DATA.B     H'43,H'52,H'43,H'20,H'45,H'72,H'72,H'6F,H'72,H'0D
+           72726F720D   
+    00002E 00                     .DATAB.B    1,0
+    00002F              _$TIMEOUT_ERROR:                 ; static: TIMEOUT_ERROR
+    00002F 54696D6520             .DATA.B     H'54,H'69,H'6D,H'65,H'20,H'4F,H'75,H'74,H'0D
+           4F75740D     
+    000038 00                     .DATAB.B    1,0
+    000039 00                     .DATAB.B    1,0
+    00003A              _$crc32tab:                      ; static: crc32tab
+    00003A 0000000077             .DATA.L     H'00000000,H'77073096,H'EE0E612C,H'990951BA,H'076DC419,H'706AF48F,H'E963A535,H'9E6495A3,H'0EDB8832,H'79DCB8A4,H'E0D5E91E,H'97D2D988,H'09B64C2B,H'7EB17CBD,H'E7B82D07,H'90BF1D91,H'1DB71064,H'6AB020F2,H'F3B97148,H'84BE41DE,H'1ADAD47D,H'6DDDE4EB,H'F4D4B551,H'83D385C7,H'136C9856,H'646BA8C0,H'FD62F97A,H'8A65C9EC,H'14015C4F,H'63066CD9,H'FA0F3D63,H'8D080DF5,H'3B6E20C8,H'4C69105E,H'D56041E4,H'A2677172,H'3C03E4D1,H'4B04D447,H'D20D85FD,H'A50AB56B,H'35B5A8FA,H'42B2986C,H'DBBBC9D6,H'ACBCF940,H'32D86CE3,H'45DF5C75,H'DCD60DCF,H'ABD13D59,H'26D930AC,H'51DE003A,H'C8D75180,H'BFD06116,H'21B4F4B5,H'56B3C423,H'CFBA9599,H'B8BDA50F,H'2802B89E,H'5F058808,H'C60CD9B2,H'B10BE924,H'2F6F7C87,H'58684C11,H'C1611DAB,H'B6662D3D,H'76DC4190,H'01DB7106,H'98D220BC,H'EFD5102A,H'71B18589,H'06B6B51F,H'9FBFE4A5,H'E8B8D433,H'7807C9A2,H'0F00F934,H'9609A88E,H'E10E9818,H'7F6A0DBB,H'086D3D2D,H'91646C97,H'E6635C01,H'6B6B51F4,H'1C6C6162,H'856530D8,H'F262004E,H'6C0695ED,H'1B01A57B,H'8208F4C1,H'F50FC457,H'65B0D9C6,H'12B7E950,H'8BBEB8EA,H'FCB9887C,H'62DD1DDF,H'15DA2D49,H'8CD37CF3,H'FBD44C65,H'4DB26158,H'3AB551CE,H'A3BC0074,H'D4BB30E2,H'4ADFA541,H'3DD895D7
+           073096EE0E   
+           612C990951   
+           BA076DC419   
+           706AF48FE9   
+           63A5359E64   
+           95A30EDB88   
+           3279DCB8A4   
+           E0D5E91E97   
+           D2D98809B6   
+           4C2B7EB17C   
+           BDE7B82D07   
+           90BF1D911D   
+           B710646AB0   
+           20F2F3B971   
+           4884BE41DE   
+           1ADAD47D6D   
+           DDE4EBF4D4   
+           B55183D385   
+           C7136C9856   
+           646BA8C0FD   
+           62F97A8A65   
+           C9EC14015C   
+           4F63066CD9   
+           FA0F3D638D   
+           080DF53B6E   
+           20C84C6910   
+           5ED56041E4   
+           A26771723C   
+           03E4D14B04   
+           D447D20D85   
+           FDA50AB56B   
+           35B5A8FA42   
+           B2986CDBBB   
+           C9D6ACBCF9   
+           4032D86CE3   
+           45DF5C75DC   
+           D60DCFABD1   
+           3D5926D930   
+           AC51DE003A   
+           C8D75180BF   
+           D0611621B4   
+           F4B556B3C4   
+           23CFBA9599   
+           B8BDA50F28   
+           02B89E5F05   
+           8808C60CD9   
+           B2B10BE924   
+           2F6F7C8758   
+           684C11C161   
+           1DABB6662D   
+           3D76DC4190   
+           01DB710698   
+           D220BCEFD5   
+           102A71B185   
+           8906B6B51F   
+           9FBFE4A5E8   
+           B8D4337807   
+           C9A20F00F9   
+           349609A88E   
+           E10E98187F   
+           6A0DBB086D   
+           3D2D91646C   
+           97E6635C01   
+           6B6B51F41C   
+           6C61628565   
+           30D8F26200   
+           4E6C0695ED   
+           1B01A57B82   
+           08F4C1F50F   
+           C45765B0D9   
+           C612B7E950   
+           8BBEB8EAFC   
+           B9887C62DD   
+           1DDF15DA2D   
+           498CD37CF3   
+           FBD44C654D   
+           B261583AB5   
+           51CEA3BC00   
+           74D4BB30E2   
+           4ADFA5413D   
+           D895D7       
+    0001D2 A4D1C46DD3             .DATA.L     H'A4D1C46D,H'D3D6F4FB,H'4369E96A,H'346ED9FC,H'AD678846,H'DA60B8D0,H'44042D73,H'33031DE5,H'AA0A4C5F,H'DD0D7CC9,H'5005713C,H'270241AA,H'BE0B1010,H'C90C2086,H'5768B525,H'206F85B3,H'B966D409,H'CE61E49F,H'5EDEF90E,H'29D9C998,H'B0D09822,H'C7D7A8B4,H'59B33D17,H'2EB40D81,H'B7BD5C3B,H'C0BA6CAD,H'EDB88320,H'9ABFB3B6,H'03B6E20C,H'74B1D29A,H'EAD54739,H'9DD277AF,H'04DB2615,H'73DC1683,H'E3630B12,H'94643B84,H'0D6D6A3E,H'7A6A5AA8,H'E40ECF0B,H'9309FF9D,H'0A00AE27,H'7D079EB1,H'F00F9344,H'8708A3D2,H'1E01F268,H'6906C2FE,H'F762575D,H'806567CB,H'196C3671,H'6E6B06E7,H'FED41B76,H'89D32BE0,H'10DA7A5A,H'67DD4ACC,H'F9B9DF6F,H'8EBEEFF9,H'17B7BE43,H'60B08ED5,H'D6D6A3E8,H'A1D1937E,H'38D8C2C4,H'4FDFF252,H'D1BB67F1,H'A6BC5767,H'3FB506DD,H'48B2364B,H'D80D2BDA,H'AF0A1B4C,H'36034AF6,H'41047A60,H'DF60EFC3,H'A867DF55,H'316E8EEF,H'4669BE79,H'CB61B38C,H'BC66831A,H'256FD2A0,H'5268E236,H'CC0C7795,H'BB0B4703,H'220216B9,H'5505262F,H'C5BA3BBE,H'B2BD0B28,H'2BB45A92,H'5CB36A04,H'C2D7FFA7,H'B5D0CF31,H'2CD99E8B,H'5BDEAE1D,H'9B64C2B0,H'EC63F226,H'756AA39C,H'026D930A,H'9C0906A9,H'EB0E363F,H'72076785,H'05005713,H'95BF4A82,H'E2B87A14,H'7BB12BAE,H'0CB61B38,H'92D28E9B,H'E5D5BE0D,H'7CDCEFB7,H'0BDBDF21,H'86D3D2D4,H'F1D4E242,H'68DDB3F8,H'1FDA836E,H'81BE16CD,H'F6B9265B,H'6FB077E1,H'18B74777,H'88085AE6,H'FF0F6A70,H'66063BCA,H'11010B5C,H'8F659EFF,H'F862AE69,H'616BFFD3,H'166CCF45,H'A00AE278,H'D70DD2EE,H'4E048354,H'3903B3C2,H'A7672661,H'D06016F7,H'4969474D,H'3E6E77DB,H'AED16A4A,H'D9D65ADC,H'40DF0B66,H'37D83BF0,H'A9BCAE53,H'DEBB9EC5,H'47B2CF7F,H'30B5FFE9,H'BDBDF21C,H'CABAC28A,H'53B39330,H'24B4A3A6,H'BAD03605,H'CDD70693,H'54DE5729,H'23D967BF,H'B3667A2E,H'C4614AB8,H'5D681B02,H'2A6F2B94,H'B40BBE37,H'C30C8EA1,H'5A05DF1B,H'2D02EF8D
+           D6F4FB4369   
+           E96A346ED9   
+           FCAD678846   
+           DA60B8D044   
+           042D733303   
+           1DE5AA0A4C   
+           5FDD0D7CC9   
+           5005713C27   
+           0241AABE0B   
+           1010C90C20   
+           865768B525   
+           206F85B3B9   
+           66D409CE61   
+           E49F5EDEF9   
+           0E29D9C998   
+           B0D09822C7   
+           D7A8B459B3   
+           3D172EB40D   
+           81B7BD5C3B   
+           C0BA6CADED   
+           B883209ABF   
+           B3B603B6E2   
+           0C74B1D29A   
+           EAD547399D   
+           D277AF04DB   
+           261573DC16   
+           83E3630B12   
+           94643B840D   
+           6D6A3E7A6A   
+           5AA8E40ECF   
+           0B9309FF9D   
+           0A00AE277D   
+           079EB1F00F   
+           93448708A3   
+           D21E01F268   
+           6906C2FEF7   
+           62575D8065   
+           67CB196C36   
+           716E6B06E7   
+           FED41B7689   
+           D32BE010DA   
+           7A5A67DD4A   
+           CCF9B9DF6F   
+           8EBEEFF917   
+           B7BE4360B0   
+           8ED5D6D6A3   
+           E8A1D1937E   
+           38D8C2C44F   
+           DFF252D1BB   
+           67F1A6BC57   
+           673FB506DD   
+           48B2364BD8   
+           0D2BDAAF0A   
+           1B4C36034A   
+           F641047A60   
+           DF60EFC3A8   
+           67DF55316E   
+           8EEF4669BE   
+           79CB61B38C   
+           BC66831A25   
+           6FD2A05268   
+           E236CC0C77   
+           95BB0B4703   
+           220216B955   
+           05262FC5BA   
+           3BBEB2BD0B   
+           282BB45A92   
+           5CB36A04C2   
+           D7FFA7B5D0   
+           CF312CD99E   
+           8B5BDEAE1D   
+           9B64C2B0EC   
+           63F226756A   
+           A39C026D93   
+           0A9C0906A9   
+           EB0E363F72   
+           0767850500   
+           571395BF4A   
+           82E2B87A14   
+           7BB12BAE0C   
+           B61B3892D2   
+           8E9BE5D5BE   
+           0D7CDCEFB7   
+           0BDBDF2186   
+           D3D2D4F1D4   
+           E24268DDB3   
+           F81FDA836E   
+           81BE16CDF6   
+           B9265B6FB0   
+           77E118B747   
+           7788085AE6   
+           FF0F6A7066   
+           063BCA1101   
+           0B5C8F659E   
+           FFF862AE69   
+           616BFFD316   
+           6CCF45A00A   
+           E278D70DD2   
+           EE4E048354   
+           3903B3C2A7   
+           672661D060   
+           16F7496947   
+           4D3E6E77DB   
+           AED16A4AD9   
+           D65ADC40DF   
+           0B6637D83B   
+           F0A9BCAE53   
+           DEBB9EC547   
+           B2CF7F30B5   
+           FFE9BDBDF2   
+           1CCABAC28A   
+           53B3933024   
+           B4A3A6BAD0   
+           3605CDD706   
+           9354DE5729   
+           23D967BFB3   
+           667A2EC461   
+           4AB85D681B   
+           022A6F2B94   
+           B40BBE37C3   
+           0C8EA15A05   
+           DF1B2D02EF   
+           8D           
+  D                                                      ; section
+    000000              _rtif_ph:                        ; static: rtif_ph
+    000000 0000                   .DATA.W     H'0000
+    000002              _rtif_status:                    ; static: rtif_status
+    000002 0000                   .DATA.W     H'0000
+    000004              _rtifarea_recvsize:              ; static: rtifarea_recvsize
+    000004 0000                   .DATA.W     H'0000
+    000006              _rtifarea_delimiter_pos:         ; static: rtifarea_delimiter_pos
+    000006 0000                   .DATA.W     H'0000
+    000008              _rtifmessage_flag:               ; static: rtifmessage_flag
+    000008 0000                   .DATA.W     H'0000
+    00000A              _rtifmessage_size:               ; static: rtifmessage_size
+    00000A 0000                   .DATA.W     H'0000
+  B                                                      ; section
+    000000              _$eidsarea:                      ; static: eidsarea
+    000000 00000007               .RES.B      7
+    000007 00000001               .RES.B      1
+    000008              _$sendp:                         ; static: sendp
+    000008 00000004               .RES.L      1
+    00000C              _$sendlen:                       ; static: sendlen
+    00000C 00000001               .RES.B      1
+    00000D              _$sendcnt:                       ; static: sendcnt
+    00000D 00000001               .RES.B      1
+    00000E              _$recvbuff:                      ; static: recvbuff
+    00000E 00000200               .RES.B      512
+    00020E              _$recvlen:                       ; static: recvlen
+    00020E 00000002               .RES.W      1
+    000210              _$recvphase:                     ; static: recvphase
+    000210 00000001               .RES.B      1
+    000211              _$befEIDS:                       ; static: befEIDS
+    000211 00000007               .RES.B      7
+    000218              _$befMessage:                    ; static: befMessage
+    000218 00000001               .RES.B      1
+    000219              _$eidsResetCounter:              ; static: eidsResetCounter
+    000219 00000001               .RES.B      1
+    00021A              _$eidsMessageCounter:            ; static: eidsMessageCounter
+    00021A 00000001               .RES.B      1
+    00021B              _rtifarea:                       ; static: rtifarea
+    00021B 00000100               .RES.B      256
+    00031B              _rtifmessage:                    ; static: rtifmessage
+    00031B 00000100               .RES.B      256
+    00041B              _rtif_recv_q:                    ; static: rtif_recv_q
+    00041B 00000204               .RES.B      516
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)      9-Jan-2025  15:32:42  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x0000070A Byte(s)
+CONSTANT SECTION(C):                                0x0000043A Byte(s)
+DATA     SECTION(D):                                0x0000000C Byte(s)
+BSS      SECTION(B):                                0x0000061F Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x0000070A Byte(s)
+TOTAL CONSTANT SECTION: 0x0000043A Byte(s)
+TOTAL DATA     SECTION: 0x0000000C Byte(s)
+TOTAL BSS      SECTION: 0x0000061F Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x0000116F Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        8 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       19 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         97 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\comminc\,..\dva2boot\inc\ .\src\dvaeids.c -object=.\obj\dvaeids.obj
+CPU         : 300ha:24

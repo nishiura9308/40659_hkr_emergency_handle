@@ -1,0 +1,1988 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:47  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\pcaccs.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       【香港地下鉄向け自動列車放送制御装置】                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       通信制御モジュール                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include    "vect.h"
+                    14:    #include    "iodefine.h"
+                    15:    #include    "atacard.h"
+                    16:    
+                    17:    #include "dosaccs.h"
+                    18:    #include "fcntl.h"
+                    19:    
+                    20:    extern  ROOTDIR_BUFFER  rootdir_buffer;         /*ルート・ディレクトリー情報*/
+                    21:    extern  FAT_BUFFER              fat_buffer;                     /*ＦＡＴ情報*/
+                    22:    extern  CLUSTER_BUFFER  cluster_buffer;         /*クラスター情報*/
+                    23:    
+                    24:    extern  BPB     root_bpb[MAX_DRIVE];
+                    25:    extern  FCB     root_fcb[MAX_FCB];
+                    26:    
+                    27:    #define MAX_RETRY       400000L
+                    28:    
+                    29:    /*******************************************************************
+                    30:            このファイルには物理アクセスルーティンを
+                    31:            いれている
+                    32:            論理アクセス部は、パーティション情報を元にアクセスする
+                    33:    *******************************************************************/
+                    34:    
+                    35:    /***************************************************************************
+                    36:    
+                    37:            CE2#    CE1#    A0              Offset  Data Bus
+                    38:    *        L               L              L               0H,8H   D15-D0          Word Data
+                    39:    *        L               L              H               1H,9H   D15-D0          Word Data
+                    40:             H               L              L               0H,8H   D7-D0           Even Byte Data
+                    41:             H               L              H               9H              D7-D0           Odd Byte Data
+                    42:    *        L               H              X               8H,9H   D15-D8          Odd Byte Data
+                    43:             H               L              H               1H,0Dh  D7-D0           Error/Feature 
+                    44:    *        L               H              X               0H,1H   D15-D8          Error/Feature
+                    45:    *        L               L              X               0CH,0DH D15-D8          Error/Feature
+                    46:    
+                    47:                            * = This Board is Not used
+                    48:    
+                    49:            I/O Mapped Addressing
+                    50:    
+                    51:                                    Primary Secondary       Contiguous      IORD#=0                 IOWR#=0
+                    52:                    REG#    A9::0   A9::0                   A3::0
+                    53:                     L              1F0h    170h                    0h              Even Read Data  Even Write Data
+                    54:                     L              1F1h    171h                    1h              Error Register  Feature
+                    55:                     L              1F2h    172h                    2h              Sector Count    Sector Count
+                    56:                     L              1F3h    173h                    3h              Sector Number   Sector Number
+                    57:                     L              1F4h    174h                    4h              Cylinder Low    Cylinder Low
+                    58:                     L              1F5h    175h                    5h              Cylinder High   Cylinder High
+                    59:                     L              1F6h    176h                    6h              Drive/Head              Drive/Head
+                    60:                     L              1F7h    177h                    7h              Status                  Command
+                    61:                     L              ---             ---                             8h              Duplicate               Duplicate
+                    62:                                                                                                    Even Read Data  Even Write Data
+                    63:                     L              ---             ---                             9h              Duplicate               Duplicate
+                    64:                                                                                                    Odd Read Data   Odd Write Data
+                    65:                     L              ---             ---                             0Dh             Duplicate Error Duplicate Feature
+                    66:                     L              3F6h    376h                    0Eh             Alternate Status Device Control
+                    67:                     L              3F7h    377h                    0Fh             Drive Address   Reserved
+                    68:    
+                    69:    
+                    70:            Memory Mapped
+                    71:                    REG#    A10     A9::4   A3      A2      A1      A0              OE#=0                   WE#=0
+                    72:                     H               L         X    L       L       L       L               Read Data               Write Data
+                    73:                     H               L         X    L       L       L       H               Error                   Feature
+                    74:                     H               L         X    L       L       H       L               Sector Count    Sector Count
+                    75:                     H               L         X    L       L       H       H               Sector Number   Sector Number
+                    76:                     H               L         X    L       H       L       L               Cylinder Low    Cylynder Low
+                    77:                     H               L         X    L       H       L       H               Cylinder High   Cylynder High
+                    78:                     H               L         X    L       H       H       L               Drive/Head              Drive/Head
+                    79:                     H               L         X    L       H       H       H               Status                  Command
+                    80:                     H               L         X    H       L       L       L               Duplicate Even  Duplicate Even
+                    81:                                                                                                    Read Data               Write Data
+                    82:                     H               L         X    H       L       L       H               Duplicate Odd   Duplicate Odd
+                    83:                                                                                                    Read Data               Write Data
+                    84:                     H               L         X    H       L       H       L               
+                    85:                     H               L         X    H       L       H       H               
+                    86:                     H               L         X    H       H       L       L
+                    87:                     H               L         X    H       H       L       H
+                    88:                     H               L         X    H       H       H       L               Alt Status              Device Ctl
+                    89:                     H               L         X    H       H       H       H               Drive Address   Reserved
+                    90:    
+                    91:                     H               H         X    X       X       X       L               Even Read Data  Even Write Data
+                    92:                     H               H         X    X       X       X       H               Odd Read Data   Odd Write Data
+                    93:    
+                    94:    
+                    95:    
+                    96:            Command Block Cylinder-Head-Sector Addressing
+                    97:    
+                    98:                    +1      Feautre
+                    99:                    +2      Sector Count
+                   100:                    +3      Sector Number
+                   101:                    +4      Cylinder Low
+                   102:                    +5      Cylinder High
+                   103:                    +6      101<Drv><Head>
+                   104:                    +7      Command
+                   105:    
+                   106:            Command Block Logical Block Addressing
+                   107:            
+                   108:                    +1      Feature
+                   109:                    +2      Sector Count
+                   110:                    +3      LBN A7-A0
+                   111:                    +4      LBN A15-A8
+                   112:                    +5      LBN     A23-A16
+                   113:                    +6      111<Drv><LBN A27-A24>
+                   114:                    +7      Command
+                   115:                    
+                   116:                    LBA = ( C*HpC + H ) * SpH + S-1         : Logical Block Address
+                   117:                    C = LBA/( HpC * SpH )                           : Cylinder Number
+                   118:                    H = (LBA/SpH) mod HpC                           : Head Number
+                   119:                    S = (LBA mod SpH)+1                                     : Sector Number
+                   120:                                                                            HpC     : Heads per Cylinder
+                   121:                                                                            SpH     : Sectors per Head(Track)
+                   122:    
+                   123:    
+                   124:            Drive/Head Register
+                   125:                    b7   b6   b5   b4   b3   b2   b1   b0
+                   126:                     1   LBA   1   DRV  --- HEAD/LBA ----
+                   127:                                    LBA = 1..LBA mode, 0..CHS mode
+                   128:    
+                   129:            Status And Alternate Status
+                   130:                    b7   b6   b5   b4   b3   b2   b1   b0
+                   131:                    BSY  DRDY DWF  DSC  DRQ  CORR IDX  ERR
+                   132:    
+                   133:                            IDX = ANSI ATA Standard
+                   134:                            DWF = Drive Write Failute
+                   135:    
+                   136:            Device Control Register
+                   137:                    b7   b6   b5   b4   b3   b2   b1   b0
+                   138:                    --   --   --   --   --  SRST nlEN  --
+                   139:    
+                   140:                            nlEN = I/O interface mode only, negated unless enable
+                   141:                            SRST = Software Reset Bit
+                   142:    
+                   143:            Drive Address Register
+                   144:                    b7   b6   b5   b4   b3   b2   b1   b0
+                   145:                    --  nWTG nHS3 nHS2 nHS1 nHS0 nDS1 nDS0
+                   146:    
+                   147:                            nWTG = 0... While a write operation is in progress.
+                   148:    
+                   149:    
+                   150:    *************************************************************************/
+                   151:    
+                   152:    /************************************************************************
+                   153:            DISK Data structure
+                   154:    
+                   155:                    offset  size            description
+                   156:                    000h    446                     Boot code
+                   157:                    1BEh    16                      Partition Entry
+                   158:                    1CEh    16                      Partition Entry
+                   159:                    1DEh    16                      Partition Entry
+                   160:                    1EEh    16                      Partition Entry
+                   161:                    1FEh    2                       Signature 0x55AA
+                   162:    
+                   163:    
+                   164:            Paritition Entry
+                   165:    
+                   166:                    offset  size            description
+                   167:                    00h             1                       X86 default boot parition
+                   168:                                                            00h=Not Default boot partition
+                   169:                                                            80h = Default boot partition
+                   170:                    01h             1                       StartHead Zero-based head number
+                   171:                    02h             1                       Start Sector bits0...5 = one-based sector number
+                   172:                                                                                     bits6...7 = zero based cylinder number
+                   173:                    03h             1                       Start Cylinder zero-based cylinder number
+                   174:                    04h             1                       Partition type
+                   175:                                                                    00h:Unknown or delted if num sector is zero
+                   176:                                                                    01h:MS-DOS 12 bit BPB/FAT < 16MB
+                   177:                                                                    04h:MS-DOS 16 bit BPB/FAT < 32MB
+                   178:                                                                    05h:Extended MS-DOS Partition
+                   179:                                                                    06h:MS-DOS 16 bit BPB/FAT >= 32MB
+                   180:                    05h             1                       End Head Zero-based head number
+                   181:                    06h             1                       End Sector   bits0...5 = one-based sector number
+                   182:                                                                                             6...7 = zero-based cylinder number
+                   183:                    07h             1                       End Cylinder zero-based cylinder number
+                   184:                    08h             4                       Start Sector(relative to beginning of media or extended MS-DOS Partition )
+                   185:                    0Ch             4                       NumSectors
+                   186:    
+                   187:    
+                   188:            Cluster Code in FAT
+                   189:                    (0)000h                         Available or unallocated cluster
+                   190:                    (0)001h                         Reserved, do not use this
+                   191:                    (0)002h..(F)FF6h        Next cluster 
+                   192:                    (F)FF7h                         Bad Cluster
+                   193:                    (F)FF8h..(F)FFFh        last cluster
+                   194:    
+                   195:            BPB Record
+                   196:    
+                   197:                    offset  size            description
+                   198:                    000h    3                       JMP Instruction
+                   199:                    003h    8                       OEM Name and version
+                   200:                    00Bh    25                      BIOS Parameter Block
+                   201:                    024h    1                       Drive Number (00h=Floppy, 80h=Fixed)
+                   202:                    025h    1                       Reserved 
+                   203:                    026h    1                       ExtBootSignature 0x29
+                   204:                    027h    4                       Volume ID or Serial Number
+                   205:                    02Bh    11                      Volume Label  Ascii Characters(Padded Space)
+                   206:                    036h    8                       File Sys Type (Padded Space)
+                   207:                                                                    'FAT12   '              12bit FAT File Allocation
+                   208:                                                                    'FAT16   '              16bit FAT File Allocation
+                   209:                    03Eh    448                     Boot Code
+                   210:                    1FEh    2                       Signature 0x55AA
+                   211:    
+                   212:    
+                   213:            BIOS Parameter Block
+                   214:    
+                   215:                    offset  size            description
+                   216:                    000h    2                       Bytes Per Sector
+                   217:                    002h    1                       Sectors Per Cluster
+                   218:                    003h    2                       Reserved Sectors
+                   219:                    005h    1                       NumFATs
+                   220:                    006h    2                       RootDirEntries
+                   221:                    008h    2                       TotalSectors
+                   222:                                                                    0 is Huge Total Sectors field
+                   223:                    00Ah    1                       MediaID Byte
+                   224:                                                                    0F0h    Various types of media
+                   225:                                                                    0F8h    Hard Disk
+                   226:                                                                    0F9h    720K 3.5' or 1.2M 5.25'
+                   227:                                                                    0FAh    320K 5.25'
+                   228:                                                                    0FBh    640K 3.5'
+                   229:                                                                    0FCh    180K 5.25'
+                   230:                                                                    0FDh    360K 5.25'
+                   231:                                                                    0FEh    160K 5.25'
+                   232:                                                                    0FFh    320K 5.25'
+                   233:                    00Bh    2                       NumFATSectors
+                   234:                    00Dh    2                       Sectors per Track
+                   235:                    00Fh    2                       NumHeads
+                   236:                    011h    4                       Hidden Sectors
+                   237:                    015h    4                       Huge Sectors 
+                   238:    
+                   239:    ***************************************************************************/
+                   240:    
+                   241:    extern  unsigned short  ide_error;
+                   242:    extern  short   dosaccs_target_run;
+                   243:    
+                   244:    /***************************************************************
+                   245:                    割り込み処理
+                   246:                            IDE_STATUS
+                   247:                                    b7 : BUSY
+                   248:                                    b6 : Drive Ready
+                   249:                                    b5 : Drive Write Fault
+                   250:                                    b4 : Drive Seek Complete
+                   251:                                    b3 : Data Request
+                   252:                                    b2 : Corrected Data(Recovered Error)
+                   253:                                    b1 : 0
+                   254:                                    b0 : Error
+                   255:                            IDE_ERROR
+                   256:                                    b7 : Bad Block Detected
+                   257:                                    b6 : Uncorrectable Data Error
+                   258:                                    b5 : 0
+                   259:                                    b4 : ID Not Found
+                   260:                                    b3 : 0
+                   261:                                    b2 : Aborted Command
+                   262:                                    b1 : 0
+                   263:                                    b0 : Address Mark Not Found
+                   264:    ****************************************************************/
+                   265:    void PC_intr( void )
+    000000              _PC_intr:                        ; function: PC_intr
+                   266:    {
+                   267:                    INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    000000 7FF57200               BCLR.B      #0,@16777205:8
+                   268:                    ide_error = 0x40;
+    000004 79000040               MOV.W       #64:16,R0
+    000008 6BA000                 MOV.W       R0,@_ide_error:24
+           <000000>     
+                   269:    }
+    00000E 5470                   RTS
+                   270:    
+                   271:    /***************************************************************
+                   272:            ハードディスクの物理セクター読み込み
+                   273:    
+                   274:            INPUT:
+                   275:                    cyliner = 0...  読み込みシリンダー番号
+                   276:                    head = 0...             読み込みヘッド番号
+                   277:                    sector = 0...   読み込みセクター
+                   278:                    num = 1...              読み込みセクター数
+                   279:    
+                   280:                    buffer =                読み込みバッファーアドレス
+                   281:    
+                   282:            RETURN:
+                   283:                    0 = 読み込み正常
+                   284:                    other = 読み込みエラーステータス
+                   285:    ***************************************************************/
+                   286:    int     ide_sector_read( long sector, short num, unsigned char *buff )
+    000010              _ide_sector_read:                ; function: ide_sector_read
+    000010 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000014 7A37000000             SUB.L       #12:32,SP
+           0C           
+                   287:    {
+    00001A 7A04                   MOV.L       #_ide_error:32,ER4
+           <00000000>   
+    000020 7A06002000             MOV.L       #2097152:32,ER6
+           00           
+    000026 01006FF000             MOV.L       ER0,@(4:16,SP)
+           04           
+    00002C 6FF10008               MOV.W       R1,@(8:16,SP)
+    000030 01006F7500             MOV.L       @(36:16,SP),ER5
+           24           
+                   288:                    int             i;
+                   289:                    long    li;
+                   290:                    ATA_STATUS      status;
+                   291:                    union {
+                   292:                            long    ldata;
+                   293:                            char    cdata[4];
+                   294:                    } data;
+                   295:                    
+                   296:    
+                   297:                    if( ATA_CARD.READ.Status.ata_stat.DSC==0 ){
+    000036 6E6A0007               MOV.B       @(7:16,ER6),R2L
+    00003A 774A                   BLD.B       #4,R2L
+    00003C 58400160               BCC         L305:16
+                   298:                            return( SECTOR_NG );            // Card Not Found
+                   299:                    }
+                   300:                    if( ATA_CARD.READ.Status.ata_stat.RDY==0 ){
+    000040 6E680007               MOV.B       @(7:16,ER6),R0L
+    000044 7768                   BLD.B       #6,R0L
+    000046 4508                   BCS         L219:8
+                   301:                            return( SECTOR_NOINIT );        /*ドライブの準備ができていない*/
+    000048 79008000               MOV.W       #-32768:16,R0
+    00004C 5A                     JMP         @L218:24
+           <000000>     
+    000050              L219:                             
+                   302:                    }
+                   303:    
+                   304:                    // Busy Check
+                   305:                    for( li=0; li<MAX_RETRY; li++ ){
+    000050 1AB3                   SUB.L       ER3,ER3
+    000052 4014                   BRA         L221:8
+    000054              L220:                             
+                   306:                            if( dosaccs_target_run ){
+    000054 6B2000                 MOV.W       @_dosaccs_target_run:24,R0
+           <000000>     
+    00005A 4704                   BEQ         L222:8
+                   307:                                    WatchDogReset();
+    00005C 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    000060              L222:                             
+                   308:                            }
+                   309:    
+                   310:                            if( ATA_CARD.READ.Status.ata_stat.BUSY==0 )
+    000060 6E680007               MOV.B       @(7:16,ER6),R0L
+    000064 4A0A                   BPL         L224:8
+                   311:                                    break;
+    000066 0B73                   INC.L       #1,ER3
+    000068              L221:                             
+    000068 7A2300061A             CMP.L       #400000:32,ER3
+           80           
+    00006E 4DE4                   BLT         L220:8
+    000070              L224:                             
+                   312:                    }
+                   313:                    if( ATA_CARD.READ.Status.ata_stat.BUSY )
+    000070 6E680007               MOV.B       @(7:16,ER6),R0L
+    000074 58B00128               BMI         L305:16
+                   314:                            return( SECTOR_NG );
+                   315:    
+                   316:                    /* 割り込み処理用バッファーを設定する */
+                   317:                    ide_error = 0;
+    000078 1900                   SUB.W       R0,R0
+    00007A 69C0                   MOV.W       R0,@ER4
+                   318:    
+                   319:                    data.ldata = sector;
+    00007C 01006F7000             MOV.L       @(4:16,SP),ER0
+           04           
+    000082 6EF00002               MOV.B       R0H,@(2:16,SP)
+    000086 6EF80003               MOV.B       R0L,@(3:16,SP)
+    00008A 0D80                   MOV.W       E0,R0
+    00008C 68F0                   MOV.B       R0H,@SP
+    00008E 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   320:    
+                   321:                    /* コマンド発行 */
+                   322:                                    /* ダミービットセット */
+                   323:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.dummy1 = 1;
+    000092 1A80                   SUB.L       ER0,ER0
+    000094 F806                   MOV.B       #6:8,R0L
+    000096 0AE0                   ADD.L       ER6,ER0
+    000098 7D007070               BSET.B      #7,@ER0
+                   324:                                    /* LBAモード選択 */
+                   325:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.LBA = 1;
+    00009C 1A80                   SUB.L       ER0,ER0
+    00009E F806                   MOV.B       #6:8,R0L
+    0000A0 0AE0                   ADD.L       ER6,ER0
+    0000A2 7D007060               BSET.B      #6,@ER0
+                   326:                                    /* ダミービットセット */
+                   327:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.dummy2 = 1;
+    0000A6 1A80                   SUB.L       ER0,ER0
+    0000A8 F806                   MOV.B       #6:8,R0L
+    0000AA 0AE0                   ADD.L       ER6,ER0
+    0000AC 7D007050               BSET.B      #5,@ER0
+                   328:                                    /* ATAドライブ番号セット(0固定) */
+                   329:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.DRV = 0;
+    0000B0 1A80                   SUB.L       ER0,ER0
+    0000B2 F806                   MOV.B       #6:8,R0L
+    0000B4 0AE0                   ADD.L       ER6,ER0
+    0000B6 7D007240               BCLR.B      #4,@ER0
+                   330:                                    /* LBA27-LBA24 */
+                   331:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.HS = data.cdata[0];
+    0000BA 0FF3                   MOV.L       SP,ER3
+    0000BC 6838                   MOV.B       @ER3,R0L
+    0000BE 6E600006               MOV.B       @(6:16,ER6),R0H
+    0000C2 E0F0                   AND.B       #-16:8,R0H
+    0000C4 E80F                   AND.B       #15:8,R0L
+    0000C6 1480                   OR.B        R0L,R0H
+    0000C8 6EE00006               MOV.B       R0H,@(6:16,ER6)
+                   332:                                    /* LBA23-LBA16 */
+                   333:                    ATA_CARD.WRITE.CylinderHigh = data.cdata[1];
+    0000CC 6E380001               MOV.B       @(1:16,ER3),R0L
+    0000D0 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   334:                                    /* LBA15-8 */
+                   335:                    ATA_CARD.WRITE.CylinderLow = data.cdata[2];
+    0000D4 6E380002               MOV.B       @(2:16,ER3),R0L
+    0000D8 6EE80004               MOV.B       R0L,@(4:16,ER6)
+                   336:                                    /* LBA7-0 */
+                   337:                    ATA_CARD.WRITE.SectorNumber = data.cdata[3];
+    0000DC 6E3B0003               MOV.B       @(3:16,ER3),R3L
+    0000E0 6EEB0003               MOV.B       R3L,@(3:16,ER6)
+                   338:                                    /* リードセクタカウント数セット */
+                   339:                    ATA_CARD.WRITE.SectorCount = num;
+    0000E4 6E780009               MOV.B       @(9:16,SP),R0L
+    0000E8 6EE80002               MOV.B       R0L,@(2:16,ER6)
+                   340:                                    /* リードセクタコマンドセット */
+                   341:                    ATA_CARD.WRITE.Command = PC_ATA_CMD_RDSEC;
+    0000EC F820                   MOV.B       #32:8,R0L
+    0000EE 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   342:    
+                   343:                    while( num ){
+    0000F2 5A                     JMP         @L227:24
+           <000000>     
+    0000F6              L226:                             
+                   344:                            INTC.IER.BIT.IRQ0E = 1;         /* IRQ0 Enable */
+    0000F6 7FF57000               BSET.B      #0,@16777205:8
+                   345:                            /* 割り込み処理待ち */
+                   346:                            for( li=0; li<MAX_RETRY; li++ ){
+    0000FA 1AB3                   SUB.L       ER3,ER3
+    0000FC 402C                   BRA         L229:8
+    0000FE              L228:                             
+                   347:                                    if( dosaccs_target_run ){
+    0000FE 6B2000                 MOV.W       @_dosaccs_target_run:24,R0
+           <000000>     
+    000104 4704                   BEQ         L230:8
+                   348:                                            WatchDogReset();
+    000106 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    00010A              L230:                             
+                   349:                                    }
+                   350:    
+                   351:                                    if( ide_error )
+    00010A 6940                   MOV.W       @ER4,R0
+    00010C 4624                   BNE         L232:8
+                   352:                                            break;                  // 割り込み有り
+                   353:                                    if( ATA_CARD.READ.Status.ata_stat.DRQ )
+    00010E 6E680007               MOV.B       @(7:16,ER6),R0L
+    000112 7738                   BLD.B       #3,R0L
+    000114 451C                   BCS         L232:8
+                   354:                                            break;                  // データ転送準備完了
+                   355:                                    if( ATA_CARD.READ.Status.ata_stat.ERR ){        /*エラー発生*/
+    000116 6E680007               MOV.B       @(7:16,ER6),R0L
+    00011A 7708                   BLD.B       #0,R0L
+    00011C 440A                   BCC         L234:8
+                   356:                                            ide_error = ATA_CARD.READ.Dup_Error.Code;
+    00011E 6E68000D               MOV.B       @(13:16,ER6),R0L
+    000122 1750                   EXTU.W      R0
+    000124 69C0                   MOV.W       R0,@ER4
+                   357:                                            break;
+    000126 400A                   BRA         L232:8
+    000128              L234:                             
+    000128 0B73                   INC.L       #1,ER3
+    00012A              L229:                             
+    00012A 7A2300061A             CMP.L       #400000:32,ER3
+           80           
+    000130 4DCC                   BLT         L228:8
+    000132              L232:                             
+                   358:                                    }
+                   359:                            }
+                   360:                            INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    000132 7FF57200               BCLR.B      #0,@16777205:8
+                   361:    
+                   362:                            if( li==MAX_RETRY ){
+    000136 7A2300061A             CMP.L       #400000:32,ER3
+           80           
+    00013C 4606                   BNE         L235:8
+                   363:                                    ide_error = 0x02;
+    00013E 79000002               MOV.W       #2:16,R0
+                   364:                                    break;
+    000142 4012                   BRA         L306:8
+    000144              L235:                             
+                   365:                            }
+                   366:    
+                   367:                            status.Code = ATA_CARD.READ.Status.Code;        /*ＨＤＤコントローラー割り込み要因クリア*/
+    000144 6E680007               MOV.B       @(7:16,ER6),R0L
+    000148 6EF8000B               MOV.B       R0L,@(11:16,SP)
+                   368:                            if( status.ata_stat.ERR ){      /*エラー発生*/
+    00014C 7708                   BLD.B       #0,R0L
+    00014E 440A                   BCC         L237:8
+                   369:                                    ide_error = ATA_CARD.READ.Dup_Error.Code;
+    000150 6E68000D               MOV.B       @(13:16,ER6),R0L
+    000154 1750                   EXTU.W      R0
+                   370:                                    break;
+    000156              L306:                             
+    000156 69C0                   MOV.W       R0,@ER4
+    000158 403A                   BRA         L236:8
+    00015A              L237:                             
+                   371:                            }
+                   372:                            if( status.ata_stat.BUSY ){             /*まだ、ＢＵＳＹのとき*/
+    00015A 6E78000B               MOV.B       @(11:16,SP),R0L
+    00015E 4B2C                   BMI         L227:8
+                   373:                                    continue;
+                   374:                            }
+                   375:                            if( status.ata_stat.DRQ==0 ){   /* DRQ off */
+    000160 6E78000B               MOV.B       @(11:16,SP),R0L
+    000164 7738                   BLD.B       #3,R0L
+    000166 4424                   BCC         L227:8
+                   376:                                    continue;
+                   377:                            }
+                   378:    
+                   379:                            for( i=0; i<SECTOR_BYTES; i+=2 ){
+    000168 1933                   SUB.W       R3,R3
+    00016A              L240:                             
+                   380:                                    *buff++ = ATA_CARD.READ.Dup_evenRD;     /* DATA READ */
+    00016A 6E680008               MOV.B       @(8:16,ER6),R0L
+    00016E 68D8                   MOV.B       R0L,@ER5
+    000170 0B75                   INC.L       #1,ER5
+                   381:                                    *buff++ = ATA_CARD.READ.Dup_oddRD;      /* DATA READ */
+    000172 6E680009               MOV.B       @(9:16,ER6),R0L
+    000176 68D8                   MOV.B       R0L,@ER5
+    000178 0B75                   INC.L       #1,ER5
+    00017A 0BD3                   INC.W       #2,R3
+    00017C 79230200               CMP.W       #512:16,R3
+    000180 4DE8                   BLT         L240:8
+                   382:                            }
+                   383:                            num--;
+    000182 6F700008               MOV.W       @(8:16,SP),R0
+    000186 1B50                   DEC.W       #1,R0
+    000188 6FF00008               MOV.W       R0,@(8:16,SP)
+    00018C              L227:                             
+    00018C 6F700008               MOV.W       @(8:16,SP),R0
+    000190 5860FF62               BNE         L226:16
+    000194              L236:                             
+                   384:                    }
+                   385:                    INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    000194 7FF57200               BCLR.B      #0,@16777205:8
+                   386:    
+                   387:                    if( ide_error==0 ){
+    000198 6940                   MOV.W       @ER4,R0
+    00019A 4604                   BNE         L241:8
+                   388:                            return( SECTOR_OK );
+    00019C 1900                   SUB.W       R0,R0
+    00019E 4004                   BRA         L218:8
+    0001A0              L241:                             
+                   389:                    }
+                   390:                    return( SECTOR_NG );
+                   391:    }
+    0001A0              L305:                             
+    0001A0 79002000               MOV.W       #8192:16,R0
+    0001A4              L218:                             
+    0001A4 7A17000000             ADD.L       #12:32,SP
+           0C           
+    0001AA 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   392:    
+                   393:    
+                   394:    /***************************************************************
+                   395:            ハードディスクの物理セクター書き込み
+                   396:    
+                   397:            INPUT:
+                   398:                    cyliner = 0...  書き込みシリンダー番号
+                   399:                    head = 0...             書き込みヘッド番号
+                   400:                    sector = 0...   書き込みセクター
+                   401:                    num = 1...              書き込みセクター数
+                   402:    
+                   403:                    buffer =                書き込みバッファーアドレス
+                   404:    
+                   405:            RETURN:
+                   406:                    0 = 書き込み正常
+                   407:                    other = 書き込みエラーステータス
+                   408:    ***************************************************************/
+                   409:    int     ide_sector_write( long sector, short num, unsigned char *buff )
+    0001AE              _ide_sector_write:               ; function: ide_sector_write
+    0001AE 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    0001B2 7A37000000             SUB.L       #12:32,SP
+           0C           
+                   410:    {
+    0001B8 7A05                   MOV.L       #_ide_error:32,ER5
+           <00000000>   
+    0001BE 7A06002000             MOV.L       #2097152:32,ER6
+           00           
+    0001C4 0F82                   MOV.L       ER0,ER2
+    0001C6 6FF10008               MOV.W       R1,@(8:16,SP)
+    0001CA 01006F7300             MOV.L       @(36:16,SP),ER3
+           24           
+                   411:                    int             i;
+                   412:                    long    li;
+                   413:                    ATA_STATUS      status;
+                   414:                    union {
+                   415:                            long    ldata;
+                   416:                            char    cdata[4];
+                   417:                    } data;
+                   418:    
+                   419:                    if( PB.DR.BIT.B5 ){             /* Write protected */
+    0001D0 7ED67750               BLD.B       #5,@16777174:8
+    0001D4 5850017E               BCS         L309:16
+                   420:                            return( SECTOR_NG );
+                   421:                    }
+                   422:                    if( ATA_CARD.READ.Status.ata_stat.DSC==0 ){
+    0001D8 6E680007               MOV.B       @(7:16,ER6),R0L
+    0001DC 7748                   BLD.B       #4,R0L
+    0001DE 58400174               BCC         L309:16
+                   423:                            return( SECTOR_NG );            // Card Not Found
+                   424:                    }
+                   425:                    if( ATA_CARD.READ.Status.ata_stat.RDY==0 ){
+    0001E2 6E680007               MOV.B       @(7:16,ER6),R0L
+    0001E6 7768                   BLD.B       #6,R0L
+    0001E8 4508                   BCS         L245:8
+                   426:                            return( SECTOR_NOINIT );        /*ドライブの準備ができていない*/
+    0001EA 79008000               MOV.W       #-32768:16,R0
+    0001EE 5A                     JMP         @L243:24
+           <000000>     
+    0001F2              L245:                             
+                   427:                    }
+                   428:    
+                   429:                    // Busy Check
+                   430:                    for( li=0; li<MAX_RETRY; li++ ){
+    0001F2 1AC4                   SUB.L       ER4,ER4
+    0001F4 4014                   BRA         L247:8
+    0001F6              L246:                             
+                   431:                            if( dosaccs_target_run ){
+    0001F6 6B2000                 MOV.W       @_dosaccs_target_run:24,R0
+           <000000>     
+    0001FC 4704                   BEQ         L248:8
+                   432:                                    WatchDogReset();
+    0001FE 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    000202              L248:                             
+                   433:                            }
+                   434:    
+                   435:                            if( ATA_CARD.READ.Status.ata_stat.BUSY==0 )
+    000202 6E680007               MOV.B       @(7:16,ER6),R0L
+    000206 4A0A                   BPL         L250:8
+                   436:                                    break;
+    000208 0B74                   INC.L       #1,ER4
+    00020A              L247:                             
+    00020A 7A2400061A             CMP.L       #400000:32,ER4
+           80           
+    000210 4DE4                   BLT         L246:8
+    000212              L250:                             
+                   437:                    }
+                   438:                    if( ATA_CARD.READ.Status.ata_stat.BUSY )
+    000212 6E680007               MOV.B       @(7:16,ER6),R0L
+    000216 58B0013C               BMI         L309:16
+                   439:                            return( SECTOR_NG );
+                   440:    
+                   441:                    /* 割り込み処理用バッファーを設定する */
+                   442:                    ide_error = 0;
+    00021A 1900                   SUB.W       R0,R0
+    00021C 69D0                   MOV.W       R0,@ER5
+                   443:    
+                   444:                    data.ldata = sector;
+    00021E 0FA0                   MOV.L       ER2,ER0
+    000220 6EF00002               MOV.B       R0H,@(2:16,SP)
+    000224 6EF80003               MOV.B       R0L,@(3:16,SP)
+    000228 0D80                   MOV.W       E0,R0
+    00022A 68F0                   MOV.B       R0H,@SP
+    00022C 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   445:    
+                   446:                    /* コマンド発行 */
+                   447:                                    /* ダミービットセット */
+                   448:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.dummy1 = 1;
+    000230 1A80                   SUB.L       ER0,ER0
+    000232 F806                   MOV.B       #6:8,R0L
+    000234 0AE0                   ADD.L       ER6,ER0
+    000236 7D007070               BSET.B      #7,@ER0
+                   449:                                    /* LBAモード選択 */
+                   450:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.LBA = 1;
+    00023A 1A80                   SUB.L       ER0,ER0
+    00023C F806                   MOV.B       #6:8,R0L
+    00023E 0AE0                   ADD.L       ER6,ER0
+    000240 7D007060               BSET.B      #6,@ER0
+                   451:                                    /* ダミービットセット */
+                   452:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.dummy2 = 1;
+    000244 1A80                   SUB.L       ER0,ER0
+    000246 F806                   MOV.B       #6:8,R0L
+    000248 0AE0                   ADD.L       ER6,ER0
+    00024A 7D007050               BSET.B      #5,@ER0
+                   453:                                    /* ATAドライブ番号セット(0固定) */
+                   454:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.DRV = 0;
+    00024E 1A80                   SUB.L       ER0,ER0
+    000250 F806                   MOV.B       #6:8,R0L
+    000252 0AE0                   ADD.L       ER6,ER0
+    000254 7D007240               BCLR.B      #4,@ER0
+                   455:                                    /* LBA27-LBA24 */
+                   456:                    ATA_CARD.WRITE.SelectCard_head.ata_drv_hd.HS = data.cdata[0];
+    000258 0FF4                   MOV.L       SP,ER4
+    00025A 6848                   MOV.B       @ER4,R0L
+    00025C 6E600006               MOV.B       @(6:16,ER6),R0H
+    000260 E0F0                   AND.B       #-16:8,R0H
+    000262 E80F                   AND.B       #15:8,R0L
+    000264 1480                   OR.B        R0L,R0H
+    000266 6EE00006               MOV.B       R0H,@(6:16,ER6)
+                   457:                                    /* LBA23-LBA16 */
+                   458:                    ATA_CARD.WRITE.CylinderHigh = data.cdata[1];
+    00026A 6E480001               MOV.B       @(1:16,ER4),R0L
+    00026E 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                   459:                                    /* LBA15-8 */
+                   460:                    ATA_CARD.WRITE.CylinderLow = data.cdata[2];
+    000272 6E480002               MOV.B       @(2:16,ER4),R0L
+    000276 6EE80004               MOV.B       R0L,@(4:16,ER6)
+                   461:                                    /* LBA7-0 */
+                   462:                    ATA_CARD.WRITE.SectorNumber = data.cdata[3];
+    00027A 6E4C0003               MOV.B       @(3:16,ER4),R4L
+    00027E 6EEC0003               MOV.B       R4L,@(3:16,ER6)
+                   463:                                    /* ライトセクタカウント数セット */
+                   464:                    ATA_CARD.WRITE.SectorCount = num;
+    000282 6E780009               MOV.B       @(9:16,SP),R0L
+    000286 6EE80002               MOV.B       R0L,@(2:16,ER6)
+                   465:                                    /* ライトセクタコマンドセット */
+                   466:                    ATA_CARD.WRITE.Command = PC_ATA_CMD_WRSEC;
+    00028A F830                   MOV.B       #48:8,R0L
+    00028C 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   467:    
+                   468:                    while( num ){
+    000290 5A                     JMP         @L253:24
+           <000000>     
+    000294              L252:                             
+                   469:                            status.Code = ATA_CARD.READ.Status.Code;        /*ＨＤＤコントローラー割り込み要因クリア*/
+    000294 6E680007               MOV.B       @(7:16,ER6),R0L
+    000298 6EF8000B               MOV.B       R0L,@(11:16,SP)
+                   470:                            if( status.ata_stat.ERR ){      /*エラー発生*/
+    00029C 7708                   BLD.B       #0,R0L
+    00029E 440A                   BCC         L254:8
+                   471:                                    ide_error = ATA_CARD.READ.Dup_Error.Code;
+    0002A0 6E68000D               MOV.B       @(13:16,ER6),R0L
+    0002A4 1750                   EXTU.W      R0
+                   472:                                    break;
+    0002A6 5A                     JMP         @L311:24
+           <000000>     
+    0002AA              L254:                             
+                   473:                            }
+                   474:                            if( status.ata_stat.BUSY ){             /*まだ、ＢＵＳＹのとき*/
+    0002AA 6E78000B               MOV.B       @(11:16,SP),R0L
+    0002AE 58B00090               BMI         L253:16
+                   475:                                    continue;
+                   476:                            }
+                   477:                            if( status.ata_stat.DRQ==0 ){   /* DRQ off */
+    0002B2 6E78000B               MOV.B       @(11:16,SP),R0L
+    0002B6 7738                   BLD.B       #3,R0L
+    0002B8 58400086               BCC         L253:16
+                   478:                                    continue;
+                   479:                            }
+                   480:                            for( i=0; i<SECTOR_BYTES; i+=2 ){
+    0002BC 1944                   SUB.W       R4,R4
+    0002BE              L258:                             
+                   481:                                    ATA_CARD.WRITE.Dup_evenWR = *buff++;    /* DATA WRITE */
+    0002BE 6C38                   MOV.B       @ER3+,R0L
+    0002C0 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                   482:                                    ATA_CARD.WRITE.Dup_oddWR = *buff++;     /* DATA WRITE */
+    0002C4 6C38                   MOV.B       @ER3+,R0L
+    0002C6 6EE80009               MOV.B       R0L,@(9:16,ER6)
+    0002CA 0BD4                   INC.W       #2,R4
+    0002CC 79240200               CMP.W       #512:16,R4
+    0002D0 4DEC                   BLT         L258:8
+                   483:                            }
+                   484:    
+                   485:                            INTC.IER.BIT.IRQ0E = 1;         /* IRQ0 Enable */
+    0002D2 7FF57000               BSET.B      #0,@16777205:8
+                   486:                            /* 割り込み処理待ち */
+                   487:                            for( li=0; li<MAX_RETRY; li++ ){
+    0002D6 1AC4                   SUB.L       ER4,ER4
+    0002D8 4032                   BRA         L260:8
+    0002DA              L259:                             
+                   488:                                    if( dosaccs_target_run ){
+    0002DA 6B2000                 MOV.W       @_dosaccs_target_run:24,R0
+           <000000>     
+    0002E0 4704                   BEQ         L261:8
+                   489:                                            WatchDogReset();
+    0002E2 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    0002E6              L261:                             
+                   490:                                    }
+                   491:    
+                   492:                                    if( ide_error )
+    0002E6 6950                   MOV.W       @ER5,R0
+    0002E8 462A                   BNE         L263:8
+                   493:                                            break;                  // 割り込み有り
+                   494:                                    if( ATA_CARD.READ.Status.ata_stat.DRQ )
+    0002EA 6E680007               MOV.B       @(7:16,ER6),R0L
+    0002EE 7738                   BLD.B       #3,R0L
+    0002F0 4522                   BCS         L263:8
+                   495:                                            break;                  // データ転送準備完了
+                   496:                                    if( ATA_CARD.READ.Status.ata_stat.ERR ){        /*エラー発生*/
+    0002F2 6E680007               MOV.B       @(7:16,ER6),R0L
+    0002F6 7708                   BLD.B       #0,R0L
+    0002F8 440A                   BCC         L265:8
+                   497:                                            ide_error = ATA_CARD.READ.Dup_Error.Code;
+    0002FA 6E68000D               MOV.B       @(13:16,ER6),R0L
+    0002FE 1750                   EXTU.W      R0
+    000300 69D0                   MOV.W       R0,@ER5
+                   498:                                            break;
+    000302 4010                   BRA         L263:8
+    000304              L265:                             
+                   499:                                    }
+                   500:                                    if( ATA_CARD.READ.Status.ata_stat.BUSY==0 )
+    000304 6E680007               MOV.B       @(7:16,ER6),R0L
+    000308 4A0A                   BPL         L263:8
+                   501:                                            break;
+    00030A 0B74                   INC.L       #1,ER4
+    00030C              L260:                             
+    00030C 7A2400061A             CMP.L       #400000:32,ER4
+           80           
+    000312 4DC6                   BLT         L259:8
+    000314              L263:                             
+                   502:                            }
+                   503:                            INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    000314 7FF57200               BCLR.B      #0,@16777205:8
+                   504:                            if( li==MAX_RETRY ){
+    000318 7A2400061A             CMP.L       #400000:32,ER4
+           80           
+    00031E 4606                   BNE         L267:8
+                   505:                                    ide_error = 0x02;
+    000320 79000002               MOV.W       #2:16,R0
+                   506:                                    break;
+    000324 400E                   BRA         L311:8
+    000326              L267:                             
+                   507:                            }
+                   508:                            if( ATA_CARD.READ.Status.ata_stat.ERR ){        /*エラー発生*/
+    000326 6E680007               MOV.B       @(7:16,ER6),R0L
+    00032A 7708                   BLD.B       #0,R0L
+    00032C 440A                   BCC         L268:8
+                   509:                                    ide_error = ATA_CARD.READ.Dup_Error.Code;
+    00032E 6E68000D               MOV.B       @(13:16,ER6),R0L
+    000332 1750                   EXTU.W      R0
+                   510:                                    break;
+    000334              L311:                             
+    000334 69D0                   MOV.W       R0,@ER5
+    000336 4012                   BRA         L255:8
+    000338              L268:                             
+                   511:                            }
+                   512:    
+                   513:                            num--;
+    000338 6F700008               MOV.W       @(8:16,SP),R0
+    00033C 1B50                   DEC.W       #1,R0
+    00033E 6FF00008               MOV.W       R0,@(8:16,SP)
+    000342              L253:                             
+    000342 6F700008               MOV.W       @(8:16,SP),R0
+    000346 5860FF4A               BNE         L252:16
+    00034A              L255:                             
+                   514:                    }
+                   515:                    INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    00034A 7FF57200               BCLR.B      #0,@16777205:8
+                   516:    
+                   517:                    if( ide_error==0 ){
+    00034E 6950                   MOV.W       @ER5,R0
+    000350 4604                   BNE         L269:8
+                   518:                            return( SECTOR_OK );
+    000352 1900                   SUB.W       R0,R0
+    000354 4004                   BRA         L243:8
+    000356              L269:                             
+                   519:                    }
+                   520:                    return( SECTOR_NG );
+                   521:    }
+    000356              L309:                             
+    000356 79002000               MOV.W       #8192:16,R0
+    00035A              L243:                             
+    00035A 7A17000000             ADD.L       #12:32,SP
+           0C           
+    000360 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   522:    
+                   523:    int ide_status( void )
+    000364              _ide_status:                     ; function: ide_status
+                   524:    {
+                   525:                    return( ide_error );
+    000364 6B2000                 MOV.W       @_ide_error:24,R0
+           <000000>     
+                   526:    }
+    00036A 5470                   RTS
+                   527:    
+                   528:    extern  void    (*IRQ0Jump)(void);
+                   529:    
+                   530:    
+                   531:    
+                   532:    /*******************************************************************
+                   533:            ディスクの接続処理
+                   534:    *******************************************************************/
+                   535:    extern  PARTITION_INFO  root_part;
+                   536:    
+                   537:    int mount( short drive )
+    00036C              _mount:                          ; function: mount
+    00036C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000370 7A37000000             SUB.L       #12:32,SP
+           0C           
+                   538:    {
+    000376 7A03                   MOV.L       #_dosaccs_target_run:32,ER3
+           <00000000>   
+    00037C 7A04                   MOV.L       #_root_bpb:32,ER4
+           <00000000>   
+    000382 7A06                   MOV.L       #_cluster_buffer:32,ER6
+           <00000000>   
+                   539:                    int             no;
+                   540:                    long    li;
+                   541:    
+                   542:    drive = 0;
+                   543:                    for( no=0; no<2; no++ ){
+    000388 1911                   SUB.W       R1,R1
+    00038A 0D12                   MOV.W       R1,R2
+    00038C 5A                     JMP         @L272:24
+           <000000>     
+    000390              L271:                             
+                   544:                            if( root_bpb[drive].part==NULL ){
+    000390 6840                   MOV.B       @ER4,R0H
+    000392 6E480001               MOV.B       @(1:16,ER4),R0L
+    000396 0D08                   MOV.W       R0,E0
+    000398 6E400002               MOV.B       @(2:16,ER4),R0H
+    00039C 6E480003               MOV.B       @(3:16,ER4),R0L
+    0003A0 0F80                   MOV.L       ER0,ER0
+    0003A2 4636                   BNE         L273:8
+                   545:                                    PB.DR.BIT.B6=0;                 // SLOT-CS is Selected
+    0003A4 7FD67260               BCLR.B      #6,@16777174:8
+                   546:                                    PB.DR.BIT.B4=1;                 // IORDA = not Active
+    0003A8 7FD67040               BSET.B      #4,@16777174:8
+                   547:                                    PB.DR.BIT.B3=1;                 // IOWRA = not Active
+    0003AC 7FD67030               BSET.B      #3,@16777174:8
+                   548:            
+                   549:                                    PB.DR.BIT.B0=0;
+    0003B0 7FD67200               BCLR.B      #0,@16777174:8
+                   550:                                    PB.DR.BIT.B0=1;
+    0003B4 7FD67000               BSET.B      #0,@16777174:8
+                   551:                                    PB.DR.BIT.B0=0;
+    0003B8 7FD67200               BCLR.B      #0,@16777174:8
+                   552:            
+                   553:                                    PB.DR.BIT.B1=0;                 // Card I/F Reset
+    0003BC 7FD67210               BCLR.B      #1,@16777174:8
+                   554:                                    for( li=0; li<100000L; li++ ){
+    0003C0 7A05000186             MOV.L       #100000:32,ER5
+           A0           
+    0003C6              L274:                             
+                   555:                                            PB.DR.BIT.B1=1;
+    0003C6 7FD67010               BSET.B      #1,@16777174:8
+                   556:                                            if( dosaccs_target_run ){
+    0003CA 6930                   MOV.W       @ER3,R0
+    0003CC 4704                   BEQ         L275:8
+                   557:                                                    WatchDogReset();
+    0003CE 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    0003D2              L275:                             
+    0003D2 1B75                   DEC.L       #1,ER5
+    0003D4 46F0                   BNE         L274:8
+                   558:                                            }
+                   559:                                    }
+                   560:                                    PB.DR.BIT.B1=0;
+    0003D6 7FD67210               BCLR.B      #1,@16777174:8
+    0003DA              L273:                             
+                   561:                            }
+                   562:    
+                   563:    //                      ATA_CARD.WRITE.DeviceCtl.ata_dev_cntl.SW_Rst = 1;
+                   564:    //                      ATA_CARD.WRITE.DeviceCtl.ata_dev_cntl.SW_Rst = 0;
+                   565:    //
+                   566:    //                      ATA_CARD.WRITE.DeviceCtl.ata_dev_cntl.IEn = 1;
+                   567:    //
+                   568:    
+                   569:                            PB.DR.BIT.B2 = 1;               // REG = H
+    0003DA 7FD67020               BSET.B      #2,@16777174:8
+                   570:    
+                   571:                            IRQ0Jump = PC_intr;
+    0003DE 7A00                   MOV.L       #_PC_intr:32,ER0
+           <00000000>   
+    0003E4 01006BA000             MOV.L       ER0,@_IRQ0Jump:24
+           <000000>     
+                   572:    
+                   573:                            ide_error = 0;
+    0003EC 1900                   SUB.W       R0,R0
+    0003EE 6BA000                 MOV.W       R0,@_ide_error:24
+           <000000>     
+                   574:                            INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 Disable */
+    0003F4 7FF57200               BCLR.B      #0,@16777205:8
+                   575:                            if( root_bpb[drive].part==NULL ){
+    0003F8 6840                   MOV.B       @ER4,R0H
+    0003FA 6E480001               MOV.B       @(1:16,ER4),R0L
+    0003FE 0D08                   MOV.W       R0,E0
+    000400 6E400002               MOV.B       @(2:16,ER4),R0H
+    000404 6E480003               MOV.B       @(3:16,ER4),R0L
+    000408 0F80                   MOV.L       ER0,ER0
+    00040A 4620                   BNE         L276:8
+                   576:                                    for( li=0; li<MAX_RETRY; li++ ){
+    00040C 1AD5                   SUB.L       ER5,ER5
+    00040E 4014                   BRA         L278:8
+    000410              L277:                             
+                   577:                                            if( dosaccs_target_run ){
+    000410 6930                   MOV.W       @ER3,R0
+    000412 4704                   BEQ         L279:8
+                   578:                                                    WatchDogReset();
+    000414 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    000418              L279:                             
+                   579:                                            }
+                   580:    
+                   581:                                            if( ATA_CARD.READ.Status.ata_stat.DSC )
+    000418 6A28002000             MOV.B       @2097159:24,R0L
+           07           
+    00041E 7748                   BLD.B       #4,R0L
+    000420 450A                   BCS         L281:8
+                   582:                                                    break;
+    000422 0B75                   INC.L       #1,ER5
+    000424              L278:                             
+    000424 7A2500061A             CMP.L       #400000:32,ER5
+           80           
+    00042A 4DE4                   BLT         L277:8
+    00042C              L281:                             
+    00042C              L276:                             
+                   583:                                    }
+                   584:                            }
+                   585:    
+                   586:                            if( ATA_CARD.READ.Status.ata_stat.DSC )
+    00042C 6A28002000             MOV.B       @2097159:24,R0L
+           07           
+    000432 7748                   BLD.B       #4,R0L
+    000434 4524                   BCS         L283:8
+                   587:                                    break;
+                   588:                            root_bpb[drive].part=NULL;
+    000436 1A80                   SUB.L       ER0,ER0
+    000438 F800                   MOV.B       #0:8,R0L
+    00043A 6EC00002               MOV.B       R0H,@(2:16,ER4)
+    00043E 6EC80003               MOV.B       R0L,@(3:16,ER4)
+    000442 0D80                   MOV.W       E0,R0
+    000444 68C0                   MOV.B       R0H,@ER4
+    000446 6EC80001               MOV.B       R0L,@(1:16,ER4)
+    00044A 0D20                   MOV.W       R2,R0
+    00044C 0B50                   INC.W       #1,R0
+    00044E 0D02                   MOV.W       R0,R2
+    000450              L272:                             
+    000450 0D20                   MOV.W       R2,R0
+    000452 79200002               CMP.W       #2:16,R0
+    000456 58D0FF36               BLT         L271:16
+    00045A              L283:                             
+                   589:                    }
+                   590:    
+                   591:                            /*パーティションテーブルの読み込み*/
+                   592:                    memset( cluster_buffer.buffer, 0, sizeof(cluster_buffer.buffer));
+    00045A 1A80                   SUB.L       ER0,ER0
+    00045C F020                   MOV.B       #32:8,R0H
+    00045E 01006DF0               PUSH.L      ER0
+    000462 1911                   SUB.W       R1,R1
+    000464 1A80                   SUB.L       ER0,ER0
+    000466 F80E                   MOV.B       #14:8,R0L
+    000468 0AE0                   ADD.L       ER6,ER0
+    00046A 5E                     JSR         @_memset:24
+           <000000>     
+    00046E 0B97                   ADDS.L      #4,SP
+                   593:                    if( ide_sector_read( 0, 1, cluster_buffer.buffer )!=SECTOR_OK ){
+    000470 1AA2                   SUB.L       ER2,ER2
+    000472 FA0E                   MOV.B       #14:8,R2L
+    000474 0AE2                   ADD.L       ER6,ER2
+    000476 01006DF2               PUSH.L      ER2
+    00047A 79010001               MOV.W       #1:16,R1
+    00047E 1A80                   SUB.L       ER0,ER0
+    000480 5E                     JSR         @_ide_sector_read:24
+           <000000>     
+    000484 0B97                   ADDS.L      #4,SP
+    000486 0D00                   MOV.W       R0,R0
+    000488 5860035E               BNE         L315:16
+                   594:                            return( -1 );
+                   595:                    }
+                   596:    
+                   597:                            /*パーティションＩＤチェック*/
+                   598:                    if( cluster_buffer.buffer[0x1fe]!=0x55 )
+    00048C 6E68020C               MOV.B       @(524:16,ER6),R0L
+    000490 A855                   CMP.B       #85:8,R0L
+    000492 58600354               BNE         L315:16
+                   599:                            return( -1 );
+                   600:                    if( cluster_buffer.buffer[0x1ff]!=0xAA )
+    000496 6E68020D               MOV.B       @(525:16,ER6),R0L
+    00049A A8AA                   CMP.B       #-86:8,R0L
+    00049C 5860034A               BNE         L315:16
+                   601:                            return( -1 );
+                   602:    
+                   603:                            /*パーティションの先頭を求める*/
+                   604:                    if( cluster_buffer.buffer[0x1ee+4]!=0 ){
+    0004A0 6E680200               MOV.B       @(512:16,ER6),R0L
+    0004A4 4706                   BEQ         L288:8
+                   605:                            no = 0x1ee;
+    0004A6 790501EE               MOV.W       #494:16,R5
+    0004AA 4028                   BRA         L289:8
+    0004AC              L288:                             
+                   606:                    }
+                   607:                    else if( cluster_buffer.buffer[0x1de+4]!=0 ){
+    0004AC 6E6801F0               MOV.B       @(496:16,ER6),R0L
+    0004B0 4706                   BEQ         L290:8
+                   608:                            no = 0x1de;
+    0004B2 790501DE               MOV.W       #478:16,R5
+    0004B6 401C                   BRA         L291:8
+    0004B8              L290:                             
+                   609:                    }
+                   610:                    else if( cluster_buffer.buffer[0x1ce+4]!=0 ){
+    0004B8 6E6801E0               MOV.B       @(480:16,ER6),R0L
+    0004BC 4706                   BEQ         L292:8
+                   611:                            no = 0x1ce;
+    0004BE 790501CE               MOV.W       #462:16,R5
+    0004C2 4010                   BRA         L293:8
+    0004C4              L292:                             
+                   612:                    }
+                   613:                    else if( cluster_buffer.buffer[0x1be+4]!=0 ){
+    0004C4 6E6801D0               MOV.B       @(464:16,ER6),R0L
+    0004C8 4706                   BEQ         L294:8
+                   614:                            no = 0x1be;
+    0004CA 790501BE               MOV.W       #446:16,R5
+    0004CE 4004                   BRA         L295:8
+    0004D0              L294:                             
+                   615:                    }
+                   616:                    else {
+                   617:                            return( -1 );
+    0004D0 5A                     JMP         @L315:24
+           <000000>     
+    0004D4              L295:                             
+    0004D4              L293:                             
+    0004D4              L291:                             
+    0004D4              L289:                             
+                   618:                    }
+                   619:    
+                   620:                    root_part.boot_flag = cluster_buffer.buffer[no];
+    0004D4 0D50                   MOV.W       R5,R0
+    0004D6 17F0                   EXTS.L      ER0
+    0004D8 1A91                   SUB.L       ER1,ER1
+    0004DA F90E                   MOV.B       #14:8,R1L
+    0004DC 0AE1                   ADD.L       ER6,ER1
+    0004DE 0A81                   ADD.L       ER0,ER1
+    0004E0 6819                   MOV.B       @ER1,R1L
+    0004E2 6AA900                 MOV.B       R1L,@_root_part:24
+           <000000>     
+                   621:                    root_part.system_id = cluster_buffer.buffer[no+4];
+    0004E8 0D50                   MOV.W       R5,R0
+    0004EA 79100004               ADD.W       #4:16,R0
+    0004EE 17F0                   EXTS.L      ER0
+    0004F0 1A91                   SUB.L       ER1,ER1
+    0004F2 F90E                   MOV.B       #14:8,R1L
+    0004F4 0AE1                   ADD.L       ER6,ER1
+    0004F6 0A81                   ADD.L       ER0,ER1
+    0004F8 6819                   MOV.B       @ER1,R1L
+    0004FA 6AA900                 MOV.B       R1L,@_root_part+1:24
+           <000000>     
+                   622:                    root_part.start_head = cluster_buffer.buffer[no+1];
+    000500 0D50                   MOV.W       R5,R0
+    000502 0B50                   INC.W       #1,R0
+    000504 17F0                   EXTS.L      ER0
+    000506 1A91                   SUB.L       ER1,ER1
+    000508 F90E                   MOV.B       #14:8,R1L
+    00050A 0AE1                   ADD.L       ER6,ER1
+    00050C 0A81                   ADD.L       ER0,ER1
+    00050E 6819                   MOV.B       @ER1,R1L
+    000510 1751                   EXTU.W      R1
+    000512 6AA100                 MOV.B       R1H,@_root_part+2:24
+           <000000>     
+    000518 6AA900                 MOV.B       R1L,@_root_part+3:24
+           <000000>     
+                   623:                    root_part.start_sector = cluster_buffer.buffer[no+2];
+    00051E 0D50                   MOV.W       R5,R0
+    000520 0BD0                   INC.W       #2,R0
+    000522 17F0                   EXTS.L      ER0
+    000524 1A91                   SUB.L       ER1,ER1
+    000526 F90E                   MOV.B       #14:8,R1L
+    000528 0AE1                   ADD.L       ER6,ER1
+    00052A 0A81                   ADD.L       ER0,ER1
+    00052C 6819                   MOV.B       @ER1,R1L
+    00052E 1751                   EXTU.W      R1
+    000530 6AA100                 MOV.B       R1H,@_root_part+4:24
+           <000000>     
+    000536 6AA900                 MOV.B       R1L,@_root_part+5:24
+           <000000>     
+                   624:                    root_part.start_cylinder = cluster_buffer.buffer[no+3];
+    00053C 0D50                   MOV.W       R5,R0
+    00053E 79100003               ADD.W       #3:16,R0
+    000542 17F0                   EXTS.L      ER0
+    000544 1A91                   SUB.L       ER1,ER1
+    000546 F90E                   MOV.B       #14:8,R1L
+    000548 0AE1                   ADD.L       ER6,ER1
+    00054A 0A81                   ADD.L       ER0,ER1
+    00054C 6819                   MOV.B       @ER1,R1L
+    00054E 1751                   EXTU.W      R1
+    000550 6AA100                 MOV.B       R1H,@_root_part+6:24
+           <000000>     
+    000556 6AA900                 MOV.B       R1L,@_root_part+7:24
+           <000000>     
+                   625:                    root_part.end_head = cluster_buffer.buffer[no+5]&0x3F;
+    00055C 0D50                   MOV.W       R5,R0
+    00055E 79100005               ADD.W       #5:16,R0
+    000562 17F0                   EXTS.L      ER0
+    000564 1A91                   SUB.L       ER1,ER1
+    000566 F90E                   MOV.B       #14:8,R1L
+    000568 0AE1                   ADD.L       ER6,ER1
+    00056A 0A81                   ADD.L       ER0,ER1
+    00056C 6819                   MOV.B       @ER1,R1L
+    00056E E93F                   AND.B       #63:8,R1L
+    000570 1751                   EXTU.W      R1
+    000572 6AA100                 MOV.B       R1H,@_root_part+8:24
+           <000000>     
+    000578 6AA900                 MOV.B       R1L,@_root_part+9:24
+           <000000>     
+                   626:                    root_part.end_sector = (unsigned short)(cluster_buffer.buffer[no+6]&0x3F);
+    00057E 0D50                   MOV.W       R5,R0
+    000580 79100006               ADD.W       #6:16,R0
+    000584 17F0                   EXTS.L      ER0
+    000586 1A91                   SUB.L       ER1,ER1
+    000588 F90E                   MOV.B       #14:8,R1L
+    00058A 0AE1                   ADD.L       ER6,ER1
+    00058C 0A81                   ADD.L       ER0,ER1
+    00058E 6819                   MOV.B       @ER1,R1L
+    000590 E93F                   AND.B       #63:8,R1L
+    000592 1751                   EXTU.W      R1
+    000594 6AA100                 MOV.B       R1H,@_root_part+10:24
+           <000000>     
+    00059A 6AA900                 MOV.B       R1L,@_root_part+11:24
+           <000000>     
+                   627:                    root_part.end_cylinder = ((unsigned short)(cluster_buffer.buffer[no+6]&0xC0)<<2)
+                   628:                                                               | (unsigned short)(cluster_buffer.buffer[no+7]);
+    0005A0 1A91                   SUB.L       ER1,ER1
+    0005A2 F90E                   MOV.B       #14:8,R1L
+    0005A4 0AE1                   ADD.L       ER6,ER1
+    0005A6 01006FF100             MOV.L       ER1,@(6:16,SP)
+           06           
+    0005AC 0A81                   ADD.L       ER0,ER1
+    0005AE 6819                   MOV.B       @ER1,R1L
+    0005B0 E9C0                   AND.B       #-64:8,R1L
+    0005B2 1751                   EXTU.W      R1
+    0005B4 1011                   SHLL.W      R1
+    0005B6 1011                   SHLL.W      R1
+    0005B8 0D50                   MOV.W       R5,R0
+    0005BA 79100007               ADD.W       #7:16,R0
+    0005BE 17F0                   EXTS.L      ER0
+    0005C0 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    0005C6 0A82                   ADD.L       ER0,ER2
+    0005C8 682A                   MOV.B       @ER2,R2L
+    0005CA 1752                   EXTU.W      R2
+    0005CC 6421                   OR.W        R2,R1
+    0005CE 6AA100                 MOV.B       R1H,@_root_part+12:24
+           <000000>     
+    0005D4 6AA900                 MOV.B       R1L,@_root_part+13:24
+           <000000>     
+                   629:    
+                   630:                    root_part.boot_sector = ((long)cluster_buffer.buffer[no+8]&0x000000FFL)
+                   631:                                                              | (((long)cluster_buffer.buffer[no+9]<<8)&0x0000FF00L)
+                   632:                                                              | (((long)cluster_buffer.buffer[no+10]<<16)&0x00FF0000L)
+                   633:                                                              | (((long)cluster_buffer.buffer[no+11]<<24)&0xFF000000L);
+    0005DA 1A80                   SUB.L       ER0,ER0
+    0005DC F80E                   MOV.B       #14:8,R0L
+    0005DE 0AE0                   ADD.L       ER6,ER0
+    0005E0 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    0005E6 0D51                   MOV.W       R5,R1
+    0005E8 79110008               ADD.W       #8:16,R1
+    0005EC 17F1                   EXTS.L      ER1
+    0005EE 0A90                   ADD.L       ER1,ER0
+    0005F0 1A91                   SUB.L       ER1,ER1
+    0005F2 6809                   MOV.B       @ER0,R1L
+    0005F4 0D50                   MOV.W       R5,R0
+    0005F6 79100009               ADD.W       #9:16,R0
+    0005FA 17F0                   EXTS.L      ER0
+    0005FC 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    000602 0A82                   ADD.L       ER0,ER2
+    000604 1A80                   SUB.L       ER0,ER0
+    000606 6828                   MOV.B       @ER2,R0L
+    000608 FA08                   MOV.B       #8:8,R2L
+    00060A              L296:                             
+    00060A 1030                   SHLL.L      ER0
+    00060C 1A0A                   DEC.B       R2L
+    00060E 4EFA                   BGT         L296:8
+    000610 1988                   SUB.W       E0,E0
+    000612 1888                   SUB.B       R0L,R0L
+    000614 01F06401               OR.L        ER0,ER1
+    000618 0D50                   MOV.W       R5,R0
+    00061A 7910000A               ADD.W       #10:16,R0
+    00061E 17F0                   EXTS.L      ER0
+    000620 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    000626 0A82                   ADD.L       ER0,ER2
+    000628 1A80                   SUB.L       ER0,ER0
+    00062A 6828                   MOV.B       @ER2,R0L
+    00062C 0D08                   MOV.W       R0,E0
+    00062E 1900                   SUB.W       R0,R0
+    000630 7A6000FF00             AND.L       #16711680:32,ER0
+           00           
+    000636 01F06401               OR.L        ER0,ER1
+    00063A 0D50                   MOV.W       R5,R0
+    00063C 7910000B               ADD.W       #11:16,R0
+    000640 17F0                   EXTS.L      ER0
+    000642 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    000648 0A82                   ADD.L       ER0,ER2
+    00064A 1A80                   SUB.L       ER0,ER0
+    00064C 6828                   MOV.B       @ER2,R0L
+    00064E 0D02                   MOV.W       R0,R2
+    000650 0CA2                   MOV.B       R2L,R2H
+    000652 18AA                   SUB.B       R2L,R2L
+    000654 0D2A                   MOV.W       R2,E2
+    000656 1922                   SUB.W       R2,R2
+    000658 7A62FF0000             AND.L       #-16777216:32,ER2
+           00           
+    00065E 01F06421               OR.L        ER2,ER1
+    000662 6AA100                 MOV.B       R1H,@_root_part+16:24
+           <000000>     
+    000668 6AA900                 MOV.B       R1L,@_root_part+17:24
+           <000000>     
+    00066E 0D91                   MOV.W       E1,R1
+    000670 6AA100                 MOV.B       R1H,@_root_part+14:24
+           <000000>     
+    000676 6AA900                 MOV.B       R1L,@_root_part+15:24
+           <000000>     
+                   634:                    root_part.all_sector  = ((long)cluster_buffer.buffer[no+12]&0x000000FFL)
+                   635:                                                              | (((long)cluster_buffer.buffer[no+13]<<8)&0x0000FF00L)
+                   636:                                                              | (((long)cluster_buffer.buffer[no+14]<<16)&0x00FF0000L)
+                   637:                                                              | (((long)cluster_buffer.buffer[no+15]<<24)&0xFF000000L);
+    00067C 1A80                   SUB.L       ER0,ER0
+    00067E F80E                   MOV.B       #14:8,R0L
+    000680 0AE0                   ADD.L       ER6,ER0
+    000682 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000688 0D51                   MOV.W       R5,R1
+    00068A 7911000C               ADD.W       #12:16,R1
+    00068E 17F1                   EXTS.L      ER1
+    000690 0A90                   ADD.L       ER1,ER0
+    000692 1A91                   SUB.L       ER1,ER1
+    000694 6809                   MOV.B       @ER0,R1L
+    000696 0D50                   MOV.W       R5,R0
+    000698 7910000D               ADD.W       #13:16,R0
+    00069C 17F0                   EXTS.L      ER0
+    00069E 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    0006A4 0A82                   ADD.L       ER0,ER2
+    0006A6 1A80                   SUB.L       ER0,ER0
+    0006A8 6828                   MOV.B       @ER2,R0L
+    0006AA FA08                   MOV.B       #8:8,R2L
+    0006AC              L297:                             
+    0006AC 1030                   SHLL.L      ER0
+    0006AE 1A0A                   DEC.B       R2L
+    0006B0 4EFA                   BGT         L297:8
+    0006B2 1988                   SUB.W       E0,E0
+    0006B4 1888                   SUB.B       R0L,R0L
+    0006B6 01F06401               OR.L        ER0,ER1
+    0006BA 0D50                   MOV.W       R5,R0
+    0006BC 7910000E               ADD.W       #14:16,R0
+    0006C0 17F0                   EXTS.L      ER0
+    0006C2 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    0006C8 0A82                   ADD.L       ER0,ER2
+    0006CA 1A80                   SUB.L       ER0,ER0
+    0006CC 6828                   MOV.B       @ER2,R0L
+    0006CE 0D08                   MOV.W       R0,E0
+    0006D0 1900                   SUB.W       R0,R0
+    0006D2 7A6000FF00             AND.L       #16711680:32,ER0
+           00           
+    0006D8 01F06401               OR.L        ER0,ER1
+    0006DC 0D50                   MOV.W       R5,R0
+    0006DE 7910000F               ADD.W       #15:16,R0
+    0006E2 17F0                   EXTS.L      ER0
+    0006E4 01006F7200             MOV.L       @(6:16,SP),ER2
+           06           
+    0006EA 0A82                   ADD.L       ER0,ER2
+    0006EC 1A80                   SUB.L       ER0,ER0
+    0006EE 6828                   MOV.B       @ER2,R0L
+    0006F0 0D02                   MOV.W       R0,R2
+    0006F2 0CA2                   MOV.B       R2L,R2H
+    0006F4 18AA                   SUB.B       R2L,R2L
+    0006F6 0D2A                   MOV.W       R2,E2
+    0006F8 1922                   SUB.W       R2,R2
+    0006FA 7A62FF0000             AND.L       #-16777216:32,ER2
+           00           
+    000700 01F06421               OR.L        ER2,ER1
+    000704 6AA100                 MOV.B       R1H,@_root_part+20:24
+           <000000>     
+    00070A 6AA900                 MOV.B       R1L,@_root_part+21:24
+           <000000>     
+    000710 0D91                   MOV.W       E1,R1
+    000712 6AA100                 MOV.B       R1H,@_root_part+18:24
+           <000000>     
+    000718 6AA900                 MOV.B       R1L,@_root_part+19:24
+           <000000>     
+                   638:                    root_part.sector_track = 63;
+    00071E 7900003F               MOV.W       #63:16,R0
+    000722 6AA000                 MOV.B       R0H,@_root_part+22:24
+           <000000>     
+    000728 6AA800                 MOV.B       R0L,@_root_part+23:24
+           <000000>     
+                   639:                    root_part.head_number = 16;
+    00072E 79000010               MOV.W       #16:16,R0
+    000732 6AA000                 MOV.B       R0H,@_root_part+24:24
+           <000000>     
+    000738 6AA800                 MOV.B       R0L,@_root_part+25:24
+           <000000>     
+                   640:                    root_part.cylinder_vol = 0;
+    00073E 79000000               MOV.W       #0:16,R0
+    000742 6AA000                 MOV.B       R0H,@_root_part+26:24
+           <000000>     
+    000748 6AA800                 MOV.B       R0L,@_root_part+27:24
+           <000000>     
+                   641:    
+                   642:                    root_part.driver_read = ide_sector_read;
+    00074E 7A00                   MOV.L       #_ide_sector_read:32,ER0
+           <00000000>   
+    000754 6AA000                 MOV.B       R0H,@_root_part+30:24
+           <000000>     
+    00075A 6AA800                 MOV.B       R0L,@_root_part+31:24
+           <000000>     
+    000760 0D80                   MOV.W       E0,R0
+    000762 6AA000                 MOV.B       R0H,@_root_part+28:24
+           <000000>     
+    000768 6AA800                 MOV.B       R0L,@_root_part+29:24
+           <000000>     
+                   643:                    root_part.driver_write = ide_sector_write;
+    00076E 7A00                   MOV.L       #_ide_sector_write:32,ER0
+           <00000000>   
+    000774 6AA000                 MOV.B       R0H,@_root_part+34:24
+           <000000>     
+    00077A 6AA800                 MOV.B       R0L,@_root_part+35:24
+           <000000>     
+    000780 0D80                   MOV.W       E0,R0
+    000782 6AA000                 MOV.B       R0H,@_root_part+32:24
+           <000000>     
+    000788 6AA800                 MOV.B       R0L,@_root_part+33:24
+           <000000>     
+                   644:                    root_part.driver_status = ide_status;
+    00078E 7A00                   MOV.L       #_ide_status:32,ER0
+           <00000000>   
+    000794 6AA000                 MOV.B       R0H,@_root_part+38:24
+           <000000>     
+    00079A 6AA800                 MOV.B       R0L,@_root_part+39:24
+           <000000>     
+    0007A0 0D80                   MOV.W       E0,R0
+    0007A2 6AA000                 MOV.B       R0H,@_root_part+36:24
+           <000000>     
+    0007A8 6AA800                 MOV.B       R0L,@_root_part+37:24
+           <000000>     
+                   645:    
+                   646:    
+                   647:                    root_bpb[drive].part = &root_part;
+    0007AE 0FC5                   MOV.L       ER4,ER5
+    0007B0 7A00                   MOV.L       #_root_part:32,ER0
+           <00000000>   
+    0007B6 6ED00002               MOV.B       R0H,@(2:16,ER5)
+    0007BA 6ED80003               MOV.B       R0L,@(3:16,ER5)
+    0007BE 0D80                   MOV.W       E0,R0
+    0007C0 68D0                   MOV.B       R0H,@ER5
+    0007C2 6ED80001               MOV.B       R0L,@(1:16,ER5)
+                   648:    
+                   649:                    purge_cluster();
+    0007C6 5E                     JSR         @_purge_cluster:24
+           <000000>     
+                   650:    
+                   651:                    if( sector_read( &root_bpb[drive], 0, 1, cluster_buffer.buffer ) )
+    0007CA 1A80                   SUB.L       ER0,ER0
+    0007CC F80E                   MOV.B       #14:8,R0L
+    0007CE 0AE0                   ADD.L       ER6,ER0
+    0007D0 01006DF0               PUSH.L      ER0
+    0007D4 79000001               MOV.W       #1:16,R0
+    0007D8 6DF0                   PUSH.W      R0
+    0007DA 1A91                   SUB.L       ER1,ER1
+    0007DC 0FD0                   MOV.L       ER5,ER0
+    0007DE 5E                     JSR         @_sector_read:24
+           <000000>     
+    0007E2 0B97                   ADDS.L      #4,SP
+    0007E4 0B87                   ADDS.L      #2,SP
+    0007E6 0D00                   MOV.W       R0,R0
+    0007E8 4708                   BEQ         L298:8
+                   652:                            return( -1 );
+    0007EA              L315:                             
+    0007EA 7900FFFF               MOV.W       #-1:16,R0
+    0007EE 5A                     JMP         @L285:24
+           <000000>     
+    0007F2              L298:                             
+                   653:    
+                   654:                    root_bpb[drive].bytes_sector = (unsigned short)cluster_buffer.buffer[0x0B]
+                   655:                                                      | ((unsigned short)cluster_buffer.buffer[0x0C]<<8);
+    0007F2 0FC5                   MOV.L       ER4,ER5
+    0007F4 1A80                   SUB.L       ER0,ER0
+    0007F6 F80E                   MOV.B       #14:8,R0L
+    0007F8 0AE0                   ADD.L       ER6,ER0
+    0007FA 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000800 6E08000B               MOV.B       @(11:16,ER0),R0L
+    000804 1750                   EXTU.W      R0
+    000806 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    00080C 7A11000000             ADD.L       #12:32,ER1
+           0C           
+    000812 6819                   MOV.B       @ER1,R1L
+    000814 1751                   EXTU.W      R1
+    000816 0C91                   MOV.B       R1L,R1H
+    000818 1899                   SUB.B       R1L,R1L
+    00081A 6410                   OR.W        R1,R0
+    00081C 6ED00004               MOV.B       R0H,@(4:16,ER5)
+    000820 6ED80005               MOV.B       R0L,@(5:16,ER5)
+                   656:    
+                   657:                    root_bpb[drive].sector_cluster = (unsigned short)cluster_buffer.buffer[0x0D];
+    000824 6E68001B               MOV.B       @(27:16,ER6),R0L
+    000828 1750                   EXTU.W      R0
+    00082A 6ED00006               MOV.B       R0H,@(6:16,ER5)
+    00082E 6ED80007               MOV.B       R0L,@(7:16,ER5)
+                   658:                    if( root_bpb[drive].sector_cluster > SECTOR_CLUSTER )   return( -2 );
+    000832 6E500006               MOV.B       @(6:16,ER5),R0H
+    000836 79200010               CMP.W       #16:16,R0
+    00083A 4308                   BLS         L299:8
+    00083C 7900FFFE               MOV.W       #-2:16,R0
+    000840 5A                     JMP         @L285:24
+           <000000>     
+    000844              L299:                             
+                   659:    
+                   660:                    root_bpb[drive].reserved_sector = (unsigned short)cluster_buffer.buffer[0x0E]
+                   661:                                                             | ((unsigned short)cluster_buffer.buffer[0x0F]<<8);
+    000844 0FC5                   MOV.L       ER4,ER5
+    000846 1A80                   SUB.L       ER0,ER0
+    000848 F80E                   MOV.B       #14:8,R0L
+    00084A 0AE0                   ADD.L       ER6,ER0
+    00084C 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000852 6E08000E               MOV.B       @(14:16,ER0),R0L
+    000856 1750                   EXTU.W      R0
+    000858 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    00085E 7A11000000             ADD.L       #15:32,ER1
+           0F           
+    000864 6819                   MOV.B       @ER1,R1L
+    000866 1751                   EXTU.W      R1
+    000868 0C91                   MOV.B       R1L,R1H
+    00086A 1899                   SUB.B       R1L,R1L
+    00086C 6410                   OR.W        R1,R0
+    00086E 6ED00008               MOV.B       R0H,@(8:16,ER5)
+    000872 6ED80009               MOV.B       R0L,@(9:16,ER5)
+                   662:    
+                   663:                    root_bpb[drive].FAT_number = (unsigned short)cluster_buffer.buffer[0x10];
+    000876 6E68001E               MOV.B       @(30:16,ER6),R0L
+    00087A 1750                   EXTU.W      R0
+    00087C 6ED0000A               MOV.B       R0H,@(10:16,ER5)
+    000880 6ED8000B               MOV.B       R0L,@(11:16,ER5)
+                   664:    
+                   665:                    root_bpb[drive].root_entry = (unsigned short)cluster_buffer.buffer[0x11]
+                   666:                                                    | ((unsigned short)cluster_buffer.buffer[0x12]<<8);
+    000884 1A80                   SUB.L       ER0,ER0
+    000886 F80E                   MOV.B       #14:8,R0L
+    000888 0AE0                   ADD.L       ER6,ER0
+    00088A 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000890 6E080011               MOV.B       @(17:16,ER0),R0L
+    000894 1750                   EXTU.W      R0
+    000896 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    00089C 7A11000000             ADD.L       #18:32,ER1
+           12           
+    0008A2 6819                   MOV.B       @ER1,R1L
+    0008A4 1751                   EXTU.W      R1
+    0008A6 0C91                   MOV.B       R1L,R1H
+    0008A8 1899                   SUB.B       R1L,R1L
+    0008AA 6410                   OR.W        R1,R0
+    0008AC 6ED0000C               MOV.B       R0H,@(12:16,ER5)
+    0008B0 6ED8000D               MOV.B       R0L,@(13:16,ER5)
+                   667:    
+                   668:                    root_bpb[drive].all_sector = (unsigned short)cluster_buffer.buffer[0x13]
+                   669:                                                    | ((unsigned short)cluster_buffer.buffer[0x14]<<8);
+    0008B4 1A80                   SUB.L       ER0,ER0
+    0008B6 F80E                   MOV.B       #14:8,R0L
+    0008B8 0AE0                   ADD.L       ER6,ER0
+    0008BA 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    0008C0 6E080013               MOV.B       @(19:16,ER0),R0L
+    0008C4 1750                   EXTU.W      R0
+    0008C6 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    0008CC 7A11000000             ADD.L       #20:32,ER1
+           14           
+    0008D2 6819                   MOV.B       @ER1,R1L
+    0008D4 1751                   EXTU.W      R1
+    0008D6 0C91                   MOV.B       R1L,R1H
+    0008D8 1899                   SUB.B       R1L,R1L
+    0008DA 6410                   OR.W        R1,R0
+    0008DC 6ED0000E               MOV.B       R0H,@(14:16,ER5)
+    0008E0 6ED8000F               MOV.B       R0L,@(15:16,ER5)
+                   670:    
+                   671:                    root_bpb[drive].sector_FAT = (unsigned short)cluster_buffer.buffer[0x16]
+                   672:                                                    | ((unsigned short)cluster_buffer.buffer[0x17]<<8);
+    0008E4 1A80                   SUB.L       ER0,ER0
+    0008E6 F80E                   MOV.B       #14:8,R0L
+    0008E8 0AE0                   ADD.L       ER6,ER0
+    0008EA 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    0008F0 6E080016               MOV.B       @(22:16,ER0),R0L
+    0008F4 1750                   EXTU.W      R0
+    0008F6 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    0008FC 7A11000000             ADD.L       #23:32,ER1
+           17           
+    000902 6819                   MOV.B       @ER1,R1L
+    000904 1751                   EXTU.W      R1
+    000906 0C91                   MOV.B       R1L,R1H
+    000908 1899                   SUB.B       R1L,R1L
+    00090A 6410                   OR.W        R1,R0
+    00090C 6ED00010               MOV.B       R0H,@(16:16,ER5)
+    000910 6ED80011               MOV.B       R0L,@(17:16,ER5)
+                   673:    
+                   674:                    root_bpb[drive].sector_track = (unsigned short)cluster_buffer.buffer[0x18]
+                   675:                                                      | ((unsigned short)cluster_buffer.buffer[0x19]<<8);
+    000914 1A80                   SUB.L       ER0,ER0
+    000916 F80E                   MOV.B       #14:8,R0L
+    000918 0AE0                   ADD.L       ER6,ER0
+    00091A 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000920 6E080018               MOV.B       @(24:16,ER0),R0L
+    000924 1750                   EXTU.W      R0
+    000926 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    00092C 7A11000000             ADD.L       #25:32,ER1
+           19           
+    000932 6819                   MOV.B       @ER1,R1L
+    000934 1751                   EXTU.W      R1
+    000936 0C91                   MOV.B       R1L,R1H
+    000938 1899                   SUB.B       R1L,R1L
+    00093A 6410                   OR.W        R1,R0
+    00093C 6ED00012               MOV.B       R0H,@(18:16,ER5)
+    000940 6ED80013               MOV.B       R0L,@(19:16,ER5)
+                   676:    
+                   677:                    root_bpb[drive].head_number = (unsigned short)cluster_buffer.buffer[0x1A]
+                   678:                                                     | ((unsigned short)cluster_buffer.buffer[0x1B]<<8);
+    000944 1A80                   SUB.L       ER0,ER0
+    000946 F80E                   MOV.B       #14:8,R0L
+    000948 0AE0                   ADD.L       ER6,ER0
+    00094A 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000950 6E08001A               MOV.B       @(26:16,ER0),R0L
+    000954 1750                   EXTU.W      R0
+    000956 01006F7100             MOV.L       @(6:16,SP),ER1
+           06           
+    00095C 7A11000000             ADD.L       #27:32,ER1
+           1B           
+    000962 6819                   MOV.B       @ER1,R1L
+    000964 1751                   EXTU.W      R1
+    000966 0C91                   MOV.B       R1L,R1H
+    000968 1899                   SUB.B       R1L,R1L
+    00096A 6410                   OR.W        R1,R0
+    00096C 6ED00014               MOV.B       R0H,@(20:16,ER5)
+    000970 6ED80015               MOV.B       R0L,@(21:16,ER5)
+                   679:    
+                   680:                    root_bpb[drive].skip_sector = (unsigned long)cluster_buffer.buffer[0x1C]
+                   681:                                                     | ((unsigned long)cluster_buffer.buffer[0x1D]<<8)
+                   682:                                                     | ((unsigned long)cluster_buffer.buffer[0x1E]<<16)
+                   683:                                                     | ((unsigned long)cluster_buffer.buffer[0x1F]<<24);
+    000974 1A80                   SUB.L       ER0,ER0
+    000976 F80E                   MOV.B       #14:8,R0L
+    000978 0AE0                   ADD.L       ER6,ER0
+    00097A 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    000980 1A91                   SUB.L       ER1,ER1
+    000982 6E09001C               MOV.B       @(28:16,ER0),R1L
+    000986 1AA2                   SUB.L       ER2,ER2
+    000988 6E0A001D               MOV.B       @(29:16,ER0),R2L
+    00098C F808                   MOV.B       #8:8,R0L
+    00098E              L300:                             
+    00098E 1032                   SHLL.L      ER2
+    000990 1A08                   DEC.B       R0L
+    000992 4EFA                   BGT         L300:8
+    000994 01F06421               OR.L        ER2,ER1
+    000998 01006F7000             MOV.L       @(6:16,SP),ER0
+           06           
+    00099E 7A10000000             ADD.L       #30:32,ER0
+           1E           
+    0009A4 1AA2                   SUB.L       ER2,ER2
+    0009A6 680A                   MOV.B       @ER0,R2L
+    0009A8 0D2A                   MOV.W       R2,E2
+    0009AA 1922                   SUB.W       R2,R2
+    0009AC 01F06421               OR.L        ER2,ER1
+    0009B0 01006F7000             MOV.L       @(6:16,SP),ER0
+           06           
+    0009B6 7A10000000             ADD.L       #31:32,ER0
+           1F           
+    0009BC 1AA2                   SUB.L       ER2,ER2
+    0009BE 680A                   MOV.B       @ER0,R2L
+    0009C0 0D20                   MOV.W       R2,R0
+    0009C2 0C80                   MOV.B       R0L,R0H
+    0009C4 1888                   SUB.B       R0L,R0L
+    0009C6 0D08                   MOV.W       R0,E0
+    0009C8 1900                   SUB.W       R0,R0
+    0009CA 01F06401               OR.L        ER0,ER1
+    0009CE 6ED10018               MOV.B       R1H,@(24:16,ER5)
+    0009D2 6ED90019               MOV.B       R1L,@(25:16,ER5)
+    0009D6 0D91                   MOV.W       E1,R1
+    0009D8 6ED10016               MOV.B       R1H,@(22:16,ER5)
+    0009DC 6ED90017               MOV.B       R1L,@(23:16,ER5)
+                   684:    
+                   685:                    root_bpb[drive].all_sector2 = (unsigned long)cluster_buffer.buffer[0x20]
+                   686:                                                     | ((unsigned long)cluster_buffer.buffer[0x21]<<8)
+                   687:                                                     | ((unsigned long)cluster_buffer.buffer[0x22]<<16)
+                   688:                                                     | ((unsigned long)cluster_buffer.buffer[0x23]<<24);
+    0009E0 1A80                   SUB.L       ER0,ER0
+    0009E2 F80E                   MOV.B       #14:8,R0L
+    0009E4 0AE0                   ADD.L       ER6,ER0
+    0009E6 01006FF000             MOV.L       ER0,@(6:16,SP)
+           06           
+    0009EC 1A91                   SUB.L       ER1,ER1
+    0009EE 6E090020               MOV.B       @(32:16,ER0),R1L
+    0009F2 1AA2                   SUB.L       ER2,ER2
+    0009F4 6E0A0021               MOV.B       @(33:16,ER0),R2L
+    0009F8 F808                   MOV.B       #8:8,R0L
+    0009FA              L301:                             
+    0009FA 1032                   SHLL.L      ER2
+    0009FC 1A08                   DEC.B       R0L
+    0009FE 4EFA                   BGT         L301:8
+    000A00 01F06421               OR.L        ER2,ER1
+    000A04 01006F7000             MOV.L       @(6:16,SP),ER0
+           06           
+    000A0A 7A10000000             ADD.L       #34:32,ER0
+           22           
+    000A10 1AA2                   SUB.L       ER2,ER2
+    000A12 680A                   MOV.B       @ER0,R2L
+    000A14 0D2A                   MOV.W       R2,E2
+    000A16 1922                   SUB.W       R2,R2
+    000A18 01F06421               OR.L        ER2,ER1
+    000A1C 01006F7000             MOV.L       @(6:16,SP),ER0
+           06           
+    000A22 7A10000000             ADD.L       #35:32,ER0
+           23           
+    000A28 1AA2                   SUB.L       ER2,ER2
+    000A2A 680A                   MOV.B       @ER0,R2L
+    000A2C 0D20                   MOV.W       R2,R0
+    000A2E 0C80                   MOV.B       R0L,R0H
+    000A30 1888                   SUB.B       R0L,R0L
+    000A32 0D08                   MOV.W       R0,E0
+    000A34 1900                   SUB.W       R0,R0
+    000A36 01F06401               OR.L        ER0,ER1
+    000A3A 6ED1001C               MOV.B       R1H,@(28:16,ER5)
+    000A3E 6ED9001D               MOV.B       R1L,@(29:16,ER5)
+    000A42 0D91                   MOV.W       E1,R1
+    000A44 6ED1001A               MOV.B       R1H,@(26:16,ER5)
+    000A48 6ED9001B               MOV.B       R1L,@(27:16,ER5)
+                   689:    
+                   690:                    if( root_bpb[drive].all_sector2==0 ){
+    000A4C 6E50001A               MOV.B       @(26:16,ER5),R0H
+    000A50 6E58001B               MOV.B       @(27:16,ER5),R0L
+    000A54 0D08                   MOV.W       R0,E0
+    000A56 6E50001C               MOV.B       @(28:16,ER5),R0H
+    000A5A 6E58001D               MOV.B       @(29:16,ER5),R0L
+    000A5E 0F80                   MOV.L       ER0,ER0
+    000A60 463C                   BNE         L302:8
+                   691:                            root_bpb[drive].all_sector2 = root_part.all_sector;
+    000A62 0FC5                   MOV.L       ER4,ER5
+    000A64 6A2000                 MOV.B       @_root_part+18:24,R0H
+           <000000>     
+    000A6A 6A2800                 MOV.B       @_root_part+19:24,R0L
+           <000000>     
+    000A70 0D08                   MOV.W       R0,E0
+    000A72 6A2000                 MOV.B       @_root_part+20:24,R0H
+           <000000>     
+    000A78 6A2800                 MOV.B       @_root_part+21:24,R0L
+           <000000>     
+    000A7E 6ED0001C               MOV.B       R0H,@(28:16,ER5)
+    000A82 6ED8001D               MOV.B       R0L,@(29:16,ER5)
+    000A86 0D80                   MOV.W       E0,R0
+    000A88 6ED0001A               MOV.B       R0H,@(26:16,ER5)
+    000A8C 6ED8001B               MOV.B       R0L,@(27:16,ER5)
+                   692:                            root_bpb[drive].FAT_type = FAT12;
+    000A90 79000001               MOV.W       #1:16,R0
+    000A94 6ED0001E               MOV.B       R0H,@(30:16,ER5)
+    000A98 6ED8001F               MOV.B       R0L,@(31:16,ER5)
+    000A9C 400C                   BRA         L303:8
+    000A9E              L302:                             
+                   693:                    }
+                   694:                    else {
+                   695:                            root_bpb[drive].FAT_type = FAT16;
+    000A9E 79000004               MOV.W       #4:16,R0
+    000AA2 6EC0001E               MOV.B       R0H,@(30:16,ER4)
+    000AA6 6EC8001F               MOV.B       R0L,@(31:16,ER4)
+    000AAA              L303:                             
+                   696:                    }
+                   697:    
+                   698:                    root_bpb[drive].bytes_cluster = root_bpb[drive].bytes_sector * root_bpb[drive].sector_cluster;
+    000AAA 0FC5                   MOV.L       ER4,ER5
+    000AAC 6E500004               MOV.B       @(4:16,ER5),R0H
+    000AB0 6E580005               MOV.B       @(5:16,ER5),R0L
+    000AB4 6E510006               MOV.B       @(6:16,ER5),R1H
+    000AB8 6E590007               MOV.B       @(7:16,ER5),R1L
+    000ABC 5210                   MULXU.W     R1,ER0
+    000ABE 6ED00020               MOV.B       R0H,@(32:16,ER5)
+    000AC2 6ED80021               MOV.B       R0L,@(33:16,ER5)
+                   699:                    root_bpb[drive].drive = drive;
+    000AC6 79000000               MOV.W       #0:16,R0
+    000ACA 6ED00022               MOV.B       R0H,@(34:16,ER5)
+    000ACE 6ED80023               MOV.B       R0L,@(35:16,ER5)
+                   700:    
+                   701:                    root_bpb[drive].FAT_sector_s = root_bpb[drive].reserved_sector;
+    000AD2 6E500008               MOV.B       @(8:16,ER5),R0H
+    000AD6 6E580009               MOV.B       @(9:16,ER5),R0L
+    000ADA 1770                   EXTU.L      ER0
+    000ADC 6ED00026               MOV.B       R0H,@(38:16,ER5)
+    000AE0 6ED80027               MOV.B       R0L,@(39:16,ER5)
+    000AE4 0D80                   MOV.W       E0,R0
+    000AE6 6ED00024               MOV.B       R0H,@(36:16,ER5)
+    000AEA 6ED80025               MOV.B       R0L,@(37:16,ER5)
+                   702:                    root_bpb[drive].FAT_sector_l = root_bpb[drive].sector_FAT;
+    000AEE 6E500010               MOV.B       @(16:16,ER5),R0H
+    000AF2 6E580011               MOV.B       @(17:16,ER5),R0L
+    000AF6 1770                   EXTU.L      ER0
+    000AF8 6ED0002A               MOV.B       R0H,@(42:16,ER5)
+    000AFC 6ED8002B               MOV.B       R0L,@(43:16,ER5)
+    000B00 0D80                   MOV.W       E0,R0
+    000B02 6ED00028               MOV.B       R0H,@(40:16,ER5)
+    000B06 6ED80029               MOV.B       R0L,@(41:16,ER5)
+                   703:                    root_bpb[drive].DIR_sector_s = root_bpb[drive].FAT_sector_s
+                   704:                                                                            + root_bpb[drive].FAT_sector_l * root_bpb[drive].FAT_number;
+    000B0A 6E500028               MOV.B       @(40:16,ER5),R0H
+    000B0E 0D08                   MOV.W       R0,E0
+    000B10 6E50002A               MOV.B       @(42:16,ER5),R0H
+    000B14 6E58002B               MOV.B       @(43:16,ER5),R0L
+    000B18 6E52000A               MOV.B       @(10:16,ER5),R2H
+    000B1C 6E5A000B               MOV.B       @(11:16,ER5),R2L
+    000B20 1772                   EXTU.L      ER2
+    000B22 0FA1                   MOV.L       ER2,ER1
+    000B24 5E                     JSR         @$MULL$3:24
+           <000000>     
+    000B28 6E510024               MOV.B       @(36:16,ER5),R1H
+    000B2C 6E590025               MOV.B       @(37:16,ER5),R1L
+    000B30 0D19                   MOV.W       R1,E1
+    000B32 6E510026               MOV.B       @(38:16,ER5),R1H
+    000B36 6E590027               MOV.B       @(39:16,ER5),R1L
+    000B3A 0A81                   ADD.L       ER0,ER1
+    000B3C 6ED1002E               MOV.B       R1H,@(46:16,ER5)
+    000B40 6ED9002F               MOV.B       R1L,@(47:16,ER5)
+    000B44 0D91                   MOV.W       E1,R1
+    000B46 6ED1002C               MOV.B       R1H,@(44:16,ER5)
+    000B4A 6ED9002D               MOV.B       R1L,@(45:16,ER5)
+                   705:                    root_bpb[drive].DIR_sector_l = root_bpb[drive].root_entry * 32
+                   706:                                                                            / root_bpb[drive].bytes_sector;
+    000B4E 6E50000C               MOV.B       @(12:16,ER5),R0H
+    000B52 6E58000D               MOV.B       @(13:16,ER5),R0L
+    000B56 79080020               MOV.W       #32:16,E0
+    000B5A 5280                   MULXU.W     E0,ER0
+    000B5C 6E510004               MOV.B       @(4:16,ER5),R1H
+    000B60 6E590005               MOV.B       @(5:16,ER5),R1L
+    000B64 1770                   EXTU.L      ER0
+    000B66 5310                   DIVXU.W     R1,ER0
+    000B68 1770                   EXTU.L      ER0
+    000B6A 6ED00032               MOV.B       R0H,@(50:16,ER5)
+    000B6E 6ED80033               MOV.B       R0L,@(51:16,ER5)
+    000B72 0D80                   MOV.W       E0,R0
+    000B74 6ED00030               MOV.B       R0H,@(48:16,ER5)
+    000B78 6ED80031               MOV.B       R0L,@(49:16,ER5)
+                   707:    
+                   708:                    root_bpb[drive].DATA_sector_s = root_bpb[drive].DIR_sector_s
+                   709:                                                                            + root_bpb[drive].DIR_sector_l;
+    000B7C 6E50002C               MOV.B       @(44:16,ER5),R0H
+    000B80 6E58002D               MOV.B       @(45:16,ER5),R0L
+    000B84 0D08                   MOV.W       R0,E0
+    000B86 6E50002E               MOV.B       @(46:16,ER5),R0H
+    000B8A 6E58002F               MOV.B       @(47:16,ER5),R0L
+    000B8E 6E510030               MOV.B       @(48:16,ER5),R1H
+    000B92 6E590031               MOV.B       @(49:16,ER5),R1L
+    000B96 0D19                   MOV.W       R1,E1
+    000B98 6E510032               MOV.B       @(50:16,ER5),R1H
+    000B9C 6E590033               MOV.B       @(51:16,ER5),R1L
+    000BA0 0A90                   ADD.L       ER1,ER0
+    000BA2 6ED00036               MOV.B       R0H,@(54:16,ER5)
+    000BA6 6ED80037               MOV.B       R0L,@(55:16,ER5)
+    000BAA 0D80                   MOV.W       E0,R0
+    000BAC 6ED00034               MOV.B       R0H,@(52:16,ER5)
+    000BB0 6ED80035               MOV.B       R0L,@(53:16,ER5)
+                   710:    
+                   711:                    root_bpb[drive].DATA_sector_l = root_bpb[drive].all_sector2
+                   712:                                                                            - root_bpb[drive].DATA_sector_s;
+    000BB4 6E50001A               MOV.B       @(26:16,ER5),R0H
+    000BB8 6E58001B               MOV.B       @(27:16,ER5),R0L
+    000BBC 0D08                   MOV.W       R0,E0
+    000BBE 6E50001C               MOV.B       @(28:16,ER5),R0H
+    000BC2 6E58001D               MOV.B       @(29:16,ER5),R0L
+    000BC6 6E510034               MOV.B       @(52:16,ER5),R1H
+    000BCA 6E590035               MOV.B       @(53:16,ER5),R1L
+    000BCE 0D19                   MOV.W       R1,E1
+    000BD0 6E510036               MOV.B       @(54:16,ER5),R1H
+    000BD4 6E590037               MOV.B       @(55:16,ER5),R1L
+    000BD8 1A90                   SUB.L       ER1,ER0
+    000BDA 6ED0003A               MOV.B       R0H,@(58:16,ER5)
+    000BDE 6ED8003B               MOV.B       R0L,@(59:16,ER5)
+    000BE2 0D80                   MOV.W       E0,R0
+    000BE4 6ED00038               MOV.B       R0H,@(56:16,ER5)
+    000BE8 6ED80039               MOV.B       R0L,@(57:16,ER5)
+                   713:    
+                   714:                    root_bpb[drive].DATA_cluster_l = (unsigned short)(root_bpb[drive].DATA_sector_l
+                   715:                                                                            / root_bpb[drive].sector_cluster);
+    000BEC 6E500038               MOV.B       @(56:16,ER5),R0H
+    000BF0 0D08                   MOV.W       R0,E0
+    000BF2 6E50003A               MOV.B       @(58:16,ER5),R0H
+    000BF6 6E58003B               MOV.B       @(59:16,ER5),R0L
+    000BFA 6E520006               MOV.B       @(6:16,ER5),R2H
+    000BFE 6E5A0007               MOV.B       @(7:16,ER5),R2L
+    000C02 1772                   EXTU.L      ER2
+    000C04 0FA1                   MOV.L       ER2,ER1
+    000C06 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    000C0A 6ED0003C               MOV.B       R0H,@(60:16,ER5)
+    000C0E 6ED8003D               MOV.B       R0L,@(61:16,ER5)
+                   716:    
+                   717:                    return( 0 );
+    000C12 1900                   SUB.W       R0,R0
+                   718:    }
+    000C14              L285:                             
+    000C14 7A17000000             ADD.L       #12:32,SP
+           0C           
+    000C1A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   719:    
+                   720:    /*******************************************************************
+                   721:            ディスクの切断処理
+                   722:    *******************************************************************/
+                   723:    int dismount( short drive )
+    000C1E              _dismount:                       ; function: dismount
+                   724:    {
+                   725:    drive = 0;
+                   726:                    flush_cluster();
+    000C1E 5E                     JSR         @_flush_cluster:24
+           <000000>     
+                   727:                    flush_fat();
+    000C22 5E                     JSR         @_flush_fat:24
+           <000000>     
+                   728:                    flush_dir();
+    000C26 5E                     JSR         @_flush_dir:24
+           <000000>     
+                   729:    
+                   730:                    root_bpb[drive].part = NULL;
+    000C2A 1A80                   SUB.L       ER0,ER0
+    000C2C F800                   MOV.B       #0:8,R0L
+    000C2E 6AA000                 MOV.B       R0H,@_root_bpb+2:24
+           <000000>     
+    000C34 6AA800                 MOV.B       R0L,@_root_bpb+3:24
+           <000000>     
+    000C3A 0D80                   MOV.W       E0,R0
+    000C3C 6AA000                 MOV.B       R0H,@_root_bpb:24
+           <000000>     
+    000C42 6AA800                 MOV.B       R0L,@_root_bpb+1:24
+           <000000>     
+                   731:    
+                   732:                    INTC.IER.BIT.IRQ0E = 0;         /* IRQ0 No Use */
+    000C48 7FF57200               BCLR.B      #0,@16777205:8
+                   733:    }
+    000C4C 5470                   RTS
+                   734:    
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     28-Mar-2001  17:35:47  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000C4E Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000000 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000C4E Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000000 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000C4E Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       17 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        6 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         93 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\ .\src\pcaccs.c -object=.\obj\pcaccs.obj
+CPU         : 300ha:24

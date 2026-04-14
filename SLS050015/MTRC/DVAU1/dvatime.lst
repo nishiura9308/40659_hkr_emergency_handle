@@ -1,0 +1,665 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:23  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatime.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            時間制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:                                                                                                                                            *
+                     8:            Revision        a00. 2000/08/07         K.Honda
+                     9:    
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include    "iodefine.h"
+                    14:    #include        "table.h"
+                    15:    
+                    16:    #include        "timer.h"
+                    17:    
+                    18:    
+                    19:    /*@@@S*/
+                    20:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    21:            グローバル変数
+                    22:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    23:    
+                    24:    struct  TIMER_CONTROL   timedata;               // タイマー情報
+                    25:    
+                    26:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    27:            定数定義
+                    28:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    29:    
+                    30:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    31:            構造体定義
+                    32:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    33:    
+                    34:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    35:            テーブル
+                    36:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    37:    
+                    38:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    39:                    外部参照
+                    40:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    41:    extern  void dvaIOIn(void);
+                    42:    extern  void dvaIOOut( unsigned long onbit, unsigned long offbit );
+                    43:    
+                    44:    extern  void    (*IMIA0Jump)(void);
+                    45:    
+                    46:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    47:                    ローカル変数
+                    48:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    49:    
+                    50:    static  char    signalCheckTime;
+                    51:    
+                    52:    /*@@@E*/
+                    53:    /************************************************************************
+                    54:    
+                    55:            Function name   << timer_0_Intr >>
+                    56:                                            タイマー割り込み
+                    57:            Syntax                  timer_0_Intr( void );
+                    58:            Argument                none
+                    59:            Author                  TOA Corporation  K.Honda
+                    60:            Revision                a00 2000/08/07
+                    61:    
+                    62:    *************************************************************************/
+                    63:    void    timer_0_Intr(void)
+    000000              _timer_0_Intr:                   ; function: timer_0_Intr
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    64:    {
+    000004 7A04001800             MOV.L       #1572864:32,ER4
+           00           
+    00000A 7A06                   MOV.L       #_timedata:32,ER6
+           <00000000>   
+                    65:                    // 接点信号チェック
+                    66:                    signalCheckTime++;
+    000010 7A01                   MOV.L       #_$signalCheckTime:32,ER1
+           <00000000>   
+    000016 6818                   MOV.B       @ER1,R0L
+    000018 0A08                   INC.B       R0L
+    00001A 6898                   MOV.B       R0L,@ER1
+                    67:                    if( signalCheckTime>4 ){
+    00001C A804                   CMP.B       #4:8,R0L
+    00001E 4F08                   BLE         L91:8
+                    68:                            signalCheckTime=0;
+    000020 1888                   SUB.B       R0L,R0L
+    000022 6898                   MOV.B       R0L,@ER1
+                    69:                            dvaIOIn();
+    000024 5E                     JSR         @_dvaIOIn:24
+           <000000>     
+    000028              L91:                              
+                    70:                    }
+                    71:    
+                    72:                    // タイマー割り込み処理
+                    73:    
+                    74:                    // 日付・時刻のカウント処理
+                    75:                    timedata.tm_msec++;
+    000028 6E680008               MOV.B       @(8:16,ER6),R0L
+    00002C 0A08                   INC.B       R0L
+    00002E 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                    76:                    if( timedata.tm_msec>99 ){
+    000032 A863                   CMP.B       #99:8,R0L
+    000034 4310                   BLS         L92:8
+                    77:                            timedata.tm_msec=0;
+    000036 1888                   SUB.B       R0L,R0L
+    000038 6EE80008               MOV.B       R0L,@(8:16,ER6)
+                    78:                            timedata.tm_sec++;
+    00003C 6E680007               MOV.B       @(7:16,ER6),R0L
+    000040 0A08                   INC.B       R0L
+    000042 6EE80007               MOV.B       R0L,@(7:16,ER6)
+    000046              L92:                              
+                    79:                    }
+                    80:                    if( timedata.tm_sec>59 ){
+    000046 6E680007               MOV.B       @(7:16,ER6),R0L
+    00004A A83B                   CMP.B       #59:8,R0L
+    00004C 4310                   BLS         L93:8
+                    81:                            timedata.tm_sec=0;
+    00004E 1888                   SUB.B       R0L,R0L
+    000050 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                    82:                            timedata.tm_min++;
+    000054 6E680006               MOV.B       @(6:16,ER6),R0L
+    000058 0A08                   INC.B       R0L
+    00005A 6EE80006               MOV.B       R0L,@(6:16,ER6)
+    00005E              L93:                              
+                    83:                    }
+                    84:                    if( timedata.tm_min>59 ){
+    00005E 6E680006               MOV.B       @(6:16,ER6),R0L
+    000062 A83B                   CMP.B       #59:8,R0L
+    000064 4310                   BLS         L94:8
+                    85:                            timedata.tm_min=0;
+    000066 1888                   SUB.B       R0L,R0L
+    000068 6EE80006               MOV.B       R0L,@(6:16,ER6)
+                    86:                            timedata.tm_hour++;
+    00006C 6E680005               MOV.B       @(5:16,ER6),R0L
+    000070 0A08                   INC.B       R0L
+    000072 6EE80005               MOV.B       R0L,@(5:16,ER6)
+    000076              L94:                              
+                    87:                    }
+                    88:                    if( timedata.tm_hour>59 ){
+    000076 6E680005               MOV.B       @(5:16,ER6),R0L
+    00007A A83B                   CMP.B       #59:8,R0L
+    00007C 4310                   BLS         L95:8
+                    89:                            timedata.tm_hour=0;
+    00007E 1888                   SUB.B       R0L,R0L
+    000080 6EE80005               MOV.B       R0L,@(5:16,ER6)
+                    90:                            timedata.tm_day++;
+    000084 6E680004               MOV.B       @(4:16,ER6),R0L
+    000088 0A08                   INC.B       R0L
+    00008A 6EE80004               MOV.B       R0L,@(4:16,ER6)
+    00008E              L95:                              
+                    91:                    }
+                    92:    
+                    93:                    if( timedata.tm_day==0 ){
+    00008E 6E680004               MOV.B       @(4:16,ER6),R0L
+    000092 4606                   BNE         L96:8
+                    94:                            timedata.tm_day=1;
+    000094 F801                   MOV.B       #1:8,R0L
+    000096 6EE80004               MOV.B       R0L,@(4:16,ER6)
+    00009A              L96:                              
+                    95:                    }
+                    96:                    if( timedata.tm_mon==0 ){
+    00009A 6E680003               MOV.B       @(3:16,ER6),R0L
+    00009E 4606                   BNE         L97:8
+                    97:                            timedata.tm_mon=1;
+    0000A0 F801                   MOV.B       #1:8,R0L
+    0000A2 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    0000A6              L97:                              
+                    98:                    }
+                    99:                    switch( timedata.tm_mon ){
+    0000A6 6E680003               MOV.B       @(3:16,ER6),R0L
+    0000AA A802                   CMP.B       #2:8,R0L
+    0000AC 4712                   BEQ         L85:8
+    0000AE A804                   CMP.B       #4:8,R0L
+    0000B0 4746                   BEQ         L86:8
+    0000B2 A806                   CMP.B       #6:8,R0L
+    0000B4 4742                   BEQ         L87:8
+    0000B6 A809                   CMP.B       #9:8,R0L
+    0000B8 473E                   BEQ         L88:8
+    0000BA A80B                   CMP.B       #11:8,R0L
+    0000BC 473A                   BEQ         L89:8
+    0000BE 4052                   BRA         L90:8
+                   100:                    case 2:
+    0000C0              L85:                              
+                   101:                            if( (timedata.tm_year%4)==0 ){
+    0000C0 6E680002               MOV.B       @(2:16,ER6),R0L
+    0000C4 1750                   EXTU.W      R0
+    0000C6 17F0                   EXTS.L      ER0
+    0000C8 79010004               MOV.W       #4:16,R1
+    0000CC 01D05310               DIVXS.W     R1,ER0
+    0000D0 0D88                   MOV.W       E0,E0
+    0000D2 460A                   BNE         L99:8
+                   102:                                    if( timedata.tm_day>29 ){
+    0000D4 6E680004               MOV.B       @(4:16,ER6),R0L
+    0000D8 A81D                   CMP.B       #29:8,R0L
+    0000DA 434E                   BLS         L98:8
+                   103:                                            timedata.tm_day=1;
+                   104:                                            timedata.tm_mon++;
+    0000DC 4022                   BRA         L122:8
+    0000DE              L99:                              
+                   105:                                    }
+                   106:                            }
+                   107:                            else {
+                   108:                                    if( timedata.tm_day>28 ){
+    0000DE 6E680004               MOV.B       @(4:16,ER6),R0L
+    0000E2 A81C                   CMP.B       #28:8,R0L
+    0000E4 4344                   BLS         L98:8
+                   109:                                            timedata.tm_day=1;
+    0000E6 F801                   MOV.B       #1:8,R0L
+    0000E8 6EE80004               MOV.B       R0L,@(4:16,ER6)
+                   110:                                            timedata.tm_mon++;
+    0000EC 6E680003               MOV.B       @(3:16,ER6),R0L
+    0000F0 0A08                   INC.B       R0L
+    0000F2 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   111:                                    }
+                   112:                            }
+                   113:                            break;
+    0000F6 4032                   BRA         L98:8
+    0000F8              L86:                              
+                   114:                    case 4:
+                   115:                    case 6:
+    0000F8              L87:                              
+                   116:                    case 9:
+    0000F8              L88:                              
+                   117:                    case 11:
+    0000F8              L89:                              
+                   118:                            if( timedata.tm_day>30 ){
+    0000F8 6E680004               MOV.B       @(4:16,ER6),R0L
+    0000FC A81E                   CMP.B       #30:8,R0L
+    0000FE 432A                   BLS         L98:8
+                   119:                                    timedata.tm_day = 1;
+                   120:                                    timedata.tm_mon++;
+                   121:                            }
+                   122:                            break;
+    000100              L122:                             
+    000100 F801                   MOV.B       #1:8,R0L
+    000102 6EE80004               MOV.B       R0L,@(4:16,ER6)
+    000106 6E680003               MOV.B       @(3:16,ER6),R0L
+    00010A 0A08                   INC.B       R0L
+    00010C 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    000110 4018                   BRA         L98:8
+    000112              L90:                              
+                   123:                    default:
+                   124:                            if( timedata.tm_day>31 ){
+    000112 6E680004               MOV.B       @(4:16,ER6),R0L
+    000116 A81F                   CMP.B       #31:8,R0L
+    000118 4310                   BLS         L104:8
+                   125:                                    timedata.tm_day = 1;
+    00011A F801                   MOV.B       #1:8,R0L
+    00011C 6EE80004               MOV.B       R0L,@(4:16,ER6)
+                   126:                                    timedata.tm_mon++;
+    000120 6E680003               MOV.B       @(3:16,ER6),R0L
+    000124 0A08                   INC.B       R0L
+    000126 6EE80003               MOV.B       R0L,@(3:16,ER6)
+    00012A              L104:                             
+                   127:                            }
+                   128:                            break;
+    00012A              L98:                              
+                   129:                    }
+                   130:    
+                   131:                    if( timedata.tm_mon>12 ){
+    00012A 6E680003               MOV.B       @(3:16,ER6),R0L
+    00012E A80C                   CMP.B       #12:8,R0L
+    000130 4310                   BLS         L105:8
+                   132:                            timedata.tm_mon=1;
+    000132 F801                   MOV.B       #1:8,R0L
+    000134 6EE80003               MOV.B       R0L,@(3:16,ER6)
+                   133:                            timedata.tm_year++;
+    000138 6E680002               MOV.B       @(2:16,ER6),R0L
+    00013C 0A08                   INC.B       R0L
+    00013E 6EE80002               MOV.B       R0L,@(2:16,ER6)
+    000142              L105:                             
+                   134:                    }
+                   135:    
+                   136:                    // プロセス用タイマー
+                   137:                    if( timedata.checkTimer ){
+    000142 6A2000                 MOV.B       @_timedata+9:24,R0H
+           <000000>     
+    000148 6A2800                 MOV.B       @_timedata+10:24,R0L
+           <000000>     
+    00014E 0D00                   MOV.W       R0,R0
+    000150 471A                   BEQ         L106:8
+                   138:                            timedata.checkTimer--;
+    000152 6A2000                 MOV.B       @_timedata+9:24,R0H
+           <000000>     
+    000158 6A2800                 MOV.B       @_timedata+10:24,R0L
+           <000000>     
+    00015E 1B50                   DEC.W       #1,R0
+    000160 6AA000                 MOV.B       R0H,@_timedata+9:24
+           <000000>     
+    000166 6AA800                 MOV.B       R0L,@_timedata+10:24
+           <000000>     
+    00016C              L106:                             
+                   139:                    }
+                   140:    
+                   141:                    // ＴＭＳ有効カウント
+                   142:                    if( timedata.tmsActiveTimer ){
+    00016C 6A2000                 MOV.B       @_timedata+11:24,R0H
+           <000000>     
+    000172 6A2800                 MOV.B       @_timedata+12:24,R0L
+           <000000>     
+    000178 0D00                   MOV.W       R0,R0
+    00017A 472E                   BEQ         L107:8
+                   143:                            timedata.tmsActiveTimer--;
+    00017C 6A2000                 MOV.B       @_timedata+11:24,R0H
+           <000000>     
+    000182 6A2800                 MOV.B       @_timedata+12:24,R0L
+           <000000>     
+    000188 1B50                   DEC.W       #1,R0
+    00018A 6AA000                 MOV.B       R0H,@_timedata+11:24
+           <000000>     
+    000190 6AA800                 MOV.B       R0L,@_timedata+12:24
+           <000000>     
+                   144:                            if( timedata.tmsActiveTimer==0 ){
+    000196 6A2000                 MOV.B       @_timedata+11:24,R0H
+           <000000>     
+    00019C 0D00                   MOV.W       R0,R0
+    00019E 460A                   BNE         L108:8
+                   145:                                    DUALPORT.tms_request.Active = 0;                // ＴＭＳデータ無効
+    0001A0 1A80                   SUB.L       ER0,ER0
+    0001A2 F8C6                   MOV.B       #-58:8,R0L
+    0001A4 0AC0                   ADD.L       ER4,ER0
+    0001A6 7D007270               BCLR.B      #7,@ER0
+    0001AA              L108:                             
+    0001AA              L107:                             
+                   146:                            }
+                   147:                    }
+                   148:    
+                   149:                    // ＥＶ５０００通信タイムアウトカウント
+                   150:                    if( timedata.ev5000timer ){
+    0001AA 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    0001B0 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    0001B6 0D00                   MOV.W       R0,R0
+    0001B8 471A                   BEQ         L109:8
+                   151:                            timedata.ev5000timer--;
+    0001BA 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    0001C0 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    0001C6 1B50                   DEC.W       #1,R0
+    0001C8 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    0001CE 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+    0001D4              L109:                             
+                   152:                    }
+                   153:    
+                   154:                    // 連結通信タイムカウント
+                   155:                    if( timedata.commGateTimer ){
+    0001D4 6A2000                 MOV.B       @_timedata+15:24,R0H
+           <000000>     
+    0001DA 6A2800                 MOV.B       @_timedata+16:24,R0L
+           <000000>     
+    0001E0 0D00                   MOV.W       R0,R0
+    0001E2 471A                   BEQ         L110:8
+                   156:                            timedata.commGateTimer--;
+    0001E4 6A2000                 MOV.B       @_timedata+15:24,R0H
+           <000000>     
+    0001EA 6A2800                 MOV.B       @_timedata+16:24,R0L
+           <000000>     
+    0001F0 1B50                   DEC.W       #1,R0
+    0001F2 6AA000                 MOV.B       R0H,@_timedata+15:24
+           <000000>     
+    0001F8 6AA800                 MOV.B       R0L,@_timedata+16:24
+           <000000>     
+    0001FE              L110:                             
+                   157:                    }
+                   158:    
+                   159:                    // テスト時間
+                   160:                    if( timedata.testExecTimer ){
+    0001FE 6A2000                 MOV.B       @_timedata+17:24,R0H
+           <000000>     
+    000204 6A2800                 MOV.B       @_timedata+18:24,R0L
+           <000000>     
+    00020A 0D00                   MOV.W       R0,R0
+    00020C 471A                   BEQ         L111:8
+                   161:                            timedata.testExecTimer--;
+    00020E 6A2000                 MOV.B       @_timedata+17:24,R0H
+           <000000>     
+    000214 6A2800                 MOV.B       @_timedata+18:24,R0L
+           <000000>     
+    00021A 1B50                   DEC.W       #1,R0
+    00021C 6AA000                 MOV.B       R0H,@_timedata+17:24
+           <000000>     
+    000222 6AA800                 MOV.B       R0L,@_timedata+18:24
+           <000000>     
+    000228              L111:                             
+                   162:                    }
+                   163:    
+                   164:                    // テスト結果表示間隔
+                   165:                    if( timedata.testDispTimer ){
+    000228 6A2000                 MOV.B       @_timedata+19:24,R0H
+           <000000>     
+    00022E 6A2800                 MOV.B       @_timedata+20:24,R0L
+           <000000>     
+    000234 0D00                   MOV.W       R0,R0
+    000236 471A                   BEQ         L112:8
+                   166:                            timedata.testDispTimer--;
+    000238 6A2000                 MOV.B       @_timedata+19:24,R0H
+           <000000>     
+    00023E 6A2800                 MOV.B       @_timedata+20:24,R0L
+           <000000>     
+    000244 1B50                   DEC.W       #1,R0
+    000246 6AA000                 MOV.B       R0H,@_timedata+19:24
+           <000000>     
+    00024C 6AA800                 MOV.B       R0L,@_timedata+20:24
+           <000000>     
+    000252              L112:                             
+                   167:                    }
+                   168:    
+                   169:                    // サブＣＰＵチェック間隔
+                   170:                    if( timedata.subActiveTimer ){
+    000252 6A2000                 MOV.B       @_timedata+21:24,R0H
+           <000000>     
+    000258 6A2800                 MOV.B       @_timedata+22:24,R0L
+           <000000>     
+    00025E 0D00                   MOV.W       R0,R0
+    000260 471A                   BEQ         L113:8
+                   171:                            timedata.subActiveTimer--;
+    000262 6A2000                 MOV.B       @_timedata+21:24,R0H
+           <000000>     
+    000268 6A2800                 MOV.B       @_timedata+22:24,R0L
+           <000000>     
+    00026E 1B50                   DEC.W       #1,R0
+    000270 6AA000                 MOV.B       R0H,@_timedata+21:24
+           <000000>     
+    000276 6AA800                 MOV.B       R0L,@_timedata+22:24
+           <000000>     
+    00027C              L113:                             
+                   172:                    }
+                   173:    
+                   174:                    if( DUALPORT.mainActive ){
+    00027C 6E4807FD               MOV.B       @(2045:16,ER4),R0L
+    000280 4732                   BEQ         L114:8
+                   175:                            if( DUALPORT.subActive ){
+    000282 6E4807FC               MOV.B       @(2044:16,ER4),R0L
+    000286 4708                   BEQ         L115:8
+                   176:                                    DUALPORT.subActive = 0;
+    000288 1888                   SUB.B       R0L,R0L
+    00028A 6EC807FC               MOV.B       R0L,@(2044:16,ER4)
+                   177:                                    timedata.subActiveTimer = 1000;
+    00028E 4024                   BRA         L123:8
+    000290              L115:                             
+                   178:                            }
+                   179:                            else if( timedata.subActiveTimer==0 ){
+    000290 6A2000                 MOV.B       @_timedata+21:24,R0H
+           <000000>     
+    000296 6A2800                 MOV.B       @_timedata+22:24,R0L
+           <000000>     
+    00029C 0D00                   MOV.W       R0,R0
+    00029E 4624                   BNE         L118:8
+                   180:                                    dvaIOOut( OUTSIGNAL_LED7|OUTSIGNAL_LED5, 0xFFFF );
+    0002A0 7A010000FF             MOV.L       #65535:32,ER1
+           FF           
+    0002A6 1A80                   SUB.L       ER0,ER0
+    0002A8 F8A0                   MOV.B       #-96:8,R0L
+    0002AA 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   181:                                    Halt();
+    0002AE 5E                     JSR         @_Halt:24
+           <000000>     
+    0002B2 4010                   BRA         L118:8
+    0002B4              L114:                             
+                   182:                            }
+                   183:                    }
+                   184:                    else {
+                   185:                            timedata.subActiveTimer = 1000;
+    0002B4              L123:                             
+    0002B4 790003E8               MOV.W       #1000:16,R0
+    0002B8 6AA000                 MOV.B       R0H,@_timedata+21:24
+           <000000>     
+    0002BE 6AA800                 MOV.B       R0L,@_timedata+22:24
+           <000000>     
+    0002C4              L118:                             
+                   186:                    }
+                   187:    
+                   188:                    if( timedata.acpBlink ){
+    0002C4 6A2000                 MOV.B       @_timedata+23:24,R0H
+           <000000>     
+    0002CA 6A2800                 MOV.B       @_timedata+24:24,R0L
+           <000000>     
+    0002D0 0D00                   MOV.W       R0,R0
+    0002D2 4710                   BEQ         L119:8
+                   189:                            timedata.acpBlink--;
+    0002D4 6A2000                 MOV.B       @_timedata+23:24,R0H
+           <000000>     
+    0002DA 6A2800                 MOV.B       @_timedata+24:24,R0L
+           <000000>     
+    0002E0 1B50                   DEC.W       #1,R0
+    0002E2 4004                   BRA         L124:8
+    0002E4              L119:                             
+                   190:                    }
+                   191:                    else {
+                   192:                            timedata.acpBlink = 50;
+    0002E4 79000032               MOV.W       #50:16,R0
+    0002E8              L124:                             
+    0002E8 6AA000                 MOV.B       R0H,@_timedata+23:24
+           <000000>     
+    0002EE 6AA800                 MOV.B       R0L,@_timedata+24:24
+           <000000>     
+                   193:                    }
+                   194:    
+                   195:                    if( timedata.menteSendTimer ){
+    0002F4 6A2000                 MOV.B       @_timedata+25:24,R0H
+           <000000>     
+    0002FA 6A2800                 MOV.B       @_timedata+26:24,R0L
+           <000000>     
+    000300 0D00                   MOV.W       R0,R0
+    000302 471A                   BEQ         L121:8
+                   196:                            timedata.menteSendTimer--;
+    000304 6A2000                 MOV.B       @_timedata+25:24,R0H
+           <000000>     
+    00030A 6A2800                 MOV.B       @_timedata+26:24,R0L
+           <000000>     
+    000310 1B50                   DEC.W       #1,R0
+    000312 6AA000                 MOV.B       R0H,@_timedata+25:24
+           <000000>     
+    000318 6AA800                 MOV.B       R0L,@_timedata+26:24
+           <000000>     
+    00031E              L121:                             
+                   197:                    }
+                   198:    }
+    00031E 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   199:    
+                   200:    /************************************************************************
+                   201:    
+                   202:            Function name   << timer_0_Initialize >>
+                   203:                                            初期設定
+                   204:            Syntax                  timer_0_Initialize( void );
+                   205:            Argument                none
+                   206:            Author                  TOA Corporation  K.Honda
+                   207:            Revision                a00 2000/08/07
+                   208:    
+                   209:    *************************************************************************/
+                   210:    void timer_0_Initialize( void )
+    000322              _timer_0_Initialize:             ; function: timer_0_Initialize
+                   211:    {
+                   212:                    /******* タイマー初期設定 *******/
+                   213:    
+                   214:                    /*** タイマー０のみ使用 ***/
+                   215:    
+                   216:                    IMIA0Jump = timer_0_Intr;
+    000322 7A00                   MOV.L       #_timer_0_Intr:32,ER0
+           <00000000>   
+    000328 01006BA000             MOV.L       ER0,@_IMIA0Jump:24
+           <000000>     
+                   217:    
+                   218:                    ITU0.TCR.BYTE = 0;
+    000330 1888                   SUB.B       R0L,R0L
+    000332 3864                   MOV.B       R0L,@16777060:8
+                   219:                    ITU0.TCR.BIT.CCLR = 1;          /* ＧＲＡカウントでクリア */
+    000334 2864                   MOV.B       @16777060:8,R0L
+    000336 E89F                   AND.B       #-97:8,R0L
+    000338 C820                   OR.B        #32:8,R0L
+    00033A 3864                   MOV.B       R0L,@16777060:8
+                   220:                    ITU0.TCR.BIT.CKEG = 0;          /* クロックの裁ち上がりでカウント */
+    00033C 2864                   MOV.B       @16777060:8,R0L
+    00033E E8E7                   AND.B       #-25:8,R0L
+    000340 3864                   MOV.B       R0L,@16777060:8
+                   221:                    ITU0.TCR.BIT.TPSC = 2;          /* Φ／４クロック */
+    000342 2864                   MOV.B       @16777060:8,R0L
+    000344 E8F8                   AND.B       #-8:8,R0L
+    000346 C802                   OR.B        #2:8,R0L
+    000348 3864                   MOV.B       R0L,@16777060:8
+                   222:                    ITU0.TIOR.BYTE = 0;                     /* コンペアマッチによる出力禁止 */
+    00034A 1888                   SUB.B       R0L,R0L
+    00034C 3865                   MOV.B       R0L,@16777061:8
+                   223:                    ITU0.TIER.BYTE = 0;
+    00034E 3866                   MOV.B       R0L,@16777062:8
+                   224:                    ITU0.TIER.BIT.IMIEA = 1;        /* ＩＭＦＡフラグによる割り込み */
+    000350 7F667000               BSET.B      #0,@16777062:8
+                   225:                    ITU0.TSR.BYTE = 0;                      /* タイマーステータスクリア */
+    000354 3867                   MOV.B       R0L,@16777063:8
+                   226:    
+                   227:                    ITU0.TCNT = 0;                          /* カウンタークリア */
+    000356 79000000               MOV.W       #0:16,R0
+    00035A 3068                   MOV.B       R0H,@16777064:8
+    00035C 3869                   MOV.B       R0L,@16777065:8
+                   228:                                                                                    /* 14.7456MHz -> Φ
+                   229:                                                                                    Φ／４ = 3.6864MHz
+                   230:                                                                                    0.27126uS
+                   231:                                                                                    10mS / 0.27126uS = 0x9000
+                   232:                                                                            */
+                   233:                    ITU0.GRA = 0x9000;
+    00035E 79009000               MOV.W       #-28672:16,R0
+    000362 306A                   MOV.B       R0H,@16777066:8
+    000364 386B                   MOV.B       R0L,@16777067:8
+                   234:    
+                   235:                    /** タイマースタート **/
+                   236:                    ITU.TSTR.BYTE = 0;
+    000366 1888                   SUB.B       R0L,R0L
+    000368 3860                   MOV.B       R0L,@16777056:8
+                   237:                    ITU.TSTR.BIT.STR0 = 1;
+    00036A 7F607000               BSET.B      #0,@16777056:8
+                   238:                    ITU.TSNC.BYTE = 0;                      /*タイマー同期なし */
+    00036E 3861                   MOV.B       R0L,@16777057:8
+                   239:                    ITU.TSNC.BIT.SYNC4 = 0;
+    000370 7F617240               BCLR.B      #4,@16777057:8
+                   240:                    ITU.TSNC.BIT.SYNC3 = 0;
+    000374 7F617230               BCLR.B      #3,@16777057:8
+                   241:                    ITU.TSNC.BIT.SYNC2 = 0;
+    000378 7F617220               BCLR.B      #2,@16777057:8
+                   242:                    ITU.TSNC.BIT.SYNC1 = 0;
+    00037C 7F617210               BCLR.B      #1,@16777057:8
+                   243:                    ITU.TSNC.BIT.SYNC0 = 0;
+    000380 7F617200               BCLR.B      #0,@16777057:8
+                   244:                    ITU.TMDR.BYTE = 0;                      /*位相計数なし*/
+    000384 3862                   MOV.B       R0L,@16777058:8
+                   245:                    ITU.TFCR.BYTE = 0;
+    000386 3863                   MOV.B       R0L,@16777059:8
+                   246:                    ITU.TOER.BYTE = 0;
+    000388 3890                   MOV.B       R0L,@16777104:8
+                   247:                    ITU.TOCR.BYTE = 0;
+    00038A 3891                   MOV.B       R0L,@16777105:8
+                   248:    
+                   249:    }
+    00038C 5470                   RTS
+                   250:    
+                   251:    
+                   252:    /*@@@E*/
+  B                                                      ; section
+    000000              _timedata:                       ; static: timedata
+    000000 0000001B               .RES.B      27
+    00001B              _$signalCheckTime:               ; static: signalCheckTime
+    00001B 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:07:23  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x0000038E Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x0000001C Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x0000038E Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x0000001C Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000003AA Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        6 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        3 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         43 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvatime.c -object=.\obj\dvatime.obj
+CPU         : 300ha:24

@@ -1,0 +1,253 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:14  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvamain.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include        <stdio.h>
+                    13:    #include    <machine.h>
+                    14:    #include    "iodefine.h"
+                    15:    
+                    16:    #include        "timer.h"
+                    17:    #include        "table.h"
+                    18:    
+                    19:    #define         VERSION_INFO    0x0001
+                    20:    
+                    21:    /*@@@S*/
+                    22:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    23:            ƒOƒ[ƒoƒ‹•Ï”
+                    24:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    25:    
+                    26:    char    tms_start;
+                    27:    
+                    28:    
+                    29:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    30:            ƒ[ƒJƒ‹’è”’è‹`
+                    31:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    32:    
+                    33:    
+                    34:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    35:            ƒ[ƒJƒ‹\‘¢‘Ì’è‹`
+                    36:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    37:    
+                    38:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    39:            ƒ[ƒJƒ‹ƒe[ƒuƒ‹
+                    40:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    41:    
+                    42:    
+                    43:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    44:                    ŠO•”ŽQÆ
+                    45:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    46:    extern  void tms_initialize( void );
+                    47:    extern  int tms_send( void );
+                    48:    
+                    49:    extern  struct  TIMER_CONTROL   timedata;               // ƒ^ƒCƒ}[î•ñ
+                    50:    
+                    51:    extern  char    watchDogCount;
+                    52:    extern  char    watchDogFlag;
+                    53:    extern  char    watchDogON;
+                    54:    
+                    55:    extern  void dvaIOOut( unsigned short onbit, unsigned short offbit );
+                    56:    
+                    57:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    58:                    ƒ[ƒJƒ‹•Ï”
+                    59:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    60:    
+                    61:    /*@@@E*/
+                    62:    /************************************************************************
+                    63:    *                                                                                                                                               *
+                    64:    *       Function name   << main >>                                                                                      *
+                    65:    *                                       ƒƒCƒ“ŠÖ”                                                                                      *
+                    66:    *       Syntax                  main( void );                                                                           *
+                    67:    *       Argument                none                                                                                            *
+                    68:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    69:    *       Revision                a00 2000/06/27                                                                          *
+                    70:    *                                                                                                                                               *
+                    71:    *************************************************************************/
+                    72:    void main( void )
+    000000              _main:                           ; function: main
+                    73:    {
+    000000 7A04                   MOV.L       #_watchDogFlag:32,ER4
+           <00000000>   
+    000006 7A05                   MOV.L       #_tms_start:32,ER5
+           <00000000>   
+                    74:                    int             i;
+                    75:    
+                    76:                    memset( DUALBOOT.data, 0, sizeof(DUALBOOT.data) );
+    00000C 7A00000007             MOV.L       #2030:32,ER0
+           EE           
+    000012 01006DF0               PUSH.L      ER0
+    000016 1911                   SUB.W       R1,R1
+    000018 7A00000C00             MOV.L       #786440:32,ER0
+           08           
+    00001E 5E                     JSR         @_memset:24
+           <000000>     
+    000022 0B97                   ADDS.L      #4,SP
+                    77:    
+                    78:                    tms_start = 0;
+    000024 1888                   SUB.B       R0L,R0L
+    000026 68D8                   MOV.B       R0L,@ER5
+                    79:                    if( P4.DR.BIT.B6 ){
+    000028 7EC77760               BLD.B       #6,@16777159:8
+    00002C 4404                   BCC         L115:8
+                    80:                            tms_start = 1;
+    00002E F801                   MOV.B       #1:8,R0L
+    000030 68D8                   MOV.B       R0L,@ER5
+    000032              L115:                             
+                    81:                    }
+                    82:    
+                    83:                    dvaIOOut( 0, 0xFF );
+    000032 790800FF               MOV.W       #255:16,E0
+    000036 1900                   SUB.W       R0,R0
+    000038 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                    84:    
+                    85:    //              and_ccr(0x3F);                                          /* Š„‚èž‚Ý‘S–Ê‹–‰Â */
+                    86:    
+                    87:                    timer_0_Initialize();
+    00003C 5E                     JSR         @_timer_0_Initialize:24
+           <000000>     
+                    88:    
+                    89:                    dvauMENTEInitialize();
+    000040 5E                     JSR         @_dvauMENTEInitialize:24
+           <000000>     
+                    90:                    tms_initialize();
+    000044 5E                     JSR         @_tms_initialize:24
+           <000000>     
+                    91:    
+                    92:                    tms_send_end();
+    000048 5E                     JSR         @_tms_send_end:24
+           <000000>     
+                    93:    
+                    94:    //              or_ccr(0x80);
+                    95:    
+                    96:                    and_ccr(0x3F);                                          /* Š„‚èž‚Ý‘S–Ê‹–‰Â */
+    00004C 063F                   ANDC.B      #63:8,CCR
+                    97:                    for( ;; ){
+    00004E              L116:                             
+                    98:                            if( tms_start ){
+    00004E 6858                   MOV.B       @ER5,R0L
+    000050 4718                   BEQ         L118:8
+                    99:                                    if( timedata.tms_timer==0 ){
+    000052 6A2000                 MOV.B       @_timedata+7:24,R0H
+           <000000>     
+    000058 6A2800                 MOV.B       @_timedata+8:24,R0L
+           <000000>     
+    00005E 0D00                   MOV.W       R0,R0
+    000060 4608                   BNE         L119:8
+                   100:                                            and_ccr(0xc0);
+    000062 06C0                   ANDC.B      #-64:8,CCR
+                   101:                                            tms_send();
+    000064 5E                     JSR         @_tms_send:24
+           <000000>     
+                   102:                                            and_ccr(0x3F);                                          /* Š„‚èž‚Ý‘S–Ê‹–‰Â */
+    000068 063F                   ANDC.B      #63:8,CCR
+    00006A              L119:                             
+    00006A              L118:                             
+                   103:                                    }
+                   104:                            }
+                   105:                            if( watchDogFlag ){
+    00006A 684E                   MOV.B       @ER4,R6L
+    00006C 4730                   BEQ         L120:8
+                   106:                                    printf("WatchDog %d %d %d\n", watchDogCount, watchDogFlag, watchDogON );
+    00006E 6A2800                 MOV.B       @_watchDogON:24,R0L
+           <000000>     
+    000074 17D0                   EXTS.W      R0
+    000076 6DF0                   PUSH.W      R0
+    000078 17D6                   EXTS.W      R6
+    00007A 6DF6                   PUSH.W      R6
+    00007C 6A2800                 MOV.B       @_watchDogCount:24,R0L
+           <000000>     
+    000082 17D0                   EXTS.W      R0
+    000084 6DF0                   PUSH.W      R0
+    000086 7A00                   MOV.L       #L104:32,ER0
+           <00000000>   
+    00008C 01006DF0               PUSH.L      ER0
+    000090 5E                     JSR         @_printf:24
+           <000000>     
+    000094 7A17000000             ADD.L       #10:32,SP
+           0A           
+                   107:                                    watchDogFlag = 0;
+    00009A 1888                   SUB.B       R0L,R0L
+    00009C 68C8                   MOV.B       R0L,@ER4
+    00009E              L120:                             
+                   108:                            }
+                   109:    
+                   110:                            dvauMENTEMain();
+    00009E 5E                     JSR         @_dvauMENTEMain:24
+           <000000>     
+                   111:    
+                   112:                            WatchDogReset();
+    0000A2 5E                     JSR         @_WatchDogReset:24
+           <000000>     
+    0000A6 40A6                   BRA         L116:8
+                   113:                    }
+                   114:    
+                   115:    }
+                   116:    
+                   117:    void asci_0_send_ir( int tend )
+    0000A8              _asci_0_send_ir:                 ; function: asci_0_send_ir
+                   118:    {
+                   119:    }
+    0000A8 5470                   RTS
+                   120:    void asci_0_recv_ir( char data, char status )
+    0000AA              _asci_0_recv_ir:                 ; function: asci_0_recv_ir
+                   121:    {
+                   122:    }
+    0000AA 5470                   RTS
+                   123:    
+  C                                                      ; section
+    000000              L104:
+    000000 5761746368             .SDATAZ     "WatchDog %d %d %d"<H'0A>
+           446F672025   
+           6420256420   
+           25640A00     
+  B                                                      ; section
+    000000              _tms_start:                      ; static: tms_start
+    000000 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:14  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000000AC Byte(s)
+CONSTANT SECTION(C):                                0x00000013 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000001 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000000AC Byte(s)
+TOTAL CONSTANT SECTION: 0x00000013 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000001 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000000C0 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       16 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        4 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         26 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,.\inc\,.\inc\ .\src\dvamain.c -object=.\obj\dvamain.obj
+CPU         : 300ha:24

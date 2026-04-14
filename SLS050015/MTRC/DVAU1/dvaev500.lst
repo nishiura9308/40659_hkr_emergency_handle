@@ -1,0 +1,2813 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvaev500.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            【香港地下鉄向け自動列車放送制御装置】
+                     3:    *-------------------------------------------------------------------*
+                     4:            音声制御モジュール
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/07/27         K.Honda
+                     9:            Revision        a01. 2000/09/07         K.Honda
+                    10:            Revision        a02. 2000/11/13         K.Honda
+                    11:                                    a03. 2001/04/18         K.Honda
+                    12:                                    a04. 2003/04/01         h.nishiura  複数言語同時設定を可能に変更
+                    13:                                    a05. 2024/03/11         h,nishiura  RTTF用放送中情報をDualPortRamにアップデート
+                    14:    *********************************************************************/
+                    15:    
+                    16:    #include <stdio.h>
+                    17:    #include <string.h>
+                    18:    #include        "iodefine.h"
+                    19:    #include        "table.h"
+                    20:    
+                    21:    #include        "timer.h"
+                    22:    #include        "trace.h"
+                    23:    
+                    24:    /*@@@S*/
+                    25:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    26:            グローバル変数
+                    27:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    28:    
+                    29:    unsigned char   ev5000_time_adjust;
+                    30:    
+                    31:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    32:            定数定義
+                    33:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    34:    #define SEND_SETUP                      0               // セットアップ待ち
+                    35:    #define SEND_INITIAL            1               // 接続チェック送信
+                    36:    #define SEND_INITIAL_RECV       2               // 接続チェック受信
+                    37:    #define SEND_WAIT                       3               // 放送前時間待ち
+                    38:    #define SEND_WAITUP                     4               // 放送前時間待ち終了チェック
+                    39:    #define SEND_VOICE                      5               // 放送文送信
+                    40:    #define SEND_VOICE_RECV         6               // 放送文受信チェック
+                    41:    #define SEND_VOICE_END          7               // 放送文終了チェック
+                    42:    #define SEND_BUSY                       9       // 放送中チェック
+                    43:    #define SEND_BUSY_RECV          10              // 放送中受信
+                    44:    #define NEXT_VOICE                      11      // 次回放送検索
+                    45:    #define SEND_ABORT                      12      // 放送キャンセル
+                    46:    #define SEND_ABORT_RECV         13              // 放送キャンセル受信
+                    47:    #define SEND_ABORTBUSY          14      // 放送キャンセル終了
+                    48:    #define SEND_ABORTBUSY_RECV     15      // 放送キャンセル終了待ち
+                    49:    #define SEND_TIME_GET           16              // 日時要求
+                    50:    #define SEND_TIME_GET_RECV      17              // 日時受信
+                    51:    #define SEND_TIME_SET           18              // 日時設定
+                    52:    #define SEND_TIME_SET_RECV      19              // 日時設定受信
+                    53:    
+                    54:    #define MAX_EV5000_TIMEOUT      200             // 受信タイムアウト(x10mS)
+                    55:    #define MAX_EV5000_RETRYTIMEOUT 3       // 受信タイムアウトリトライ回数
+                    56:    #define MAX_EV5000_RETRYERROR   3       // 受信エラーリトライ回数
+                    57:    #define MAX_EV5000_BUSYTIME     100             // 放送中チェックタイム(x10mS)
+                    58:    #define MAX_EV5000_ABORTRETRY   3       // 放送キャンセルリトライ回数
+                    59:    #define MAX_EV5000_ABORTLOOPRETRY       3       // 放送キャンセルリトライ回数
+                    60:    
+                    61:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    62:            構造体定義
+                    63:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    64:    
+                    65:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    66:            テーブル
+                    67:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    68:    
+                    69:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    70:                    外部参照
+                    71:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    72:    extern  void asci_0_Initialize( int baud, char data, char parity, char stop );
+                    73:    extern  void asci_0_tx_enable( void );
+                    74:    extern  void asci_0_tx_disable( char tend );
+                    75:    extern  void asci_0_transmit( unsigned char data );
+                    76:    
+                    77:    extern  struct  CONFIG_INFO             config_data;            // 設定情報
+                    78:    
+                    79:    extern  struct  TIMER_CONTROL   timedata;               // タイマー情報
+                    80:    
+                    81:    extern  struct  BACKUP_DATA             backup_data;            // バックアップデータ
+                    82:    
+                    83:    extern  struct st_ReadSIGNAL nowSignal;                 // 最新読みだし値
+                    84:    
+                    85:    /*・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+                    86:                    ローカル変数
+                    87:    ・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・*/
+                    88:    static  char    phase;                          // 処理フェーズ
+                    89:    static  char    requestNo;                      // 要求放送番号
+                    90:    static  char    timeout;                        // タイムアウトカウンター
+                    91:    static  char    errcnt;                         // エラーカウンター
+                    92:    static  char    recvbuff[32];           // 受信バッファー
+                    93:    static  char    recvlen;                        // 受信バイト数
+                    94:    static  char    recv_complete;          // 受信完了フラグ
+                    95:    static  char    sendbuff[32];           // 送信バッファー
+                    96:    static  char    *sendp;                         // 送信ポインター
+                    97:    static  char    sendbuff_tmp[32];       // 送信バッファーテンポラリ
+                    98:    
+                    99:    static  char    recvsts;
+                   100:    static  char    abortcnt;                       // 放送キャンセルリトライ回数
+                   101:    
+                   102:    /*@@@E*/
+                   103:    /************************************************************************
+                   104:    
+                   105:            Function name   << dvauEV5000Iniialize >>
+                   106:                                            ＥＶ５０００初期設定
+                   107:            Syntax                  dvaEV5000Initialize( void );
+                   108:            Argument                none
+                   109:            Author                  TOA Corporation  K.Honda
+                   110:            Revision                a00 2000/07/27
+                   111:            Revision                a01 2000/10/21          2400bps に変更、１秒間隔送受信に変更
+                   112:            Revision                a02 2000/11/13          日時設定・取得の追加
+                   113:                                    a03 2001/02/15          日時有効・無効フラグのクリア
+                   114:    *************************************************************************/
+                   115:    void dvauEV5000Initialize( void )
+    000000              _dvauEV5000Initialize:           ; function: dvauEV5000Initialize
+    000000 01006DF6               PUSH.L      ER6
+                   116:    {
+                   117:                    asci_0_Initialize( 2400, 8, 'E', 0 );
+    000004 1888                   SUB.B       R0L,R0L
+    000006 6DF0                   PUSH.W      R0
+    000008 F145                   MOV.B       #69:8,R1H
+    00000A F908                   MOV.B       #8:8,R1L
+    00000C 79000960               MOV.W       #2400:16,R0
+    000010 5E                     JSR         @_asci_0_Initialize:24
+           <000000>     
+    000014 0B87                   ADDS.L      #2,SP
+                   118:                    sendp = "";
+    000016 7A00                   MOV.L       #L89:32,ER0
+           <00000000>   
+    00001C 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   119:                    phase = SEND_SETUP;
+    000024 1888                   SUB.B       R0L,R0L
+    000026 6AA800                 MOV.B       R0L,@_$phase:24
+           <000000>     
+                   120:                    DUALPORT.ev5000_request.Initial=1;
+    00002C 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+    000032 1A80                   SUB.L       ER0,ER0
+    000034 F8F6                   MOV.B       #-10:8,R0L
+    000036 0AE0                   ADD.L       ER6,ER0
+    000038 7D007070               BSET.B      #7,@ER0
+                   121:                    DUALPORT.ev5000_request.Abort=0;
+    00003C 1A80                   SUB.L       ER0,ER0
+    00003E F8F6                   MOV.B       #-10:8,R0L
+    000040 0AE0                   ADD.L       ER6,ER0
+    000042 7D007250               BCLR.B      #5,@ER0
+                   122:                    DUALPORT.ev5000_request.Complete=0;
+    000046 1A80                   SUB.L       ER0,ER0
+    000048 F8F6                   MOV.B       #-10:8,R0L
+    00004A 0AE0                   ADD.L       ER6,ER0
+    00004C 7D007240               BCLR.B      #4,@ER0
+                   123:                    DUALPORT.ev5000_request.Request=0;
+    000050 1A80                   SUB.L       ER0,ER0
+    000052 F8F6                   MOV.B       #-10:8,R0L
+    000054 0AE0                   ADD.L       ER6,ER0
+    000056 7D007260               BCLR.B      #6,@ER0
+                   124:                    DUALPORT.ev5000_request.Repeat=0;
+    00005A 1A80                   SUB.L       ER0,ER0
+    00005C F8F6                   MOV.B       #-10:8,R0L
+    00005E 0AE0                   ADD.L       ER6,ER0
+    000060 7D007220               BCLR.B      #2,@ER0
+                   125:                    DUALPORT.ev5000_request.ev5000_error = 0;
+    000064 1888                   SUB.B       R0L,R0L
+    000066 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   126:    
+                   127:                    timedata.dateActive = 0;
+    00006A 79000000               MOV.W       #0:16,R0
+    00006E 6AA000                 MOV.B       R0H,@_timedata:24
+           <000000>     
+    000074 6AA800                 MOV.B       R0L,@_timedata+1:24
+           <000000>     
+                   128:    
+                   129:                    ev5000_time_adjust = 0;
+    00007A 1888                   SUB.B       R0L,R0L
+    00007C 6AA800                 MOV.B       R0L,@_ev5000_time_adjust:24
+           <000000>     
+                   130:    }
+    000082 01006D76               POP.L       ER6
+    000086 5470                   RTS
+                   131:    
+                   132:    /************************************************************************
+                   133:    
+                   134:            Function name   << asci_0_send_ir >>
+                   135:                                            送信割り込み処理
+                   136:            Syntax                  asci_0_send_ir( tend );
+                   137:            Argument                int tend : i : 送信終了フラグ
+                   138:            Author                  TOA Corporation  K.Honda
+                   139:            Revision                a00 2000/07/27
+                   140:    
+                   141:    *************************************************************************/
+                   142:    void asci_0_send_ir( int tend )
+    000088              _asci_0_send_ir:                 ; function: asci_0_send_ir
+    000088 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   143:    {
+                   144:                    if( *sendp=='\0' ){     /*すべて送信したとき*/
+    00008C 7A06                   MOV.L       #_$sendp:32,ER6
+           <00000000>   
+    000092 01006961               MOV.L       @ER6,ER1
+    000096 681A                   MOV.B       @ER1,R2L
+    000098 4606                   BNE         L252:8
+                   145:                            asci_0_tx_disable( tend );              /*受信へ切り替え*/
+    00009A 5E                     JSR         @_asci_0_tx_disable:24
+           <000000>     
+                   146:                            return;
+    00009E 400E                   BRA         L253:8
+    0000A0              L252:                             
+                   147:                    }
+                   148:    
+                   149:                    asci_0_transmit( *sendp++ );    /*１バイトの送信*/
+    0000A0 01006961               MOV.L       @ER6,ER1
+    0000A4 6C18                   MOV.B       @ER1+,R0L
+    0000A6 010069E1               MOV.L       ER1,@ER6
+    0000AA 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   150:    }
+    0000AE              L253:                             
+    0000AE 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   151:    
+                   152:    /************************************************************************
+                   153:    
+                   154:            Function name   << asci_0_recv_ir >>
+                   155:                                            受信割り込み処理
+                   156:            Syntax                  asci_0_recv_ir( data, status );
+                   157:            Argument                char data   : i : 受信データ
+                   158:                                    char status : i : 受信ステータス
+                   159:            Author                  TOA Corporation  K.Honda
+                   160:            Revision                a00 2000/07/27
+                   161:    
+                   162:    *************************************************************************/
+                   163:    void asci_0_recv_ir( char data, char status )
+    0000B2              _asci_0_recv_ir:                 ; function: asci_0_recv_ir
+    0000B2 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   164:    {
+    0000B6 7A05                   MOV.L       #_$recvsts:32,ER5
+           <00000000>   
+    0000BC 0C81                   MOV.B       R0L,R1H
+    0000BE 0C0E                   MOV.B       R0H,R6L
+                   165:    /*. --------------------------【機能詳細】----------------------------[@@@S]
+                   166:    　・ＥＶ５０００からの受信データを取り込む
+                   167:    　・受信データにＣＲ(0x0D)があれば受信完了とする
+                   168:    　・ただし、受信ステータスが受信エラーのときは、受信完了としない
+                   169:            ------------------------------------------------------------------[@@@E]*/
+                   170:    
+                   171:                    recvsts |= status;
+    0000C0 6859                   MOV.B       @ER5,R1L
+    0000C2 14E9                   OR.B        R6L,R1L
+    0000C4 68D9                   MOV.B       R1L,@ER5
+                   172:                    if( recvlen<sizeof(recvbuff)-1 ){
+    0000C6 7A06                   MOV.L       #_$recvlen:32,ER6
+           <00000000>   
+    0000CC 686A                   MOV.B       @ER6,R2L
+    0000CE AA1F                   CMP.B       #31:8,R2L
+    0000D0 4424                   BCC         L254:8
+                   173:                            recvbuff[recvlen++] = data;
+    0000D2 686B                   MOV.B       @ER6,R3L
+    0000D4 0A0B                   INC.B       R3L
+    0000D6 68EB                   MOV.B       R3L,@ER6
+    0000D8 1A0B                   DEC.B       R3L
+    0000DA 17D3                   EXTS.W      R3
+    0000DC 17F3                   EXTS.L      ER3
+    0000DE 78306AA100             MOV.B       R1H,@(_$recvbuff:24,ER3)
+           <000000>     
+                   174:                            recvbuff[recvlen]='\0';
+    0000E6 686E                   MOV.B       @ER6,R6L
+    0000E8 17D6                   EXTS.W      R6
+    0000EA 17F6                   EXTS.L      ER6
+    0000EC 1899                   SUB.B       R1L,R1L
+    0000EE 78606AA900             MOV.B       R1L,@(_$recvbuff:24,ER6)
+           <000000>     
+    0000F6              L254:                             
+                   175:                    }
+                   176:                    if( data=='\r' && (recvsts & 0x38)==0 ){
+    0000F6 A10D                   CMP.B       #13:8,R1H
+    0000F8 460E                   BNE         L255:8
+    0000FA 6858                   MOV.B       @ER5,R0L
+    0000FC E838                   AND.B       #56:8,R0L
+    0000FE 4608                   BNE         L255:8
+                   177:                            recv_complete = 1;
+    000100 F801                   MOV.B       #1:8,R0L
+    000102 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+    000108              L255:                             
+                   178:                    }
+                   179:    }
+    000108 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   180:    
+                   181:    
+                   182:    /************************************************************************
+                   183:    
+                   184:            Function name   << dvauEV5000Cyclic >>
+                   185:                                            ＥＶ５０００処理
+                   186:            Syntax                  dvaEV5000Cyclic( void );
+                   187:            Argument                none
+                   188:            Author                  TOA Corporation  K.Honda
+                   189:            Revision                a00 2000/07/27
+                   190:            Revision                a01 2000/10/21          2400bps に変更、１秒間隔送受信に変更
+                   191:            Revision                a02 2000/11/13          日時設定・取得の追加
+                   192:                                            a03 2001/04/18          Ｂ(Busy) コマンドを２秒間隔にする
+                   193:                                                            ハードウェアビジー信号によるチェックを追加
+                   194:                                            a04 2002/12/11          複数言語同時設定を可能に変更
+                   195:                                            a05. 2024/03/11         h,nishiura  RTTF用放送中情報をDualPortRamにアップデート
+                   196:    *************************************************************************/
+                   197:    void dvauEV5000Cyclic( void )
+    00010C              _dvauEV5000Cyclic:               ; function: dvauEV5000Cyclic
+    00010C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   198:    {
+    000110 7A03                   MOV.L       #_$recvbuff:32,ER3
+           <00000000>   
+    000116 7A04                   MOV.L       #_$requestNo:32,ER4
+           <00000000>   
+    00011C 7A05                   MOV.L       #_$phase:32,ER5
+           <00000000>   
+    000122 7A06001800             MOV.L       #1572864:32,ER6
+           00           
+                   199:                    int             i;
+                   200:    
+                   201:                    switch( phase ){
+    000128 6848                   MOV.B       @ER4,R0L
+    00012A 17D0                   EXTS.W      R0
+    00012C 17F0                   EXTS.L      ER0
+    00012E 1030                   SHLL.L      ER0
+    000130 1030                   SHLL.L      ER0
+    000132 0F82                   MOV.L       ER0,ER2
+    000134 6858                   MOV.B       @ER5,R0L
+    000136 476A                   BEQ         L220:8
+    000138 A803                   CMP.B       #3:8,R0L
+    00013A 5870010C               BEQ         L221:16
+    00013E A804                   CMP.B       #4:8,R0L
+    000140 5870015A               BEQ         L222:16
+    000144 A805                   CMP.B       #5:8,R0L
+    000146 5870023E               BEQ         L223:16
+    00014A A806                   CMP.B       #6:8,R0L
+    00014C 587004DC               BEQ         L231:16
+    000150 A809                   CMP.B       #9:8,R0L
+    000152 58700592               BEQ         L232:16
+    000156 A80A                   CMP.B       #10:8,R0L
+    000158 5870062A               BEQ         L234:16
+    00015C A80B                   CMP.B       #11:8,R0L
+    00015E 587007CC               BEQ         L384:16
+    000162 A80C                   CMP.B       #12:8,R0L
+    000164 587007E4               BEQ         L236:16
+    000168 A80D                   CMP.B       #13:8,R0L
+    00016A 5870084E               BEQ         L238:16
+    00016E A80E                   CMP.B       #14:8,R0L
+    000170 587008F8               BEQ         L239:16
+    000174 A80F                   CMP.B       #15:8,R0L
+    000176 58700962               BEQ         L241:16
+    00017A A801                   CMP.B       #1:8,R0L
+    00017C 58700A96               BEQ         L242:16
+    000180 A802                   CMP.B       #2:8,R0L
+    000182 58700B14               BEQ         L244:16
+    000186 A810                   CMP.B       #16:8,R0L
+    000188 58700C02               BEQ         L245:16
+    00018C A811                   CMP.B       #17:8,R0L
+    00018E 58700C6C               BEQ         L247:16
+    000192 A812                   CMP.B       #18:8,R0L
+    000194 58700E40               BEQ         L249:16
+    000198 A813                   CMP.B       #19:8,R0L
+    00019A 58700EF0               BEQ         L251:16
+    00019E 5A                     JMP         @L256:24
+           <000000>     
+                   202:                    case SEND_SETUP:                /* 送信データ準備処理 */
+    0001A2              L220:                             
+                   203:                            timeout=0;      // タイムアウトカウントのリセット
+    0001A2 1888                   SUB.B       R0L,R0L
+    0001A4 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   204:                            errcnt=0;       // エラーカウントのリセット
+    0001AA 6AA800                 MOV.B       R0L,@_$errcnt:24
+           <000000>     
+                   205:                            DUALPORT.rttf_an_busy = 0;              // a05 RTTF用放送中情報（0:停止中/1:放送中) － SETUPフェーズは初期化を兼ねて放送停止中
+    0001B0 1888                   SUB.B       R0L,R0L
+    0001B2 6EE80121               MOV.B       R0L,@(289:16,ER6)
+                   206:    
+                   207:                            if( DUALPORT.ev5000_request.Initial ){  // 初期設定要求受け付け
+    0001B6 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001BA 4A06                   BPL         L257:8
+                   208:                                    phase = SEND_INITIAL;           // 初期設定処理へ
+    0001BC F801                   MOV.B       #1:8,R0L
+                   209:                                    break;
+    0001BE 5A                     JMP         @L410:24
+           <000000>     
+    0001C2              L257:                             
+                   210:                            }
+                   211:                            if( DUALPORT.ev5000_request.Abort ){    // 放送中止受け付け
+    0001C2 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001C6 7758                   BLD.B       #5,R0L
+    0001C8 4422                   BCC         L258:8
+                   212:                                    DUALPORT.ev5000_request.Abort=0;
+    0001CA 1A80                   SUB.L       ER0,ER0
+    0001CC F8F6                   MOV.B       #-10:8,R0L
+    0001CE 0AE0                   ADD.L       ER6,ER0
+    0001D0 7D007250               BCLR.B      #5,@ER0
+                   213:                                    if( DUALPORT.ev5000_request.Request==0 ){
+    0001D4 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001D8 7768                   BLD.B       #6,R0L
+    0001DA 58500F32               BCS         L256:16
+                   214:                                            DUALPORT.ev5000_request.Complete = 1;   // 放送中断時、次の要求がなければ　完了したとする
+    0001DE 1A80                   SUB.L       ER0,ER0
+    0001E0 F8F6                   MOV.B       #-10:8,R0L
+    0001E2 0AE0                   ADD.L       ER6,ER0
+    0001E4 7D007040               BSET.B      #4,@ER0
+                   215:    
+                   216:    #if 0
+                   217:    printf("EV5000 Request END\r\n");
+                   218:    #endif
+                   219:                                    }
+                   220:                                    break;
+    0001E8 5A                     JMP         @L256:24
+           <000000>     
+    0001EC              L258:                             
+                   221:                            }
+                   222:                            if( DUALPORT.ev5000_request.Request ){  // 放送要求受付
+    0001EC 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0001F0 7768                   BLD.B       #6,R0L
+    0001F2 4420                   BCC         L260:8
+                   223:                                    DUALPORT.ev5000_request.Request=0;
+    0001F4 1A80                   SUB.L       ER0,ER0
+    0001F6 F8F6                   MOV.B       #-10:8,R0L
+    0001F8 0AE0                   ADD.L       ER6,ER0
+    0001FA 7D007260               BCLR.B      #6,@ER0
+                   224:    
+                   225:                                    dvaIOOut(
+                   226:                                            OUTSIGNAL_acpDisable                    // ＡＣＰ音声禁止
+                   227:                                            | OUTSIGNAL_mcpDisable                  // ＭＣＰ音声禁止
+                   228:                                            ,
+                   229:                                            OUTSIGNAL_audioBusDisable               // 車内放送許可
+                   230:                                    );
+    0001FE 1A91                   SUB.L       ER1,ER1
+    000200 F101                   MOV.B       #1:8,R1H
+    000202 1A80                   SUB.L       ER0,ER0
+    000204 F00C                   MOV.B       #12:8,R0H
+    000206 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   231:    
+                   232:                                    requestNo = 0;
+    00020A 1888                   SUB.B       R0L,R0L
+    00020C 68C8                   MOV.B       R0L,@ER4
+                   233:                                    phase = SEND_WAIT;              // 最初のウェイトへ
+    00020E F803                   MOV.B       #3:8,R0L
+                   234:                                    break;
+    000210 5A                     JMP         @L410:24
+           <000000>     
+    000214              L260:                             
+                   235:                            }
+                   236:                            else if( DUALPORT.ev5000_request.Complete==0 ){
+    000214 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    000218 7748                   BLD.B       #4,R0L
+    00021A 4516                   BCS         L262:8
+                   237:                                    DUALPORT.ev5000_request.Complete = 1;   // 放送終了
+    00021C 1A80                   SUB.L       ER0,ER0
+    00021E F8F6                   MOV.B       #-10:8,R0L
+    000220 0AE0                   ADD.L       ER6,ER0
+    000222 7D007040               BSET.B      #4,@ER0
+                   238:    
+                   239:    #if 0
+                   240:    printf("EV5000 Request END\r\n");
+                   241:    #endif
+                   242:    
+                   243:                                    dvaIOOut(
+                   244:                                            OUTSIGNAL_audioBusDisable               // 車内放送禁止
+                   245:                                            ,
+                   246:                                            OUTSIGNAL_acpDisable                    // ＡＣＰ音声許可
+                   247:                                            | OUTSIGNAL_mcpDisable                  // ＭＣＰ音声許可
+                   248:                                    );
+    000226 1A91                   SUB.L       ER1,ER1
+    000228 F10C                   MOV.B       #12:8,R1H
+    00022A 1A80                   SUB.L       ER0,ER0
+    00022C F001                   MOV.B       #1:8,R0H
+    00022E 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+    000232              L262:                             
+                   249:                            }
+                   250:    
+                   251:                            if( ev5000_time_adjust ){               // 日時設定受付
+    000232 6A2800                 MOV.B       @_ev5000_time_adjust:24,R0L
+           <000000>     
+    000238 58700ED4               BEQ         L256:16
+                   252:                                    ev5000_time_adjust = 0;
+    00023C 1888                   SUB.B       R0L,R0L
+    00023E 6AA800                 MOV.B       R0L,@_ev5000_time_adjust:24
+           <000000>     
+                   253:                                    phase = SEND_TIME_SET;          // 日時設定へ
+    000244 F812                   MOV.B       #18:8,R0L
+                   254:                            }
+                   255:                            break;
+    000246 5A                     JMP         @L410:24
+           <000000>     
+    00024A              L221:                             
+                   256:    
+                   257:                    case SEND_WAIT:         // 放送前ウェイト
+                   258:                            timedata.ev5000timer = DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.timewait * 10;
+    00024A 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    00024E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000252 0D08                   MOV.W       R0,E0
+    000254 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000258 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    00025C 0FA1                   MOV.L       ER2,ER1
+    00025E 0A90                   ADD.L       ER1,ER0
+    000260 6801                   MOV.B       @ER0,R1H
+    000262 6E090001               MOV.B       @(1:16,ER0),R1L
+    000266 7909000A               MOV.W       #10:16,E1
+    00026A 5291                   MULXU.W     E1,ER1
+    00026C 6AA100                 MOV.B       R1H,@_timedata+13:24
+           <000000>     
+    000272 6AA900                 MOV.B       R1L,@_timedata+14:24
+           <000000>     
+                   259:                            if( timedata.ev5000timer==0 )
+    000278 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    00027E 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000284 0D00                   MOV.W       R0,R0
+    000286 4610                   BNE         L264:8
+                   260:                                    timedata.ev5000timer=10;
+    000288 7900000A               MOV.W       #10:16,R0
+    00028C 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000292 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+    000298              L264:                             
+                   261:                            phase = SEND_WAITUP;
+    000298 F804                   MOV.B       #4:8,R0L
+                   262:                            break;
+    00029A 5A                     JMP         @L410:24
+           <000000>     
+    00029E              L222:                             
+                   263:    
+                   264:                    case SEND_WAITUP:       // 放送前ウェイト終了チェック
+                   265:                            if( timedata.ev5000timer==0 ){
+    00029E 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    0002A4 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    0002AA 0D00                   MOV.W       R0,R0
+    0002AC 586000CC               BNE         L265:16
+                   266:    
+                   267:                                    // 放送文有無チェック
+                   268:                                    for( ; requestNo<MAX_SEQUENCE; requestNo++ ){
+    0002B0 5A                     JMP         @L267:24
+           <000000>     
+    0002B4              L266:                             
+                   269:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
+    0002B4 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0002B8 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0002BC 0D08                   MOV.W       R0,E0
+    0002BE 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0002C2 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0002C6 6849                   MOV.B       @ER4,R1L
+    0002C8 17D1                   EXTS.W      R1
+    0002CA 17F1                   EXTS.L      ER1
+    0002CC 1031                   SHLL.L      ER1
+    0002CE 1031                   SHLL.L      ER1
+    0002D0 0A90                   ADD.L       ER1,ER0
+    0002D2 6E090002               MOV.B       @(2:16,ER0),R1L
+    0002D6 4A08                   BPL         L268:8
+                   270:                                                    if( config_data.lang.en ){
+    0002D8 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    0002DE 4B76                   BMI         L270:8
+                   271:                                                            break;
+    0002E0              L268:                             
+                   272:                                                    }
+                   273:                                            }
+                   274:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
+    0002E0 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0002E4 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0002E8 0D08                   MOV.W       R0,E0
+    0002EA 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0002EE 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0002F2 6849                   MOV.B       @ER4,R1L
+    0002F4 17D1                   EXTS.W      R1
+    0002F6 17F1                   EXTS.L      ER1
+    0002F8 1031                   SHLL.L      ER1
+    0002FA 1031                   SHLL.L      ER1
+    0002FC 0A90                   ADD.L       ER1,ER0
+    0002FE 6E010002               MOV.B       @(2:16,ER0),R1H
+    000302 6E090003               MOV.B       @(3:16,ER0),R1L
+    000306 7361                   BTST.B      #6,R1H
+    000308 470A                   BEQ         L271:8
+                   275:                                                    if( config_data.lang.cn ){
+    00030A 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    000310 7768                   BLD.B       #6,R0L
+    000312 4542                   BCS         L270:8
+                   276:                                                            break;
+    000314              L271:                             
+                   277:                                                    }
+                   278:                                            }
+                   279:                                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
+    000314 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    000318 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00031C 0D08                   MOV.W       R0,E0
+    00031E 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000322 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000326 6849                   MOV.B       @ER4,R1L
+    000328 17D1                   EXTS.W      R1
+    00032A 17F1                   EXTS.L      ER1
+    00032C 1031                   SHLL.L      ER1
+    00032E 1031                   SHLL.L      ER1
+    000330 0A90                   ADD.L       ER1,ER0
+    000332 6E010002               MOV.B       @(2:16,ER0),R1H
+    000336 6E090003               MOV.B       @(3:16,ER0),R1L
+    00033A 7351                   BTST.B      #5,R1H
+    00033C 470A                   BEQ         L273:8
+                   280:                                                    if( config_data.lang.ma ){
+    00033E 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    000344 7758                   BLD.B       #5,R0L
+    000346 450E                   BCS         L270:8
+                   281:                                                            break;
+    000348              L273:                             
+    000348 6848                   MOV.B       @ER4,R0L
+    00034A 0A08                   INC.B       R0L
+    00034C 68C8                   MOV.B       R0L,@ER4
+    00034E              L267:                             
+    00034E 6848                   MOV.B       @ER4,R0L
+    000350 A806                   CMP.B       #6:8,R0L
+    000352 58D0FF5E               BLT         L266:16
+    000356              L270:                             
+                   282:                                                    }
+                   283:                                            }
+                   284:                                    }
+                   285:    
+                   286:                                    if( requestNo>=MAX_SEQUENCE ){
+    000356 6848                   MOV.B       @ER4,R0L
+    000358 A806                   CMP.B       #6:8,R0L
+    00035A 4D1C                   BLT         L275:8
+                   287:                                            DUALPORT.ev5000_request.Complete=1;     //放送文終了
+    00035C 1A80                   SUB.L       ER0,ER0
+    00035E F8F6                   MOV.B       #-10:8,R0L
+    000360 0AE0                   ADD.L       ER6,ER0
+    000362 7D007040               BSET.B      #4,@ER0
+                   288:                                            phase = SEND_SETUP;
+    000366 1888                   SUB.B       R0L,R0L
+    000368 68D8                   MOV.B       R0L,@ER5
+                   289:    
+                   290:    #if 0
+                   291:    printf("EV5000 Request END\r\n");
+                   292:    #endif
+                   293:    
+                   294:                                            dvaIOOut(
+                   295:                                                    0
+                   296:                                                    ,
+                   297:                                                    OUTSIGNAL_acpDisable                    // ＡＣＰ音声許可
+                   298:                                                    | OUTSIGNAL_mcpDisable                  // ＭＣＰ音声許可
+                   299:                                                    );
+    00036A 1A91                   SUB.L       ER1,ER1
+    00036C F10C                   MOV.B       #12:8,R1H
+    00036E 1900                   SUB.W       R0,R0
+    000370 5E                     JSR         @_dvaIOOut:24
+           <000000>     
+                   300:    
+                   301:                                            break;
+    000374 5A                     JMP         @L256:24
+           <000000>     
+    000378              L275:                             
+                   302:                                    }
+                   303:    
+                   304:                                    phase = SEND_VOICE;             // １つの言語の放送     2002/12/11 複数言語同時可に変更
+    000378 F805                   MOV.B       #5:8,R0L
+    00037A 68D8                   MOV.B       R0L,@ER5
+    00037C              L265:                             
+                   305:                            }
+                   306:                            if( DUALPORT.ev5000_request.Abort ){            // 放送キャンセル
+    00037C 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    000380 7758                   BLD.B       #5,R0L
+    000382 58400D8A               BCC         L256:16
+                   307:                                    phase = SEND_SETUP;
+                   308:                                    TraceAdd( EVENT_VOICE_ABORT );
+                   309:                                    break;
+    000386 4008                   BRA         L368:8
+                   310:                            }
+                   311:                            break;
+    000388              L223:                             
+                   312:    
+                   313:                    case SEND_VOICE:                        // １つの言語の放送文送信       2002/12/11 複数言語同時可に変更
+                   314:                            if( DUALPORT.ev5000_request.Abort ){            // 放送キャンセル
+    000388 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    00038C 7758                   BLD.B       #5,R0L
+    00038E 440A                   BCC         L277:8
+                   315:                                    phase = SEND_SETUP;
+                   316:                                    TraceAdd( EVENT_VOICE_ABORT );
+                   317:                                    break;
+    000390              L368:                             
+    000390 1888                   SUB.B       R0L,R0L
+    000392 68D8                   MOV.B       R0L,@ER5
+    000394 F853                   MOV.B       #83:8,R0L
+    000396 5A                     JMP         @L388:24
+           <000000>     
+    00039A              L277:                             
+                   318:                            }
+                   319:    
+                   320:    #if 0
+                   321:    debugTime();
+                   322:    printf("VOICE\r\n");
+                   323:    #endif
+                   324:                            backup_data.ev5000code.sendcode = DUALPORT.ev5000_request.Sequence[requestNo].BYTE.Code[1];
+    00039A 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    00039E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0003A2 0D08                   MOV.W       R0,E0
+    0003A4 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0003A8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0003AC 0FA1                   MOV.L       ER2,ER1
+    0003AE 0A90                   ADD.L       ER1,ER0
+    0003B0 6E010002               MOV.B       @(2:16,ER0),R1H
+    0003B4 6E090003               MOV.B       @(3:16,ER0),R1L
+    0003B8 6AA100                 MOV.B       R1H,@_backup_data+59:24
+           <000000>     
+    0003BE 6AA900                 MOV.B       R1L,@_backup_data+60:24
+           <000000>     
+                   325:                            DUALPORT.rttf_an_sendCode = (unsigned char)( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0xFF;
+    0003C4 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0003C8 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0003CC 0D08                   MOV.W       R0,E0
+    0003CE 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0003D2 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0003D6 6849                   MOV.B       @ER4,R1L
+    0003D8 17D1                   EXTS.W      R1
+    0003DA 17F1                   EXTS.L      ER1
+    0003DC 1031                   SHLL.L      ER1
+    0003DE 1031                   SHLL.L      ER1
+    0003E0 0A90                   ADD.L       ER1,ER0
+    0003E2 6E010002               MOV.B       @(2:16,ER0),R1H
+    0003E6 6E090003               MOV.B       @(3:16,ER0),R1L
+    0003EA E101                   AND.B       #1:8,R1H
+    0003EC 6EE90122               MOV.B       R1L,@(290:16,ER6)
+                   326:                                                                                                                                                            // a05 放送コードをDualPortRamにもアップデート
+                   327:                                                                                                                                                            // RTTFパケットには8bit枠しか無いためbit 9は無視
+                   328:    #if 0
+                   329:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
+                   330:                                    sprintf( sendbuff, "M000,0%03X,%03X,000,000\r\n",
+                   331:                                            DUALPORT.ev5000_request.SentenceNo,
+                   332:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+                   333:                            }
+                   334:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
+                   335:                                    sprintf( sendbuff, "M000,0%03X,000,%03X,000\r\n",
+                   336:                                            DUALPORT.ev5000_request.SentenceNo,
+                   337:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+                   338:                            }
+                   339:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
+                   340:                                    sprintf( sendbuff, "M000,0%03X,000,000,%03X\r\n",
+                   341:                                            DUALPORT.ev5000_request.SentenceNo,
+                   342:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+                   343:                            }
+                   344:    #else
+                   345:                            sprintf( sendbuff, "M000,0%03X,", DUALPORT.ev5000_request.SentenceNo );
+    0003F0 6E6000F8               MOV.B       @(248:16,ER6),R0H
+    0003F4 6E6800F9               MOV.B       @(249:16,ER6),R0L
+    0003F8 6DF0                   PUSH.W      R0
+    0003FA 7A00                   MOV.L       #L122:32,ER0
+           <00000000>   
+    000400 01006DF0               PUSH.L      ER0
+    000404 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    00040A 5E                     JSR         @_sprintf:24
+           <000000>     
+    00040E 0B97                   ADDS.L      #4,SP
+    000410 0B87                   ADDS.L      #2,SP
+                   346:    
+                   347:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
+    000412 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    000416 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00041A 0D08                   MOV.W       R0,E0
+    00041C 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000420 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000424 6849                   MOV.B       @ER4,R1L
+    000426 17D1                   EXTS.W      R1
+    000428 17F1                   EXTS.L      ER1
+    00042A 1031                   SHLL.L      ER1
+    00042C 1031                   SHLL.L      ER1
+    00042E 0A90                   ADD.L       ER1,ER0
+    000430 6E010002               MOV.B       @(2:16,ER0),R1H
+    000434 6E090003               MOV.B       @(3:16,ER0),R1L
+    000438 7361                   BTST.B      #6,R1H
+    00043A 4752                   BEQ         L278:8
+                   348:                                    if( config_data.lang.cn ){
+    00043C 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    000442 7768                   BLD.B       #6,R0L
+    000444 4458                   BCC         L280:8
+                   349:                                            sprintf( sendbuff_tmp, "%03X,",
+                   350:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+    000446 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    00044A 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00044E 0D08                   MOV.W       R0,E0
+    000450 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000454 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000458 6849                   MOV.B       @ER4,R1L
+    00045A 17D1                   EXTS.W      R1
+    00045C 17F1                   EXTS.L      ER1
+    00045E 1031                   SHLL.L      ER1
+    000460 1031                   SHLL.L      ER1
+    000462 0A90                   ADD.L       ER1,ER0
+    000464 6E010002               MOV.B       @(2:16,ER0),R1H
+    000468 6E090003               MOV.B       @(3:16,ER0),R1L
+    00046C E101                   AND.B       #1:8,R1H
+    00046E 796101FF               AND.W       #511:16,R1
+    000472 6DF1                   PUSH.W      R1
+    000474 7A00                   MOV.L       #L125:32,ER0
+           <00000000>   
+    00047A 01006DF0               PUSH.L      ER0
+    00047E 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    000484 5E                     JSR         @_sprintf:24
+           <000000>     
+    000488 0B97                   ADDS.L      #4,SP
+    00048A 0B87                   ADDS.L      #2,SP
+    00048C 4010                   BRA         L280:8
+    00048E              L278:                             
+                   351:                                    }
+                   352:                            }else{
+                   353:                                    strcpy( sendbuff_tmp, "000," );
+    00048E 7A01                   MOV.L       #L127:32,ER1
+           <00000000>   
+    000494 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    00049A 5E                     JSR         @_strcpy:24
+           <000000>     
+    00049E              L280:                             
+                   354:                            }
+                   355:                            strcat( sendbuff,sendbuff_tmp);
+    00049E 7A01                   MOV.L       #_$sendbuff_tmp:32,ER1
+           <00000000>   
+    0004A4 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    0004AA 5E                     JSR         @_strcat:24
+           <000000>     
+                   356:    
+                   357:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
+    0004AE 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0004B2 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0004B6 0D08                   MOV.W       R0,E0
+    0004B8 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0004BC 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0004C0 6849                   MOV.B       @ER4,R1L
+    0004C2 17D1                   EXTS.W      R1
+    0004C4 17F1                   EXTS.L      ER1
+    0004C6 1031                   SHLL.L      ER1
+    0004C8 1031                   SHLL.L      ER1
+    0004CA 0A90                   ADD.L       ER1,ER0
+    0004CC 6E090002               MOV.B       @(2:16,ER0),R1L
+    0004D0 4A50                   BPL         L281:8
+                   358:                                    if( config_data.lang.en ){
+    0004D2 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    0004D8 4A58                   BPL         L283:8
+                   359:                                            sprintf( sendbuff_tmp, "%03X,",
+                   360:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+    0004DA 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0004DE 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0004E2 0D08                   MOV.W       R0,E0
+    0004E4 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0004E8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0004EC 6849                   MOV.B       @ER4,R1L
+    0004EE 17D1                   EXTS.W      R1
+    0004F0 17F1                   EXTS.L      ER1
+    0004F2 1031                   SHLL.L      ER1
+    0004F4 1031                   SHLL.L      ER1
+    0004F6 0A90                   ADD.L       ER1,ER0
+    0004F8 6E010002               MOV.B       @(2:16,ER0),R1H
+    0004FC 6E090003               MOV.B       @(3:16,ER0),R1L
+    000500 E101                   AND.B       #1:8,R1H
+    000502 796101FF               AND.W       #511:16,R1
+    000506 6DF1                   PUSH.W      R1
+    000508 7A00                   MOV.L       #L130:32,ER0
+           <00000000>   
+    00050E 01006DF0               PUSH.L      ER0
+    000512 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    000518 5E                     JSR         @_sprintf:24
+           <000000>     
+    00051C 0B97                   ADDS.L      #4,SP
+    00051E 0B87                   ADDS.L      #2,SP
+    000520 4010                   BRA         L283:8
+    000522              L281:                             
+                   361:                                    }
+                   362:                            }else{
+                   363:                                    strcpy( sendbuff_tmp, "000," );
+    000522 7A01                   MOV.L       #L132:32,ER1
+           <00000000>   
+    000528 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    00052E 5E                     JSR         @_strcpy:24
+           <000000>     
+    000532              L283:                             
+                   364:                            }
+                   365:                            strcat( sendbuff,sendbuff_tmp);
+    000532 7A01                   MOV.L       #_$sendbuff_tmp:32,ER1
+           <00000000>   
+    000538 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    00053E 5E                     JSR         @_strcat:24
+           <000000>     
+                   366:    
+                   367:                            if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
+    000542 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    000546 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00054A 0D08                   MOV.W       R0,E0
+    00054C 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000550 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000554 6849                   MOV.B       @ER4,R1L
+    000556 17D1                   EXTS.W      R1
+    000558 17F1                   EXTS.L      ER1
+    00055A 1031                   SHLL.L      ER1
+    00055C 1031                   SHLL.L      ER1
+    00055E 0A90                   ADD.L       ER1,ER0
+    000560 6E010002               MOV.B       @(2:16,ER0),R1H
+    000564 6E090003               MOV.B       @(3:16,ER0),R1L
+    000568 7351                   BTST.B      #5,R1H
+    00056A 4752                   BEQ         L284:8
+                   368:                                    if( config_data.lang.ma ){
+    00056C 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    000572 7758                   BLD.B       #5,R0L
+    000574 4458                   BCC         L286:8
+                   369:                                            sprintf( sendbuff_tmp, "%03X\r\n",
+                   370:                                            (DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.sendCode) & 0x1FF );
+    000576 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    00057A 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    00057E 0D08                   MOV.W       R0,E0
+    000580 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000584 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    000588 6849                   MOV.B       @ER4,R1L
+    00058A 17D1                   EXTS.W      R1
+    00058C 17F1                   EXTS.L      ER1
+    00058E 1031                   SHLL.L      ER1
+    000590 1031                   SHLL.L      ER1
+    000592 0A90                   ADD.L       ER1,ER0
+    000594 6E010002               MOV.B       @(2:16,ER0),R1H
+    000598 6E090003               MOV.B       @(3:16,ER0),R1L
+    00059C E101                   AND.B       #1:8,R1H
+    00059E 796101FF               AND.W       #511:16,R1
+    0005A2 6DF1                   PUSH.W      R1
+    0005A4 7A00                   MOV.L       #L135:32,ER0
+           <00000000>   
+    0005AA 01006DF0               PUSH.L      ER0
+    0005AE 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    0005B4 5E                     JSR         @_sprintf:24
+           <000000>     
+    0005B8 0B97                   ADDS.L      #4,SP
+    0005BA 0B87                   ADDS.L      #2,SP
+    0005BC 4010                   BRA         L286:8
+    0005BE              L284:                             
+                   371:                                    }
+                   372:                            }else{
+                   373:                                    strcpy( sendbuff_tmp, "000\r\n" );
+    0005BE 7A01                   MOV.L       #L137:32,ER1
+           <00000000>   
+    0005C4 7A00                   MOV.L       #_$sendbuff_tmp:32,ER0
+           <00000000>   
+    0005CA 5E                     JSR         @_strcpy:24
+           <000000>     
+    0005CE              L286:                             
+                   374:                            }
+                   375:                            strcat( sendbuff,sendbuff_tmp);
+    0005CE 7A01                   MOV.L       #_$sendbuff_tmp:32,ER1
+           <00000000>   
+    0005D4 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    0005DA 5E                     JSR         @_strcat:24
+           <000000>     
+                   376:    
+                   377:    #endif
+                   378:    
+                   379:    
+                   380:    //                      TraceAdd( EVENT_VOICE );
+                   381:                            recvlen = 0;
+                   382:                            recv_complete = 0;
+    0005DE 1888                   SUB.B       R0L,R0L
+    0005E0 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+    0005E6 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   383:                            recvsts = 0;
+    0005EC 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+                   384:                            timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    0005F2 790000C8               MOV.W       #200:16,R0
+    0005F6 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    0005FC 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   385:                            sendp = sendbuff;
+    000602 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000608 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   386:                            asci_0_transmit( *sendp++ );
+    000610 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000618 6C18                   MOV.B       @ER1+,R0L
+    00061A 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000622 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   387:                            phase = SEND_VOICE_RECV;
+    000626 F806                   MOV.B       #6:8,R0L
+                   388:                            break;
+    000628 5A                     JMP         @L410:24
+           <000000>     
+    00062C              L231:                             
+                   389:    
+                   390:                    case SEND_VOICE_RECV:           // 放送分受信チェック
+                   391:                            if( recv_complete==0 ){
+    00062C 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    000632 4650                   BNE         L287:8
+                   392:                                    if( timedata.ev5000timer==0 ){
+    000634 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    00063A 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000640 0D00                   MOV.W       R0,R0
+    000642 58600ACA               BNE         L256:16
+                   393:                                            if( recvsts!=0 ){                       // 何らかの受信があれば、受信したものとみなす
+    000646 6A2800                 MOV.B       @_$recvsts:24,R0L
+           <000000>     
+    00064C 4716                   BEQ         L289:8
+                   394:                                                    timedata.ev5000timer=MAX_EV5000_BUSYTIME;
+    00064E 79000064               MOV.W       #100:16,R0
+    000652 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000658 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   395:                                                    phase = SEND_BUSY;              // 放送中チェック
+    00065E F809                   MOV.B       #9:8,R0L
+                   396:                                                    break;
+    000660 5A                     JMP         @L410:24
+           <000000>     
+    000664              L289:                             
+                   397:                                            }
+                   398:    
+                   399:                                            timedata.ev5000timer=MAX_EV5000_BUSYTIME;
+    000664 79000064               MOV.W       #100:16,R0
+    000668 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    00066E 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   400:                                            DUALPORT.ev5000_request.ev5000_error = 1;
+    000674 F801                   MOV.B       #1:8,R0L
+    000676 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   401:                                            phase = SEND_BUSY;
+    00067A F809                   MOV.B       #9:8,R0L
+    00067C 68D8                   MOV.B       R0L,@ER5
+                   402:                                            TraceAdd( EVENT_EVCOMM_NG );
+    00067E F854                   MOV.B       #84:8,R0L
+                   403:                                    }
+                   404:                                    break;
+    000680 5A                     JMP         @L388:24
+           <000000>     
+    000684              L287:                             
+                   405:                            }
+                   406:    
+                   407:                            timeout=0;
+    000684 1888                   SUB.B       R0L,R0L
+    000686 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   408:                            if( recvbuff[0]=='A' ){         /* EV5000 が ＡＣＫをかえした */
+    00068C 6838                   MOV.B       @ER3,R0L
+    00068E A841                   CMP.B       #65:8,R0L
+    000690 4616                   BNE         L290:8
+                   409:    #if 0
+                   410:    debugTime();
+                   411:    printf("Voice Ack\r\n");
+                   412:    #endif
+                   413:                                    // 正常処理
+                   414:                                    timedata.ev5000timer=MAX_EV5000_BUSYTIME;
+    000692 79000064               MOV.W       #100:16,R0
+    000696 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    00069C 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   415:                                    phase = SEND_BUSY;              // 放送中チェック
+    0006A2 F809                   MOV.B       #9:8,R0L
+                   416:                                    break;
+    0006A4 5A                     JMP         @L410:24
+           <000000>     
+    0006A8              L290:                             
+                   417:                            }
+                   418:    
+                   419:                            if( recvbuff[0]=='E' ){
+    0006A8 6838                   MOV.B       @ER3,R0L
+    0006AA A845                   CMP.B       #69:8,R0L
+    0006AC 460C                   BNE         L291:8
+                   420:                                    TraceAdd( EVENT_VOICE_NG );
+    0006AE F852                   MOV.B       #82:8,R0L
+    0006B0 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   421:    
+                   422:                                    // 定義異常処理
+                   423:                                    phase = NEXT_VOICE;             // 次の放送文へ
+    0006B4 F80B                   MOV.B       #11:8,R0L
+                   424:                                    break;
+    0006B6 5A                     JMP         @L410:24
+           <000000>     
+    0006BA              L291:                             
+                   425:                            }
+                   426:    
+                   427:                            // 異常受信処理
+                   428:                            errcnt++;
+    0006BA 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    0006C0 6809                   MOV.B       @ER0,R1L
+    0006C2 0A09                   INC.B       R1L
+    0006C4 6889                   MOV.B       R1L,@ER0
+                   429:                            if( errcnt<3 ){
+    0006C6 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    0006CC A803                   CMP.B       #3:8,R0L
+    0006CE 4C06                   BGE         L292:8
+                   430:                                    phase = SEND_VOICE;
+    0006D0 F805                   MOV.B       #5:8,R0L
+                   431:                                    break;
+    0006D2 5A                     JMP         @L410:24
+           <000000>     
+    0006D6              L292:                             
+                   432:                            }
+                   433:    
+                   434:                            TraceAdd( EVENT_EVCOMM_NG );
+    0006D6 F854                   MOV.B       #84:8,R0L
+    0006D8 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   435:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    0006DC F802                   MOV.B       #2:8,R0L
+    0006DE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   436:                            phase = SEND_SETUP;
+    0006E2 1888                   SUB.B       R0L,R0L
+                   437:                            break;
+    0006E4 5A                     JMP         @L410:24
+           <000000>     
+    0006E8              L232:                             
+                   438:    
+                   439:                    case SEND_BUSY:                 // 放送中チェックの送信
+                   440:                            DUALPORT.rttf_an_busy = 1; // a05 RTTF用放送中情報（0:停止中/1:放送中) － 実際に放送しているフェーズで放送中ステート
+    0006E8 F801                   MOV.B       #1:8,R0L
+    0006EA 6EE80121               MOV.B       R0L,@(289:16,ER6)
+                   441:                            if( DUALPORT.ev5000_request.Abort ){
+    0006EE 6E6800F6               MOV.B       @(246:16,ER6),R0L
+    0006F2 7758                   BLD.B       #5,R0L
+    0006F4 4420                   BCC         L293:8
+                   442:                                    phase = SEND_ABORT;
+    0006F6 F80C                   MOV.B       #12:8,R0L
+    0006F8 68D8                   MOV.B       R0L,@ER5
+                   443:                                    timedata.ev5000timer = 0;
+    0006FA 79000000               MOV.W       #0:16,R0
+    0006FE 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000704 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   444:                                    abortcnt = 0;
+    00070A 1888                   SUB.B       R0L,R0L
+    00070C 6AA800                 MOV.B       R0L,@_$abortcnt:24
+           <000000>     
+                   445:                                    break;
+    000712 5A                     JMP         @L256:24
+           <000000>     
+    000716              L293:                             
+                   446:                            }
+                   447:                            if( timedata.ev5000timer!=0 )
+    000716 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    00071C 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000722 0D00                   MOV.W       R0,R0
+    000724 586009E8               BNE         L256:16
+                   448:                                    break;
+                   449:    
+                   450:    #if 0
+                   451:    debugTime();
+                   452:    printf("BUSY Send\r\n");
+                   453:    #endif
+                   454:                            strcpy( sendbuff, "B\r\n" );
+    000728 7A01                   MOV.L       #L145:32,ER1
+           <00000000>   
+    00072E 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000734 5E                     JSR         @_strcpy:24
+           <000000>     
+                   455:                            recvlen = 0;
+                   456:                            recv_complete = 0;
+    000738 1888                   SUB.B       R0L,R0L
+    00073A 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+    000740 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   457:                            recvsts = 0;
+    000746 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+                   458:                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    00074C 79000064               MOV.W       #100:16,R0
+    000750 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000756 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   459:                            sendp = sendbuff;
+    00075C 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000762 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   460:                            asci_0_transmit( *sendp++ );
+    00076A 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000772 6C18                   MOV.B       @ER1+,R0L
+    000774 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    00077C 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   461:                            phase = SEND_BUSY_RECV;
+    000780 F80A                   MOV.B       #10:8,R0L
+                   462:                            break;
+    000782 5A                     JMP         @L410:24
+           <000000>     
+    000786              L234:                             
+                   463:    
+                   464:                    case SEND_BUSY_RECV:                    // 放送中チェック
+                   465:                            if( recv_complete==0 ){
+    000786 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    00078C 4662                   BNE         L295:8
+                   466:                                    if( timedata.ev5000timer==0 ){
+    00078E 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000794 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    00079A 0D00                   MOV.W       R0,R0
+    00079C 58600970               BNE         L256:16
+                   467:    #if 0
+                   468:    debugTime();
+                   469:    printf("BUSY Time Out\r\n");
+                   470:    #endif
+                   471:                                            timeout++;
+    0007A0 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    0007A6 6809                   MOV.B       @ER0,R1L
+    0007A8 0A09                   INC.B       R1L
+    0007AA 6889                   MOV.B       R1L,@ER0
+                   472:                                            if( timeout>MAX_EV5000_RETRYTIMEOUT ){
+    0007AC 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    0007B2 A803                   CMP.B       #3:8,R0L
+    0007B4 4F24                   BLE         L297:8
+                   473:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    0007B6 F801                   MOV.B       #1:8,R0L
+    0007B8 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   474:                                                    DUALPORT.nowTrouble |= 0x04;
+    0007BC 6E680007               MOV.B       @(7:16,ER6),R0L
+    0007C0 7028                   BSET.B      #2,R0L
+    0007C2 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   475:                                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
+    0007C6 6A2800                 MOV.B       @_nowSignal+2:24,R0L
+           <000000>     
+    0007CC 7768                   BLD.B       #6,R0L
+    0007CE 450A                   BCS         L298:8
+                   476:                                                            phase = SEND_SETUP;
+    0007D0 1888                   SUB.B       R0L,R0L
+    0007D2 68D8                   MOV.B       R0L,@ER5
+                   477:                                                            TraceAdd( EVENT_EVCOMM_NG );
+    0007D4 F854                   MOV.B       #84:8,R0L
+                   478:                                                            break;
+    0007D6 5A                     JMP         @L388:24
+           <000000>     
+    0007DA              L298:                             
+    0007DA              L297:                             
+                   479:                                                    }
+                   480:                                            }
+                   481:                                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    0007DA 79000064               MOV.W       #100:16,R0
+    0007DE 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    0007E4 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   482:                                            phase = SEND_BUSY;
+    0007EA F809                   MOV.B       #9:8,R0L
+                   483:                                    }
+                   484:                                    break;
+    0007EC 5A                     JMP         @L410:24
+           <000000>     
+    0007F0              L295:                             
+                   485:                            }
+                   486:    
+                   487:                            timeout=0;
+    0007F0 1888                   SUB.B       R0L,R0L
+    0007F2 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   488:                            if( recvbuff[0]=='Y' ){
+    0007F8 6838                   MOV.B       @ER3,R0L
+    0007FA A859                   CMP.B       #89:8,R0L
+    0007FC 465E                   BNE         L299:8
+                   489:                                    if( recvbuff[1]!='0' || recvbuff[2]!='0' ){     /* EV5000 が　ＢＵＳＹのとき */
+    0007FE 6E380001               MOV.B       @(1:16,ER3),R0L
+    000802 A830                   CMP.B       #48:8,R0L
+    000804 4608                   BNE         L301:8
+    000806 6E380002               MOV.B       @(2:16,ER3),R0L
+    00080A A830                   CMP.B       #48:8,R0L
+    00080C 4716                   BEQ         L300:8
+    00080E              L301:                             
+                   490:    #if 0
+                   491:    debugTime();
+                   492:    printf("BUSY Ack\r\n");
+                   493:    #endif
+                   494:                                            // ビジー処理
+                   495:                                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    00080E 79000064               MOV.W       #100:16,R0
+    000812 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000818 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   496:                                            phase = SEND_BUSY;
+    00081E F809                   MOV.B       #9:8,R0L
+                   497:                                            break;
+    000820 5A                     JMP         @L410:24
+           <000000>     
+    000824              L300:                             
+                   498:                                    }
+                   499:                                    /* EV5000 が ＡＣＫをかえした */
+                   500:                                    // 正常処理
+                   501:    //                              TraceAdd( EVENT_VOICE_OK );
+                   502:    
+                   503:                                    DUALPORT.nowTrouble &= ~0x04;
+    000824 6E680007               MOV.B       @(7:16,ER6),R0L
+    000828 7228                   BCLR.B      #2,R0L
+    00082A 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   504:    
+                   505:                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
+    00082E 6A2800                 MOV.B       @_nowSignal+2:24,R0L
+           <000000>     
+    000834 7768                   BLD.B       #6,R0L
+    000836 450E                   BCS         L302:8
+                   506:    #if 0
+                   507:    debugTime();
+                   508:    printf("BUSY Signal END\r\n");
+                   509:    #endif
+                   510:                                            phase = NEXT_VOICE;             // 次の放送文へ
+    000838 F80B                   MOV.B       #11:8,R0L
+    00083A 68D8                   MOV.B       R0L,@ER5
+                   511:                                            DUALPORT.rttf_an_busy = 0;              // a05 RTTF用放送中情報（0:停止中/1:放送中) － 放送完了で停止中ステート
+    00083C 1888                   SUB.B       R0L,R0L
+    00083E 6EE80121               MOV.B       R0L,@(289:16,ER6)
+                   512:                                            break;
+    000842 5A                     JMP         @L256:24
+           <000000>     
+    000846              L302:                             
+                   513:                                    }
+                   514:    #if 0
+                   515:    debugTime();
+                   516:    printf("BUSY!!\r\n");
+                   517:    #endif
+                   518:                                    // ビジー処理
+                   519:                                    timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000846 79000064               MOV.W       #100:16,R0
+    00084A 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000850 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   520:                                    phase = SEND_BUSY;
+    000856 F809                   MOV.B       #9:8,R0L
+                   521:                                    break;
+    000858 5A                     JMP         @L410:24
+           <000000>     
+    00085C              L299:                             
+                   522:                            }
+                   523:    
+                   524:                            // 異常受信処理
+                   525:                            errcnt++;
+    00085C 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000862 6809                   MOV.B       @ER0,R1L
+    000864 0A09                   INC.B       R1L
+    000866 6889                   MOV.B       R1L,@ER0
+                   526:    
+                   527:                            if( errcnt<MAX_EV5000_RETRYERROR ){
+    000868 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    00086E A803                   CMP.B       #3:8,R0L
+    000870 4C0C                   BGE         L303:8
+                   528:                                    phase = SEND_BUSY;
+    000872 F809                   MOV.B       #9:8,R0L
+    000874 68D8                   MOV.B       R0L,@ER5
+                   529:                                    timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000876 790000C8               MOV.W       #200:16,R0
+                   530:                                    break;
+    00087A 5A                     JMP         @L392:24
+           <000000>     
+    00087E              L303:                             
+                   531:                            }
+                   532:    
+                   533:                            TraceAdd( EVENT_EVCOMM_NG );
+    00087E F854                   MOV.B       #84:8,R0L
+    000880 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   534:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    000884 F802                   MOV.B       #2:8,R0L
+    000886 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   535:                            DUALPORT.nowTrouble |= 0x04;
+    00088A 6E680007               MOV.B       @(7:16,ER6),R0L
+    00088E 7028                   BSET.B      #2,R0L
+    000890 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   536:                            phase = SEND_SETUP;
+    000894 1888                   SUB.B       R0L,R0L
+                   537:                            break;
+    000896 5A                     JMP         @L410:24
+           <000000>     
+                   538:    
+                   539:                    case NEXT_VOICE:
+                   540:                            // 次の放送文有無チェック
+                   541:                            for( requestNo++; requestNo<MAX_SEQUENCE; requestNo++ ){
+    00089A              L304:                             
+                   542:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.en ){
+    00089A 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    00089E 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0008A2 0D08                   MOV.W       R0,E0
+    0008A4 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0008A8 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0008AC 6849                   MOV.B       @ER4,R1L
+    0008AE 17D1                   EXTS.W      R1
+    0008B0 17F1                   EXTS.L      ER1
+    0008B2 1031                   SHLL.L      ER1
+    0008B4 1031                   SHLL.L      ER1
+    0008B6 0A90                   ADD.L       ER1,ER0
+    0008B8 6E090002               MOV.B       @(2:16,ER0),R1L
+    0008BC 4A08                   BPL         L306:8
+                   543:                                            if( config_data.lang.en ){
+    0008BE 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    0008C4 4B74                   BMI         L308:8
+                   544:                                                    break;
+    0008C6              L306:                             
+                   545:                                            }
+                   546:                                    }
+                   547:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.cn ){
+    0008C6 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0008CA 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    0008CE 0D08                   MOV.W       R0,E0
+    0008D0 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    0008D4 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    0008D8 6849                   MOV.B       @ER4,R1L
+    0008DA 17D1                   EXTS.W      R1
+    0008DC 17F1                   EXTS.L      ER1
+    0008DE 1031                   SHLL.L      ER1
+    0008E0 1031                   SHLL.L      ER1
+    0008E2 0A90                   ADD.L       ER1,ER0
+    0008E4 6E010002               MOV.B       @(2:16,ER0),R1H
+    0008E8 6E090003               MOV.B       @(3:16,ER0),R1L
+    0008EC 7361                   BTST.B      #6,R1H
+    0008EE 470A                   BEQ         L309:8
+                   548:                                            if( config_data.lang.cn ){
+    0008F0 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    0008F6 7768                   BLD.B       #6,R0L
+    0008F8 4540                   BCS         L308:8
+                   549:                                                    break;
+    0008FA              L309:                             
+                   550:                                            }
+                   551:                                    }
+                   552:                                    if( DUALPORT.ev5000_request.Sequence[requestNo].sendRequest.ma ){
+    0008FA 6E6000FA               MOV.B       @(250:16,ER6),R0H
+    0008FE 6E6800FB               MOV.B       @(251:16,ER6),R0L
+    000902 0D08                   MOV.W       R0,E0
+    000904 6E6000FC               MOV.B       @(252:16,ER6),R0H
+    000908 6E6800FD               MOV.B       @(253:16,ER6),R0L
+    00090C 6849                   MOV.B       @ER4,R1L
+    00090E 17D1                   EXTS.W      R1
+    000910 17F1                   EXTS.L      ER1
+    000912 1031                   SHLL.L      ER1
+    000914 1031                   SHLL.L      ER1
+    000916 0A90                   ADD.L       ER1,ER0
+    000918 6E010002               MOV.B       @(2:16,ER0),R1H
+    00091C 6E090003               MOV.B       @(3:16,ER0),R1L
+    000920 7351                   BTST.B      #5,R1H
+    000922 470A                   BEQ         L311:8
+                   553:                                            if( config_data.lang.ma ){
+    000924 6A2800                 MOV.B       @_config_data:24,R0L
+           <000000>     
+    00092A 7758                   BLD.B       #5,R0L
+    00092C 450C                   BCS         L308:8
+                   554:                                                    break;
+    00092E              L311:                             
+    00092E              L384:                             
+    00092E 6848                   MOV.B       @ER4,R0L
+    000930 0A08                   INC.B       R0L
+    000932 68C8                   MOV.B       R0L,@ER4
+    000934 A806                   CMP.B       #6:8,R0L
+    000936 58D0FF60               BLT         L304:16
+    00093A              L308:                             
+                   555:                                            }
+                   556:                                    }
+                   557:                            }
+                   558:    
+                   559:                            if( requestNo>=MAX_SEQUENCE ){
+    00093A 6848                   MOV.B       @ER4,R0L
+    00093C A806                   CMP.B       #6:8,R0L
+    00093E 4D06                   BLT         L313:8
+                   560:                                    phase = SEND_SETUP;
+    000940 1888                   SUB.B       R0L,R0L
+                   561:                                    break;
+    000942 5A                     JMP         @L410:24
+           <000000>     
+    000946              L313:                             
+                   562:                            }
+                   563:    
+                   564:                            phase = SEND_WAIT;              // 放送前ウェイトへ
+    000946 F803                   MOV.B       #3:8,R0L
+                   565:                            break;
+    000948 5A                     JMP         @L410:24
+           <000000>     
+    00094C              L236:                             
+                   566:    
+                   567:    
+                   568:                    case SEND_ABORT:                // 放送キャンセル
+                   569:                            if( timedata.ev5000timer!=0 )
+    00094C 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000952 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000958 0D00                   MOV.W       R0,R0
+    00095A 586007B2               BNE         L256:16
+                   570:                                    break;
+                   571:    
+                   572:    #if 0
+                   573:    debugTime();
+                   574:    printf("ABORT SEND\r\n");
+                   575:    #endif
+                   576:                            strcpy( sendbuff, "M200\r\n" );
+    00095E 7A01                   MOV.L       #L162:32,ER1
+           <00000000>   
+    000964 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    00096A 5E                     JSR         @_strcpy:24
+           <000000>     
+                   577:                            recvlen = 0;
+                   578:                            recv_complete = 0;
+    00096E 1888                   SUB.B       R0L,R0L
+    000970 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+    000976 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   579:                            recvsts = 0;
+    00097C 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+                   580:                            timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000982 790000C8               MOV.W       #200:16,R0
+    000986 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    00098C 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   581:                            sendp = sendbuff;
+    000992 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000998 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   582:                            asci_0_transmit( *sendp++ );
+    0009A0 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    0009A8 6C18                   MOV.B       @ER1+,R0L
+    0009AA 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    0009B2 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   583:                            phase = SEND_ABORT_RECV;
+    0009B6 F80D                   MOV.B       #13:8,R0L
+                   584:                            break;
+    0009B8 5A                     JMP         @L410:24
+           <000000>     
+    0009BC              L238:                             
+                   585:    
+                   586:                    case SEND_ABORT_RECV:   // 放送キャンセル確認
+                   587:                            if( recv_complete==0 ){
+    0009BC 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    0009C2 4648                   BNE         L315:8
+                   588:                                    if( timedata.ev5000timer==0 ){
+    0009C4 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    0009CA 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    0009D0 0D00                   MOV.W       R0,R0
+    0009D2 5860073A               BNE         L256:16
+                   589:    #if 0
+                   590:    debugTime();
+                   591:    printf("ABORT Ack Timeout\r\n");
+                   592:    #endif
+                   593:                                            timeout++;
+    0009D6 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    0009DC 6809                   MOV.B       @ER0,R1L
+    0009DE 0A09                   INC.B       R1L
+    0009E0 6889                   MOV.B       R1L,@ER0
+                   594:                                            if( timeout>MAX_EV5000_RETRYTIMEOUT ){
+    0009E2 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    0009E8 A803                   CMP.B       #3:8,R0L
+    0009EA 4F1A                   BLE         L317:8
+                   595:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    0009EC F801                   MOV.B       #1:8,R0L
+    0009EE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   596:                                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
+    0009F2 6A2800                 MOV.B       @_nowSignal+2:24,R0L
+           <000000>     
+    0009F8 7768                   BLD.B       #6,R0L
+    0009FA 450A                   BCS         L318:8
+                   597:                                                            phase = SEND_ABORTBUSY;
+    0009FC F80E                   MOV.B       #14:8,R0L
+    0009FE 68D8                   MOV.B       R0L,@ER5
+                   598:                                                            TraceAdd( EVENT_EVCOMM_NG );
+    000A00 F854                   MOV.B       #84:8,R0L
+                   599:                                                            break;
+    000A02 5A                     JMP         @L388:24
+           <000000>     
+    000A06              L318:                             
+    000A06              L317:                             
+                   600:                                                    }
+                   601:                                            }
+                   602:                                            phase = SEND_ABORT;
+    000A06 F80C                   MOV.B       #12:8,R0L
+                   603:                                    }
+                   604:                                    break;
+    000A08 5A                     JMP         @L410:24
+           <000000>     
+    000A0C              L315:                             
+                   605:                            }
+                   606:    
+                   607:                            timeout=0;
+    000A0C 1888                   SUB.B       R0L,R0L
+    000A0E 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   608:                            if( recvbuff[0]=='A' ){         /* EV5000 が ＡＣＫをかえした */
+    000A14 6838                   MOV.B       @ER3,R0L
+    000A16 A841                   CMP.B       #65:8,R0L
+    000A18 460C                   BNE         L319:8
+                   609:    #if 0
+                   610:    debugTime();
+                   611:    printf("ABORT Ack\r\n");
+                   612:    #endif
+                   613:                                    phase = SEND_ABORTBUSY;
+    000A1A F80E                   MOV.B       #14:8,R0L
+    000A1C 68D8                   MOV.B       R0L,@ER5
+                   614:                                    timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000A1E 79000064               MOV.W       #100:16,R0
+                   615:                                    break;
+    000A22 5A                     JMP         @L392:24
+           <000000>     
+    000A26              L319:                             
+                   616:                            }
+                   617:                            if( recvbuff[0]=='E' ){
+    000A26 6838                   MOV.B       @ER3,R0L
+    000A28 A845                   CMP.B       #69:8,R0L
+    000A2A 460C                   BNE         L320:8
+                   618:                                    TraceAdd( EVENT_VOICE_NG );
+    000A2C F852                   MOV.B       #82:8,R0L
+    000A2E 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   619:    
+                   620:                                    // 定義異常処理
+                   621:                                    phase = SEND_ABORTBUSY;
+    000A32 F80E                   MOV.B       #14:8,R0L
+                   622:                                    break;
+    000A34 5A                     JMP         @L410:24
+           <000000>     
+    000A38              L320:                             
+                   623:                            }
+                   624:    
+                   625:                            // 異常受信処理
+                   626:                            errcnt++;
+    000A38 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000A3E 6809                   MOV.B       @ER0,R1L
+    000A40 0A09                   INC.B       R1L
+    000A42 6889                   MOV.B       R1L,@ER0
+                   627:    
+                   628:                            if( errcnt<MAX_EV5000_RETRYERROR ){
+    000A44 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    000A4A A803                   CMP.B       #3:8,R0L
+    000A4C 4C0C                   BGE         L321:8
+                   629:                                    phase = SEND_ABORT;
+    000A4E F80C                   MOV.B       #12:8,R0L
+    000A50 68D8                   MOV.B       R0L,@ER5
+                   630:                                    timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000A52 790000C8               MOV.W       #200:16,R0
+                   631:                                    break;
+    000A56 5A                     JMP         @L392:24
+           <000000>     
+    000A5A              L321:                             
+                   632:                            }
+                   633:    
+                   634:                            TraceAdd( EVENT_EVCOMM_NG );
+    000A5A F854                   MOV.B       #84:8,R0L
+    000A5C 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   635:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    000A60 F802                   MOV.B       #2:8,R0L
+    000A62 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   636:    
+                   637:                            phase = SEND_ABORTBUSY;
+    000A66 F80E                   MOV.B       #14:8,R0L
+                   638:                            break;
+    000A68 5A                     JMP         @L410:24
+           <000000>     
+    000A6C              L239:                             
+                   639:    
+                   640:    
+                   641:                    case SEND_ABORTBUSY:    // 放送キャンセル後の放送停止確認
+                   642:                            if( timedata.ev5000timer!=0 )
+    000A6C 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000A72 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000A78 0D00                   MOV.W       R0,R0
+    000A7A 58600692               BNE         L256:16
+                   643:                                    break;
+                   644:    
+                   645:    #if 0
+                   646:    debugTime();
+                   647:    printf("BUSY Check\r\n");
+                   648:    #endif
+                   649:                            strcpy( sendbuff, "B\r\n" );
+    000A7E 7A01                   MOV.L       #L170:32,ER1
+           <00000000>   
+    000A84 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000A8A 5E                     JSR         @_strcpy:24
+           <000000>     
+                   650:                            recvlen = 0;
+                   651:                            recv_complete = 0;
+    000A8E 1888                   SUB.B       R0L,R0L
+    000A90 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+    000A96 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   652:                            recvsts = 0;
+    000A9C 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+                   653:                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000AA2 79000064               MOV.W       #100:16,R0
+    000AA6 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000AAC 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   654:                            sendp = sendbuff;
+    000AB2 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000AB8 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   655:                            asci_0_transmit( *sendp++ );
+    000AC0 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000AC8 6C18                   MOV.B       @ER1+,R0L
+    000ACA 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000AD2 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   656:                            phase = SEND_BUSY_RECV;
+    000AD6 F80A                   MOV.B       #10:8,R0L
+                   657:                            break;
+    000AD8 5A                     JMP         @L410:24
+           <000000>     
+    000ADC              L241:                             
+                   658:    
+                   659:                    case SEND_ABORTBUSY_RECV:                       // 放送中チェック
+                   660:                            if( recv_complete==0 ){
+    000ADC 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    000AE2 58600082               BNE         L323:16
+                   661:                                    if( timedata.ev5000timer==0 ){
+    000AE6 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000AEC 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000AF2 0D00                   MOV.W       R0,R0
+    000AF4 58600618               BNE         L256:16
+                   662:    #if 0
+                   663:    debugTime();
+                   664:    printf("BUSY Time Out\r\n");
+                   665:    #endif
+                   666:                                            timeout++;
+    000AF8 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    000AFE 6809                   MOV.B       @ER0,R1L
+    000B00 0A09                   INC.B       R1L
+    000B02 6889                   MOV.B       R1L,@ER0
+                   667:                                            if( timeout>MAX_EV5000_RETRYTIMEOUT ){
+    000B04 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    000B0A A803                   CMP.B       #3:8,R0L
+    000B0C 4F44                   BLE         L325:8
+                   668:                                                    abortcnt++;
+    000B0E 7A00                   MOV.L       #_$abortcnt:32,ER0
+           <00000000>   
+    000B14 6809                   MOV.B       @ER0,R1L
+    000B16 0A09                   INC.B       R1L
+    000B18 6889                   MOV.B       R1L,@ER0
+                   669:                                                    if( abortcnt>MAX_EV5000_ABORTLOOPRETRY ){
+    000B1A 6A2800                 MOV.B       @_$abortcnt:24,R0L
+           <000000>     
+    000B20 A803                   CMP.B       #3:8,R0L
+    000B22 4F06                   BLE         L326:8
+                   670:                                                            phase = SEND_ABORT;
+    000B24 F80C                   MOV.B       #12:8,R0L
+                   671:                                                            break;
+    000B26 5A                     JMP         @L410:24
+           <000000>     
+    000B2A              L326:                             
+                   672:                                                    }
+                   673:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    000B2A F801                   MOV.B       #1:8,R0L
+    000B2C 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   674:                                                    DUALPORT.nowTrouble |= 0x04;
+    000B30 6E680007               MOV.B       @(7:16,ER6),R0L
+    000B34 7028                   BSET.B      #2,R0L
+    000B36 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   675:                                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
+    000B3A 6A2800                 MOV.B       @_nowSignal+2:24,R0L
+           <000000>     
+    000B40 7768                   BLD.B       #6,R0L
+    000B42 450E                   BCS         L327:8
+                   676:                                                            phase = SEND_SETUP;
+    000B44 1888                   SUB.B       R0L,R0L
+    000B46 68D8                   MOV.B       R0L,@ER5
+                   677:                                                            TraceAdd( EVENT_EVCOMM_NG );
+    000B48 F854                   MOV.B       #84:8,R0L
+                   678:                                                            break;
+    000B4A              L388:                             
+    000B4A 5E                     JSR         @_TraceAdd:24
+           <000000>     
+    000B4E 5A                     JMP         @L256:24
+           <000000>     
+    000B52              L327:                             
+    000B52              L325:                             
+                   679:                                                    }
+                   680:                                            }
+                   681:                                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000B52 79000064               MOV.W       #100:16,R0
+    000B56 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000B5C 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   682:                                            phase = SEND_ABORTBUSY;
+    000B62 F80E                   MOV.B       #14:8,R0L
+                   683:                                    }
+                   684:                                    break;
+    000B64 5A                     JMP         @L410:24
+           <000000>     
+    000B68              L323:                             
+                   685:                            }
+                   686:    
+                   687:                            timeout=0;
+    000B68 1888                   SUB.B       R0L,R0L
+    000B6A 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   688:                            if( recvbuff[0]=='Y' ){
+    000B70 6838                   MOV.B       @ER3,R0L
+    000B72 A859                   CMP.B       #89:8,R0L
+    000B74 4656                   BNE         L328:8
+                   689:                                    if( recvbuff[1]!='0' || recvbuff[2]!='0' ){     /* EV5000 が　ＢＵＳＹのとき */
+    000B76 6E380001               MOV.B       @(1:16,ER3),R0L
+    000B7A A830                   CMP.B       #48:8,R0L
+    000B7C 4608                   BNE         L330:8
+    000B7E 6E380002               MOV.B       @(2:16,ER3),R0L
+    000B82 A830                   CMP.B       #48:8,R0L
+    000B84 4716                   BEQ         L329:8
+    000B86              L330:                             
+                   690:    #if 0
+                   691:    debugTime();
+                   692:    printf("BUSY!!\r\n");
+                   693:    #endif
+                   694:                                            // ビジー処理
+                   695:                                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000B86 79000064               MOV.W       #100:16,R0
+    000B8A 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000B90 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   696:                                            phase = SEND_ABORTBUSY;
+    000B96 F80E                   MOV.B       #14:8,R0L
+                   697:                                            break;
+    000B98 5A                     JMP         @L410:24
+           <000000>     
+    000B9C              L329:                             
+                   698:                                    }
+                   699:                                    /* EV5000 が ＡＣＫをかえした */
+                   700:                                    // 正常処理
+                   701:    
+                   702:                                    DUALPORT.nowTrouble &= ~0x04;
+    000B9C 6E680007               MOV.B       @(7:16,ER6),R0L
+    000BA0 7228                   BCLR.B      #2,R0L
+    000BA2 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   703:    
+                   704:                                    if( nowSignal.SIGNAL3.RBIT.ev5000Busy==0 ){             // ＥＶ５０００からの信号も停止しているとき
+    000BA6 6A2800                 MOV.B       @_nowSignal+2:24,R0L
+           <000000>     
+    000BAC 7768                   BLD.B       #6,R0L
+    000BAE 4506                   BCS         L331:8
+                   705:                                            phase = SEND_SETUP;
+    000BB0 1888                   SUB.B       R0L,R0L
+                   706:                                            break;
+    000BB2 5A                     JMP         @L410:24
+           <000000>     
+    000BB6              L331:                             
+                   707:                                    }
+                   708:                                    // ビジー処理
+                   709:                                    timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000BB6 79000064               MOV.W       #100:16,R0
+    000BBA 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000BC0 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   710:                                    phase = SEND_ABORTBUSY;
+    000BC6 F80E                   MOV.B       #14:8,R0L
+                   711:                                    break;
+    000BC8 5A                     JMP         @L410:24
+           <000000>     
+    000BCC              L328:                             
+                   712:                            }
+                   713:    
+                   714:                            // 異常受信処理
+                   715:                            errcnt++;
+    000BCC 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000BD2 6809                   MOV.B       @ER0,R1L
+    000BD4 0A09                   INC.B       R1L
+    000BD6 6889                   MOV.B       R1L,@ER0
+                   716:    
+                   717:                            if( errcnt<MAX_EV5000_RETRYERROR ){
+    000BD8 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    000BDE A803                   CMP.B       #3:8,R0L
+    000BE0 4C18                   BGE         L332:8
+                   718:                                    phase = SEND_ABORTBUSY;
+    000BE2 F80E                   MOV.B       #14:8,R0L
+    000BE4 68D8                   MOV.B       R0L,@ER5
+                   719:                                    timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000BE6 790000C8               MOV.W       #200:16,R0
+                   720:                                    break;
+    000BEA              L392:                             
+    000BEA 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000BF0 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+    000BF6 5A                     JMP         @L256:24
+           <000000>     
+    000BFA              L332:                             
+                   721:                            }
+                   722:    
+                   723:                            TraceAdd( EVENT_EVCOMM_NG );
+    000BFA F854                   MOV.B       #84:8,R0L
+    000BFC 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   724:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    000C00 F802                   MOV.B       #2:8,R0L
+    000C02 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   725:                            DUALPORT.nowTrouble |= 0x04;
+    000C06 6E680007               MOV.B       @(7:16,ER6),R0L
+    000C0A 7028                   BSET.B      #2,R0L
+    000C0C 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   726:                            phase = SEND_SETUP;
+    000C10 1888                   SUB.B       R0L,R0L
+                   727:                            break;
+    000C12 5A                     JMP         @L410:24
+           <000000>     
+    000C16              L242:                             
+                   728:    
+                   729:                    case SEND_INITIAL:              // 接続チェック送信
+                   730:                            DUALPORT.ev5000_request.Abort=0;
+    000C16 1A80                   SUB.L       ER0,ER0
+    000C18 F8F6                   MOV.B       #-10:8,R0L
+    000C1A 0AE0                   ADD.L       ER6,ER0
+    000C1C 7D007250               BCLR.B      #5,@ER0
+                   731:                            DUALPORT.ev5000_request.Request=0;
+    000C20 1A80                   SUB.L       ER0,ER0
+    000C22 F8F6                   MOV.B       #-10:8,R0L
+    000C24 0AE0                   ADD.L       ER6,ER0
+    000C26 7D007260               BCLR.B      #6,@ER0
+                   732:    
+                   733:                            if( timedata.ev5000timer!=0 )
+    000C2A 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000C30 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000C36 0D00                   MOV.W       R0,R0
+    000C38 586004D4               BNE         L256:16
+                   734:                                    break;
+                   735:                            strcpy( sendbuff, "A\r\n" );
+    000C3C 7A01                   MOV.L       #L180:32,ER1
+           <00000000>   
+    000C42 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000C48 5E                     JSR         @_strcpy:24
+           <000000>     
+                   736:                            recvlen = 0;
+                   737:                            recvsts = 0;
+    000C4C 1888                   SUB.B       R0L,R0L
+    000C4E 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+    000C54 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   738:                            recv_complete = 0;
+    000C5A 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+                   739:                            timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000C60 790000C8               MOV.W       #200:16,R0
+    000C64 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000C6A 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   740:                            sendp = sendbuff;
+    000C70 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000C76 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   741:                            asci_0_transmit( *sendp++ );
+    000C7E 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000C86 6C18                   MOV.B       @ER1+,R0L
+    000C88 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000C90 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   742:                            phase = SEND_INITIAL_RECV;
+    000C94 F802                   MOV.B       #2:8,R0L
+                   743:                            break;
+    000C96 5A                     JMP         @L410:24
+           <000000>     
+    000C9A              L244:                             
+                   744:    
+                   745:                    case SEND_INITIAL_RECV:                 // 接続チェック確認
+                   746:                            if( recv_complete==0 ){
+    000C9A 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    000CA0 4658                   BNE         L334:8
+                   747:                                    if( timedata.ev5000timer==0 ){
+    000CA2 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000CA8 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000CAE 0D00                   MOV.W       R0,R0
+    000CB0 5860045C               BNE         L256:16
+                   748:                                            timeout++;
+    000CB4 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    000CBA 6809                   MOV.B       @ER0,R1L
+    000CBC 0A09                   INC.B       R1L
+    000CBE 6889                   MOV.B       R1L,@ER0
+                   749:                                            if( timeout>2 ){
+    000CC0 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    000CC6 A802                   CMP.B       #2:8,R0L
+    000CC8 4F28                   BLE         L336:8
+                   750:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    000CCA F801                   MOV.B       #1:8,R0L
+    000CCC 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   751:                                                    DUALPORT.nowTrouble |= 0x04;
+    000CD0 6E680007               MOV.B       @(7:16,ER6),R0L
+    000CD4 7028                   BSET.B      #2,R0L
+    000CD6 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   752:                                                    phase = SEND_SETUP;
+    000CDA 1888                   SUB.B       R0L,R0L
+    000CDC 68D8                   MOV.B       R0L,@ER5
+                   753:                                                    TraceAdd( EVENT_EVCOMM_NG );
+    000CDE F854                   MOV.B       #84:8,R0L
+    000CE0 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   754:                                                    DUALPORT.ev5000_request.Initial=0;
+    000CE4 1A80                   SUB.L       ER0,ER0
+    000CE6 F8F6                   MOV.B       #-10:8,R0L
+    000CE8 0AE0                   ADD.L       ER6,ER0
+    000CEA 7D007270               BCLR.B      #7,@ER0
+    000CEE 5A                     JMP         @L256:24
+           <000000>     
+    000CF2              L336:                             
+                   755:                                            }
+                   756:                                            else {
+                   757:                                                    phase = SEND_INITIAL;
+    000CF2 F801                   MOV.B       #1:8,R0L
+    000CF4 68D8                   MOV.B       R0L,@ER5
+                   758:                                            }
+                   759:                                    }
+                   760:                                    break;
+    000CF6 5A                     JMP         @L256:24
+           <000000>     
+    000CFA              L334:                             
+                   761:                            }
+                   762:    
+                   763:                            timeout=0;
+    000CFA 1888                   SUB.B       R0L,R0L
+    000CFC 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   764:                            if( recvbuff[0]=='A' ){         /* EV5000 が ＡＣＫをかえした */
+    000D02 6838                   MOV.B       @ER3,R0L
+    000D04 A841                   CMP.B       #65:8,R0L
+    000D06 4610                   BNE         L338:8
+                   765:                                    // 正常処理
+                   766:                                    DUALPORT.nowTrouble &= ~0x04;
+    000D08 6E680007               MOV.B       @(7:16,ER6),R0L
+    000D0C 7228                   BCLR.B      #2,R0L
+    000D0E 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   767:    //                              phase = SEND_SETUP;
+                   768:                                    phase = SEND_TIME_GET;
+    000D12 F810                   MOV.B       #16:8,R0L
+                   769:                                    break;
+    000D14 5A                     JMP         @L410:24
+           <000000>     
+    000D18              L338:                             
+                   770:                            }
+                   771:    
+                   772:                            if( recvbuff[0]=='Y' ){
+    000D18 6838                   MOV.B       @ER3,R0L
+    000D1A A859                   CMP.B       #89:8,R0L
+    000D1C 462C                   BNE         L339:8
+                   773:                                    if( recvbuff[1]!='0' || recvbuff[2]!='0' ){     /* EV5000 が　ＢＵＳＹのとき */
+    000D1E 6E380001               MOV.B       @(1:16,ER3),R0L
+    000D22 A830                   CMP.B       #48:8,R0L
+    000D24 4608                   BNE         L341:8
+    000D26 6E380002               MOV.B       @(2:16,ER3),R0L
+    000D2A A830                   CMP.B       #48:8,R0L
+    000D2C 4716                   BEQ         L340:8
+    000D2E              L341:                             
+                   774:                                            // ビジー処理
+                   775:                                            timedata.ev5000timer = MAX_EV5000_BUSYTIME;
+    000D2E 79000064               MOV.W       #100:16,R0
+    000D32 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000D38 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   776:                                            phase = SEND_INITIAL;
+    000D3E F801                   MOV.B       #1:8,R0L
+                   777:                                            break;
+    000D40 5A                     JMP         @L410:24
+           <000000>     
+    000D44              L340:                             
+                   778:                                    }
+                   779:                                    /* EV5000 が ＡＣＫをかえした */
+                   780:                                    // 正常処理
+                   781:    //                              phase = SEND_SETUP;
+                   782:                                    phase = SEND_TIME_GET;
+    000D44 F810                   MOV.B       #16:8,R0L
+                   783:                                    break;
+    000D46 5A                     JMP         @L410:24
+           <000000>     
+    000D4A              L339:                             
+                   784:                            }
+                   785:    
+                   786:                            // 異常受信処理
+                   787:                            errcnt++;
+    000D4A 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000D50 6809                   MOV.B       @ER0,R1L
+    000D52 0A09                   INC.B       R1L
+    000D54 6889                   MOV.B       R1L,@ER0
+                   788:    
+                   789:                            if( errcnt<3 ){
+    000D56 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    000D5C A803                   CMP.B       #3:8,R0L
+    000D5E 4C06                   BGE         L342:8
+                   790:                                    phase = SEND_INITIAL;
+    000D60 F801                   MOV.B       #1:8,R0L
+                   791:                                    break;
+    000D62 5A                     JMP         @L410:24
+           <000000>     
+    000D66              L342:                             
+                   792:                            }
+                   793:    
+                   794:                            TraceAdd( EVENT_EVCOMM_NG );
+    000D66 F854                   MOV.B       #84:8,R0L
+    000D68 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   795:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    000D6C F802                   MOV.B       #2:8,R0L
+    000D6E 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   796:                            DUALPORT.nowTrouble |= 0x04;
+    000D72 6E680007               MOV.B       @(7:16,ER6),R0L
+    000D76 7028                   BSET.B      #2,R0L
+    000D78 6EE80007               MOV.B       R0L,@(7:16,ER6)
+                   797:                            phase = SEND_SETUP;
+    000D7C 1888                   SUB.B       R0L,R0L
+    000D7E 68D8                   MOV.B       R0L,@ER5
+                   798:                            DUALPORT.ev5000_request.Initial=0;
+    000D80 1A80                   SUB.L       ER0,ER0
+    000D82 F8F6                   MOV.B       #-10:8,R0L
+    000D84 0AE0                   ADD.L       ER6,ER0
+    000D86 7D007270               BCLR.B      #7,@ER0
+                   799:                            break;
+    000D8A 5A                     JMP         @L256:24
+           <000000>     
+    000D8E              L245:                             
+                   800:    
+                   801:                    case SEND_TIME_GET:             // 日時問い合わせ送信
+                   802:                            if( timedata.ev5000timer!=0 )
+    000D8E 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000D94 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000D9A 0D00                   MOV.W       R0,R0
+    000D9C 58600370               BNE         L256:16
+                   803:                                    break;
+                   804:                            strcpy( sendbuff, "TQ\r\n" );
+    000DA0 7A01                   MOV.L       #L189:32,ER1
+           <00000000>   
+    000DA6 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000DAC 5E                     JSR         @_strcpy:24
+           <000000>     
+                   805:                            recvlen = 0;
+                   806:                            recvsts = 0;
+    000DB0 1888                   SUB.B       R0L,R0L
+    000DB2 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+    000DB8 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   807:                            recv_complete = 0;
+    000DBE 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+                   808:                            timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    000DC4 790000C8               MOV.W       #200:16,R0
+    000DC8 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    000DCE 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   809:                            sendp = sendbuff;
+    000DD4 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    000DDA 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   810:                            asci_0_transmit( *sendp++ );
+    000DE2 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    000DEA 6C18                   MOV.B       @ER1+,R0L
+    000DEC 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    000DF4 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   811:                            phase = SEND_TIME_GET_RECV;
+    000DF8 F811                   MOV.B       #17:8,R0L
+                   812:                            break;
+    000DFA 5A                     JMP         @L410:24
+           <000000>     
+    000DFE              L247:                             
+                   813:    
+                   814:                    case SEND_TIME_GET_RECV:                // 日時チェック確認
+                   815:                            if( recv_complete==0 ){
+    000DFE 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    000E04 464E                   BNE         L344:8
+                   816:                                    if( timedata.ev5000timer==0 ){
+    000E06 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000E0C 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000E12 0D00                   MOV.W       R0,R0
+    000E14 586002F8               BNE         L256:16
+                   817:                                            timeout++;
+    000E18 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    000E1E 6809                   MOV.B       @ER0,R1L
+    000E20 0A09                   INC.B       R1L
+    000E22 6889                   MOV.B       R1L,@ER0
+                   818:                                            if( timeout>2 ){
+    000E24 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    000E2A A802                   CMP.B       #2:8,R0L
+    000E2C 4F1E                   BLE         L346:8
+                   819:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    000E2E F801                   MOV.B       #1:8,R0L
+    000E30 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   820:                                                    phase = SEND_SETUP;
+    000E34 1888                   SUB.B       R0L,R0L
+    000E36 68D8                   MOV.B       R0L,@ER5
+                   821:                                                    TraceAdd( EVENT_EVCOMM_NG );
+    000E38 F854                   MOV.B       #84:8,R0L
+    000E3A 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   822:                                                    DUALPORT.ev5000_request.Initial=0;
+    000E3E 1A80                   SUB.L       ER0,ER0
+    000E40 F8F6                   MOV.B       #-10:8,R0L
+    000E42 0AE0                   ADD.L       ER6,ER0
+    000E44 7D007270               BCLR.B      #7,@ER0
+    000E48 5A                     JMP         @L256:24
+           <000000>     
+    000E4C              L346:                             
+                   823:                                            }
+                   824:                                            else {
+                   825:                                                    phase = SEND_TIME_GET;
+    000E4C F810                   MOV.B       #16:8,R0L
+    000E4E 68D8                   MOV.B       R0L,@ER5
+                   826:                                            }
+                   827:                                    }
+                   828:                                    break;
+    000E50 5A                     JMP         @L256:24
+           <000000>     
+    000E54              L344:                             
+                   829:                            }
+                   830:    
+                   831:                            timeout=0;
+    000E54 1888                   SUB.B       R0L,R0L
+    000E56 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   832:                            if( recvbuff[0]=='T' && recvbuff[1]=='A' ){
+    000E5C 6838                   MOV.B       @ER3,R0L
+    000E5E A854                   CMP.B       #84:8,R0L
+    000E60 5860013A               BNE         L348:16
+    000E64 6E380001               MOV.B       @(1:16,ER3),R0L
+    000E68 A841                   CMP.B       #65:8,R0L
+    000E6A 58600130               BNE         L348:16
+                   833:                                    for( i=2; i<14; i++ ){
+    000E6E 79020002               MOV.W       #2:16,R2
+    000E72 4048                   BRA         L350:8
+    000E74              L349:                             
+                   834:                                            if( recvbuff[i]<'0' || recvbuff[i]>'9' ){
+    000E74 0D20                   MOV.W       R2,R0
+    000E76 17F0                   EXTS.L      ER0
+    000E78 0AB0                   ADD.L       ER3,ER0
+    000E7A 6808                   MOV.B       @ER0,R0L
+    000E7C A830                   CMP.B       #48:8,R0L
+    000E7E 4D04                   BLT         L352:8
+    000E80 A839                   CMP.B       #57:8,R0L
+    000E82 4F32                   BLE         L351:8
+    000E84              L352:                             
+                   835:    
+                   836:                                                    TraceAdd( EVENT_EVCOMM_NG );
+    000E84 F854                   MOV.B       #84:8,R0L
+    000E86 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   837:    
+                   838:                                                    // 異常受信処理
+                   839:                                                    errcnt++;
+    000E8A 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000E90 6809                   MOV.B       @ER0,R1L
+    000E92 0A09                   INC.B       R1L
+    000E94 6889                   MOV.B       R1L,@ER0
+                   840:    
+                   841:                                                    if( errcnt<3 ){
+    000E96 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    000E9C A803                   CMP.B       #3:8,R0L
+    000E9E 4C06                   BGE         L353:8
+                   842:                                                            phase = SEND_TIME_GET;
+    000EA0 F810                   MOV.B       #16:8,R0L
+    000EA2 68D8                   MOV.B       R0L,@ER5
+                   843:                                                            break;
+    000EA4 401E                   BRA         L354:8
+    000EA6              L353:                             
+                   844:                                                    }
+                   845:                                                    phase = SEND_SETUP;
+    000EA6 1888                   SUB.B       R0L,R0L
+    000EA8 68D8                   MOV.B       R0L,@ER5
+                   846:                                                    DUALPORT.ev5000_request.Initial=0;
+    000EAA 1A80                   SUB.L       ER0,ER0
+    000EAC F8F6                   MOV.B       #-10:8,R0L
+    000EAE 0AE0                   ADD.L       ER6,ER0
+    000EB0 7D007270               BCLR.B      #7,@ER0
+                   847:                                                    break;
+    000EB4 400E                   BRA         L354:8
+    000EB6              L351:                             
+    000EB6 0D20                   MOV.W       R2,R0
+    000EB8 0B50                   INC.W       #1,R0
+    000EBA 0D02                   MOV.W       R0,R2
+    000EBC              L350:                             
+    000EBC 0D20                   MOV.W       R2,R0
+    000EBE 7920000E               CMP.W       #14:16,R0
+    000EC2 4DB0                   BLT         L349:8
+    000EC4              L354:                             
+                   848:                                            }
+                   849:                                    }
+                   850:                                    if( i<14 )
+    000EC4 0D20                   MOV.W       R2,R0
+    000EC6 7920000E               CMP.W       #14:16,R0
+    000ECA 58D00242               BLT         L256:16
+                   851:                                            break;
+                   852:    
+                   853:    printf("evdate=%s\r\n",recvbuff);
+    000ECE 01006DF3               PUSH.L      ER3
+    000ED2 7A00                   MOV.L       #L198:32,ER0
+           <00000000>   
+    000ED8 01006DF0               PUSH.L      ER0
+    000EDC 5E                     JSR         @_printf:24
+           <000000>     
+    000EE0 0B97                   ADDS.L      #4,SP
+    000EE2 0B97                   ADDS.L      #4,SP
+                   854:                                    timedata.tm_year = (recvbuff[2] & 0x0F) * 10 + (recvbuff[3] & 0x0F);
+    000EE4 6E380002               MOV.B       @(2:16,ER3),R0L
+    000EE8 E80F                   AND.B       #15:8,R0L
+    000EEA F00A                   MOV.B       #10:8,R0H
+    000EEC 5000                   MULXU.B     R0H,R0
+    000EEE 6E390003               MOV.B       @(3:16,ER3),R1L
+    000EF2 E90F                   AND.B       #15:8,R1L
+    000EF4 0898                   ADD.B       R1L,R0L
+    000EF6 6AA800                 MOV.B       R0L,@_timedata+2:24
+           <000000>     
+                   855:                                    timedata.tm_mon = (recvbuff[4] & 0x0F) * 10 + (recvbuff[5] & 0x0F);
+    000EFC 6E380004               MOV.B       @(4:16,ER3),R0L
+    000F00 E80F                   AND.B       #15:8,R0L
+    000F02 F00A                   MOV.B       #10:8,R0H
+    000F04 5000                   MULXU.B     R0H,R0
+    000F06 6E390005               MOV.B       @(5:16,ER3),R1L
+    000F0A E90F                   AND.B       #15:8,R1L
+    000F0C 0898                   ADD.B       R1L,R0L
+    000F0E 6AA800                 MOV.B       R0L,@_timedata+3:24
+           <000000>     
+                   856:                                    timedata.tm_day = (recvbuff[6] & 0x0F) * 10 + (recvbuff[7] & 0x0F);
+    000F14 6E380006               MOV.B       @(6:16,ER3),R0L
+    000F18 E80F                   AND.B       #15:8,R0L
+    000F1A F00A                   MOV.B       #10:8,R0H
+    000F1C 5000                   MULXU.B     R0H,R0
+    000F1E 6E390007               MOV.B       @(7:16,ER3),R1L
+    000F22 E90F                   AND.B       #15:8,R1L
+    000F24 0898                   ADD.B       R1L,R0L
+    000F26 6AA800                 MOV.B       R0L,@_timedata+4:24
+           <000000>     
+                   857:                                    timedata.tm_hour = (recvbuff[8] & 0x0F) * 10 + (recvbuff[9] & 0x0F);
+    000F2C 6E380008               MOV.B       @(8:16,ER3),R0L
+    000F30 E80F                   AND.B       #15:8,R0L
+    000F32 F00A                   MOV.B       #10:8,R0H
+    000F34 5000                   MULXU.B     R0H,R0
+    000F36 6E390009               MOV.B       @(9:16,ER3),R1L
+    000F3A E90F                   AND.B       #15:8,R1L
+    000F3C 0898                   ADD.B       R1L,R0L
+    000F3E 6AA800                 MOV.B       R0L,@_timedata+5:24
+           <000000>     
+                   858:                                    timedata.tm_min = (recvbuff[10] & 0x0F) * 10 + (recvbuff[11] & 0x0F);
+    000F44 6E38000A               MOV.B       @(10:16,ER3),R0L
+    000F48 E80F                   AND.B       #15:8,R0L
+    000F4A F00A                   MOV.B       #10:8,R0H
+    000F4C 5000                   MULXU.B     R0H,R0
+    000F4E 6E39000B               MOV.B       @(11:16,ER3),R1L
+    000F52 E90F                   AND.B       #15:8,R1L
+    000F54 0898                   ADD.B       R1L,R0L
+    000F56 6AA800                 MOV.B       R0L,@_timedata+6:24
+           <000000>     
+                   859:                                    timedata.tm_sec = (recvbuff[12] & 0x0F) * 10 + (recvbuff[13] & 0x0F);
+    000F5C 6E38000C               MOV.B       @(12:16,ER3),R0L
+    000F60 E80F                   AND.B       #15:8,R0L
+    000F62 F00A                   MOV.B       #10:8,R0H
+    000F64 5000                   MULXU.B     R0H,R0
+    000F66 6E39000D               MOV.B       @(13:16,ER3),R1L
+    000F6A E90F                   AND.B       #15:8,R1L
+    000F6C 0898                   ADD.B       R1L,R0L
+    000F6E 6AA800                 MOV.B       R0L,@_timedata+7:24
+           <000000>     
+                   860:                                    timedata.tm_msec = 0;
+    000F74 1888                   SUB.B       R0L,R0L
+    000F76 6AA800                 MOV.B       R0L,@_timedata+8:24
+           <000000>     
+                   861:                                    timedata.dateActive = 1;
+    000F7C 79000001               MOV.W       #1:16,R0
+    000F80 6AA000                 MOV.B       R0H,@_timedata:24
+           <000000>     
+    000F86 6AA800                 MOV.B       R0L,@_timedata+1:24
+           <000000>     
+                   862:    
+                   863:                                    phase = SEND_SETUP;
+    000F8C 1888                   SUB.B       R0L,R0L
+    000F8E 68D8                   MOV.B       R0L,@ER5
+                   864:                                    DUALPORT.ev5000_request.Initial=0;
+    000F90 1A80                   SUB.L       ER0,ER0
+    000F92 F8F6                   MOV.B       #-10:8,R0L
+    000F94 0AE0                   ADD.L       ER6,ER0
+    000F96 7D007270               BCLR.B      #7,@ER0
+                   865:                                    break;
+    000F9A 5A                     JMP         @L256:24
+           <000000>     
+    000F9E              L348:                             
+                   866:                            }
+                   867:    
+                   868:                            // 異常受信処理
+                   869:                            errcnt++;
+    000F9E 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    000FA4 6809                   MOV.B       @ER0,R1L
+    000FA6 0A09                   INC.B       R1L
+    000FA8 6889                   MOV.B       R1L,@ER0
+                   870:    
+                   871:                            if( errcnt<3 ){
+    000FAA 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    000FB0 A803                   CMP.B       #3:8,R0L
+    000FB2 4C06                   BGE         L356:8
+                   872:                                    phase = SEND_TIME_GET;
+    000FB4 F810                   MOV.B       #16:8,R0L
+                   873:                                    break;
+    000FB6 5A                     JMP         @L410:24
+           <000000>     
+    000FBA              L356:                             
+                   874:                            }
+                   875:    
+                   876:                            TraceAdd( EVENT_EVCOMM_NG );
+    000FBA F854                   MOV.B       #84:8,R0L
+    000FBC 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   877:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    000FC0 F802                   MOV.B       #2:8,R0L
+    000FC2 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   878:                            phase = SEND_SETUP;
+    000FC6 1888                   SUB.B       R0L,R0L
+    000FC8 68D8                   MOV.B       R0L,@ER5
+                   879:                            DUALPORT.ev5000_request.Initial=0;
+    000FCA 1A80                   SUB.L       ER0,ER0
+    000FCC F8F6                   MOV.B       #-10:8,R0L
+    000FCE 0AE0                   ADD.L       ER6,ER0
+    000FD0 7D007270               BCLR.B      #7,@ER0
+                   880:                            break;
+    000FD4 5A                     JMP         @L256:24
+           <000000>     
+    000FD8              L249:                             
+                   881:    
+                   882:                    case SEND_TIME_SET:             // 日時設定送信
+                   883:                            if( timedata.ev5000timer!=0 )
+    000FD8 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    000FDE 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    000FE4 0D00                   MOV.W       R0,R0
+    000FE6 58600126               BNE         L256:16
+                   884:                                    break;
+                   885:                            sprintf( sendbuff, "TM%02u%02u%02u%02u%02u%02u\r\n",
+                   886:                                    timedata.tm_year,
+                   887:                                    timedata.tm_mon,
+                   888:                                    timedata.tm_day,
+                   889:                                    timedata.tm_hour,
+                   890:                                    timedata.tm_min,
+                   891:                                    timedata.tm_sec );
+    000FEA 6A2800                 MOV.B       @_timedata+7:24,R0L
+           <000000>     
+    000FF0 1750                   EXTU.W      R0
+    000FF2 6DF0                   PUSH.W      R0
+    000FF4 6A2800                 MOV.B       @_timedata+6:24,R0L
+           <000000>     
+    000FFA 1750                   EXTU.W      R0
+    000FFC 6DF0                   PUSH.W      R0
+    000FFE 6A2800                 MOV.B       @_timedata+5:24,R0L
+           <000000>     
+    001004 1750                   EXTU.W      R0
+    001006 6DF0                   PUSH.W      R0
+    001008 6A2800                 MOV.B       @_timedata+4:24,R0L
+           <000000>     
+    00100E 1750                   EXTU.W      R0
+    001010 6DF0                   PUSH.W      R0
+    001012 6A2800                 MOV.B       @_timedata+3:24,R0L
+           <000000>     
+    001018 1750                   EXTU.W      R0
+    00101A 6DF0                   PUSH.W      R0
+    00101C 6A2800                 MOV.B       @_timedata+2:24,R0L
+           <000000>     
+    001022 1750                   EXTU.W      R0
+    001024 6DF0                   PUSH.W      R0
+    001026 7A00                   MOV.L       #L200:32,ER0
+           <00000000>   
+    00102C 01006DF0               PUSH.L      ER0
+    001030 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    001036 5E                     JSR         @_sprintf:24
+           <000000>     
+    00103A 7A17000000             ADD.L       #16:32,SP
+           10           
+                   892:    //printf("set evdate=%s\r\n",sendbuff);
+                   893:    
+                   894:    
+                   895:                            recvlen = 0;
+                   896:                            recvsts = 0;
+    001040 1888                   SUB.B       R0L,R0L
+    001042 6AA800                 MOV.B       R0L,@_$recvsts:24
+           <000000>     
+    001048 6AA800                 MOV.B       R0L,@_$recvlen:24
+           <000000>     
+                   897:                            recv_complete = 0;
+    00104E 6AA800                 MOV.B       R0L,@_$recv_complete:24
+           <000000>     
+                   898:                            timedata.ev5000timer = MAX_EV5000_TIMEOUT;
+    001054 790000C8               MOV.W       #200:16,R0
+    001058 6AA000                 MOV.B       R0H,@_timedata+13:24
+           <000000>     
+    00105E 6AA800                 MOV.B       R0L,@_timedata+14:24
+           <000000>     
+                   899:                            sendp = sendbuff;
+    001064 7A00                   MOV.L       #_$sendbuff:32,ER0
+           <00000000>   
+    00106A 01006BA000             MOV.L       ER0,@_$sendp:24
+           <000000>     
+                   900:                            asci_0_transmit( *sendp++ );
+    001072 01006B2100             MOV.L       @_$sendp:24,ER1
+           <000000>     
+    00107A 6C18                   MOV.B       @ER1+,R0L
+    00107C 01006BA100             MOV.L       ER1,@_$sendp:24
+           <000000>     
+    001084 5E                     JSR         @_asci_0_transmit:24
+           <000000>     
+                   901:                            phase = SEND_TIME_SET_RECV;
+    001088 F813                   MOV.B       #19:8,R0L
+                   902:                            break;
+    00108A 5A                     JMP         @L410:24
+           <000000>     
+    00108E              L251:                             
+                   903:    
+                   904:                    case SEND_TIME_SET_RECV:                // 日時チェック確認
+                   905:                            if( recv_complete==0 ){
+    00108E 6A2800                 MOV.B       @_$recv_complete:24,R0L
+           <000000>     
+    001094 463E                   BNE         L358:8
+                   906:                                    if( timedata.ev5000timer==0 ){
+    001096 6A2000                 MOV.B       @_timedata+13:24,R0H
+           <000000>     
+    00109C 6A2800                 MOV.B       @_timedata+14:24,R0L
+           <000000>     
+    0010A2 0D00                   MOV.W       R0,R0
+    0010A4 466A                   BNE         L256:8
+                   907:                                            timeout++;
+    0010A6 7A00                   MOV.L       #_$timeout:32,ER0
+           <00000000>   
+    0010AC 6809                   MOV.B       @ER0,R1L
+    0010AE 0A09                   INC.B       R1L
+    0010B0 6889                   MOV.B       R1L,@ER0
+                   908:                                            if( timeout>2 ){
+    0010B2 6A2800                 MOV.B       @_$timeout:24,R0L
+           <000000>     
+    0010B8 A802                   CMP.B       #2:8,R0L
+    0010BA 4F12                   BLE         L360:8
+                   909:                                                    DUALPORT.ev5000_request.ev5000_error = 1;
+    0010BC F801                   MOV.B       #1:8,R0L
+    0010BE 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   910:                                                    phase = SEND_SETUP;
+    0010C2 1888                   SUB.B       R0L,R0L
+    0010C4 68D8                   MOV.B       R0L,@ER5
+                   911:                                                    TraceAdd( EVENT_EVCOMM_NG );
+    0010C6 F854                   MOV.B       #84:8,R0L
+    0010C8 5E                     JSR         @_TraceAdd:24
+           <000000>     
+    0010CC 4042                   BRA         L256:8
+    0010CE              L360:                             
+                   912:                                            }
+                   913:                                            else {
+                   914:                                                    phase = SEND_TIME_SET;
+    0010CE F812                   MOV.B       #18:8,R0L
+    0010D0 68D8                   MOV.B       R0L,@ER5
+                   915:                                            }
+                   916:                                    }
+                   917:                                    break;
+    0010D2 403C                   BRA         L256:8
+    0010D4              L358:                             
+                   918:                            }
+                   919:    
+                   920:                            timeout=0;
+    0010D4 1888                   SUB.B       R0L,R0L
+    0010D6 6AA800                 MOV.B       R0L,@_$timeout:24
+           <000000>     
+                   921:                            if( recvbuff[0]=='A' ){         /* EV5000 が ＡＣＫをかえした */
+    0010DC 6838                   MOV.B       @ER3,R0L
+    0010DE A841                   CMP.B       #65:8,R0L
+    0010E0 4604                   BNE         L362:8
+                   922:                                    // 正常処理
+                   923:                                    phase = SEND_SETUP;
+    0010E2 1888                   SUB.B       R0L,R0L
+                   924:                                    break;
+    0010E4 4028                   BRA         L410:8
+    0010E6              L362:                             
+                   925:                            }
+                   926:    
+                   927:                            // 異常受信処理
+                   928:                            errcnt++;
+    0010E6 7A00                   MOV.L       #_$errcnt:32,ER0
+           <00000000>   
+    0010EC 6809                   MOV.B       @ER0,R1L
+    0010EE 0A09                   INC.B       R1L
+    0010F0 6889                   MOV.B       R1L,@ER0
+                   929:    
+                   930:                            if( errcnt<3 ){
+    0010F2 6A2800                 MOV.B       @_$errcnt:24,R0L
+           <000000>     
+    0010F8 A803                   CMP.B       #3:8,R0L
+    0010FA 4C04                   BGE         L363:8
+                   931:                                    phase = SEND_TIME_SET;
+    0010FC F812                   MOV.B       #18:8,R0L
+                   932:                                    break;
+    0010FE 400E                   BRA         L410:8
+    001100              L363:                             
+                   933:                            }
+                   934:    
+                   935:                            TraceAdd( EVENT_EVCOMM_NG );
+    001100 F854                   MOV.B       #84:8,R0L
+    001102 5E                     JSR         @_TraceAdd:24
+           <000000>     
+                   936:                            DUALPORT.ev5000_request.ev5000_error = 2;
+    001106 F802                   MOV.B       #2:8,R0L
+    001108 6EE800F7               MOV.B       R0L,@(247:16,ER6)
+                   937:                            phase = SEND_SETUP;
+    00110C 1888                   SUB.B       R0L,R0L
+                   938:                            break;
+    00110E              L410:                             
+    00110E 68D8                   MOV.B       R0L,@ER5
+    001110              L256:                             
+                   939:                    }
+                   940:    }
+    001110 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   941:    
+  C                                                      ; section
+    000000              L89:
+    000000 00                     .SDATAZ     ""
+    000001              L122:
+    000001 4D3030302C             .SDATAZ     "M000,0%03X,"
+           3025303358   
+           2C00         
+    00000D              L125:
+    00000D              L130:
+    00000D 253033582C             .SDATAZ     "%03X,"
+           00           
+    000013              L127:
+    000013              L132:
+    000013 3030302C00             .SDATAZ     "000,"
+    000018              L135:
+    000018 253033580D             .SDATAZ     "%03X"<H'0D><H'0A>
+           0A00         
+    00001F              L137:
+    00001F 3030300D0A             .SDATAZ     "000"<H'0D><H'0A>
+           00           
+    000025              L145:
+    000025              L170:
+    000025 420D0A00               .SDATAZ     "B"<H'0D><H'0A>
+    000029              L162:
+    000029 4D3230300D             .SDATAZ     "M200"<H'0D><H'0A>
+           0A00         
+    000030              L180:
+    000030 410D0A00               .SDATAZ     "A"<H'0D><H'0A>
+    000034              L189:
+    000034 54510D0A00             .SDATAZ     "TQ"<H'0D><H'0A>
+    000039              L198:
+    000039 6576646174             .SDATAZ     "evdate=%s"<H'0D><H'0A>
+           653D25730D   
+           0A00         
+    000045              L200:
+    000045 544D253032             .SDATAZ     "TM%02u%02u%02u%02u%02u%02u"<H'0D><H'0A>
+           7525303275   
+           2530327525   
+           3032752530   
+           3275253032   
+           750D0A00     
+  B                                                      ; section
+    000000              _ev5000_time_adjust:             ; static: ev5000_time_adjust
+    000000 00000001               .RES.B      1
+    000001              _$phase:                         ; static: phase
+    000001 00000001               .RES.B      1
+    000002              _$requestNo:                     ; static: requestNo
+    000002 00000001               .RES.B      1
+    000003              _$timeout:                       ; static: timeout
+    000003 00000001               .RES.B      1
+    000004              _$errcnt:                        ; static: errcnt
+    000004 00000001               .RES.B      1
+    000005              _$recvbuff:                      ; static: recvbuff
+    000005 00000020               .RES.B      32
+    000025              _$recvlen:                       ; static: recvlen
+    000025 00000001               .RES.B      1
+    000026              _$recv_complete:                 ; static: recv_complete
+    000026 00000001               .RES.B      1
+    000027              _$sendbuff:                      ; static: sendbuff
+    000027 00000020               .RES.B      32
+    000047 00000001               .RES.B      1
+    000048              _$sendp:                         ; static: sendp
+    000048 00000004               .RES.L      1
+    00004C              _$sendbuff_tmp:                  ; static: sendbuff_tmp
+    00004C 00000020               .RES.B      32
+    00006C              _$recvsts:                       ; static: recvsts
+    00006C 00000001               .RES.B      1
+    00006D              _$abortcnt:                      ; static: abortcnt
+    00006D 00000001               .RES.B      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     11-Mar-2024  14:11:15  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00001114 Byte(s)
+CONSTANT SECTION(C):                                0x00000062 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x0000006E Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00001114 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000062 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x0000006E Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x000011E4 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       15 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:        5 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:        150 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,..\COMMINC\,..\DVA1BOOT\inc\ .\src\dvaev500.c -object=.\obj\dvaev500.obj
+CPU         : 300ha:24

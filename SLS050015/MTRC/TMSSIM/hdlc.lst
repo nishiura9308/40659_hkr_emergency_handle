@@ -1,0 +1,1392 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:15  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\hdlc.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:            y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’u
+                     3:    *-------------------------------------------------------------------*
+                     4:            ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹
+                     5:    *-------------------------------------------------------------------*
+                     6:            Author          TOA Corporation
+                     7:    
+                     8:            Revision        a00. 2000/08/09         K.Honda
+                     9:                            a01. 2000/09/07         K.Honda
+                    10:    
+                    11:    *********************************************************************/
+                    12:    
+                    13:    #include    <machine.h>
+                    14:    #include        "iodefine.h"
+                    15:    
+                    16:    #include        "timer.h"
+                    17:    
+                    18:    /*@@@S*/
+                    19:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    20:            ƒOƒ[ƒoƒ‹•Ï”
+                    21:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    22:    
+                    23:    int (*HDLC_ReceiveEnd)( char *recvdata, short recvcnt, unsigned char status );
+                    24:    int (*HDLC_ReceiveAbort)( void );
+                    25:    int (*HDLC_SendEnd)( void );
+                    26:    int (*HDLC_SendAbort)( void );
+                    27:    int (*HDLC_SendStart)( void );
+                    28:    
+                    29:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    30:            ’è”’è‹`
+                    31:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    32:    
+                    33:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    34:            \‘¢‘Ì’è‹`
+                    35:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    36:    
+                    37:    #define HDLCCmdWrite( cmd ) { \
+                    38:            ctrldata.HDLCBIT.WBIT.CONT = 1; \
+                    39:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    40:            HDLCCMD = cmd;  \
+                    41:    }
+                    42:    
+                    43:    #define HDLCCmdRead( sts ) { \
+                    44:            ctrldata.HDLCBIT.WBIT.CONT = 1; \
+                    45:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    46:            sts = HDLCCMD;  \
+                    47:    }
+                    48:    
+                    49:    #define HDLCDataWrite( data ) { \
+                    50:            ctrldata.HDLCBIT.WBIT.CONT = 0; \
+                    51:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    52:            HDLCCMD = data; \
+                    53:    }
+                    54:    
+                    55:    #define HDLCDataRead( data ) { \
+                    56:            ctrldata.HDLCBIT.WBIT.CONT = 0; \
+                    57:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    58:            data = HDLCCMD; \
+                    59:    }
+                    60:    
+                    61:    #define CH_CR_SET_A( sel, data ) { \
+                    62:            ctrldata.HDLCBIT.WBIT.CONT = 1; \
+                    63:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    64:            HDLCCMD = sel;  \
+                    65:            HDLCCMD = data; \
+                    66:    }
+                    67:    
+                    68:    #define CH_SR_SET_A( sel, data ) { \
+                    69:            ctrldata.HDLCBIT.WBIT.CONT = 1; \
+                    70:            HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; \
+                    71:            HDLCCMD = sel;  \
+                    72:            data = HDLCCMD; \
+                    73:    }
+                    74:    
+                    75:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    76:            ƒe[ƒuƒ‹
+                    77:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    78:    
+                    79:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    80:                    ŠO•”ŽQÆ
+                    81:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    82:    extern  struct  TIMER_CONTROL   timedata;               // ƒ^ƒCƒ}[î•ñ
+                    83:    
+                    84:    extern  void    (*IMIA1Jump)(void);
+                    85:    extern  void    (*IRQ5Jump)(void);
+                    86:    
+                    87:    
+                    88:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    89:                    ƒ[ƒJƒ‹•Ï”
+                    90:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    91:    
+                    92:    static  struct st_hdlcCTRL      ctrldata;
+                    93:    
+                    94:    static  char    first_receive;
+                    95:    static  char    *sendbuff;
+                    96:    static  short   sending_len;
+                    97:    
+                    98:    static  char    status_flag;
+                    99:    static  char    bef_esstatus;
+                   100:    static  char    sending;
+                   101:    
+                   102:    static  char                    recvdata[256];
+                   103:    static  short                   recvcnt;                // ŽóMƒoƒCƒg”‚ÌƒJƒEƒ“ƒg
+                   104:    
+                   105:    /*@@@E*/
+                   106:    /************************************************************************
+                   107:    
+                   108:            Function name   << HDLC_Int >>
+                   109:                                            ‚g‚c‚k‚bŠ„‚èž‚Ýˆ—
+                   110:            Syntax                  HDLC_Int( void );
+                   111:            Argument                none
+                   112:            Author                  TOA Corporation  K.Honda
+                   113:            Revision                a00 2000/08/09
+                   114:                                    a01 2000/09/07  ŽóMI—¹‚ÅŒÄ‚Ño‚·‚æ‚¤•ÏX
+                   115:    
+                   116:    *************************************************************************/
+                   117:    /*. --------------------------y‹@”\Ú×z----------------------------[@@@S]
+                   118:    @E‘—ŽóMƒf[ƒ^‚PƒoƒCƒg‚²‚Æ‚ÉŠ„‚èž‚Ý‚ð”­¶‚³‚¹‚é
+                   119:    @EŽóMƒf[ƒ^‚Íƒoƒbƒtƒ@[‚ÖŠi”[‚µAI—¹Š„‚èž‚Ý‚É‚æ‚Á‚ÄŽóMˆ—‚Ö“n‚·
+                   120:            ------------------------------------------------------------------[@@@E]*/
+                   121:    void    HDLC_Int(void)
+    000000              _HDLC_Int:                       ; function: HDLC_Int
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+    000004 1B87                   SUBS.L      #2,SP
+                   122:    {
+    000006 7A04                   MOV.L       #_$recvcnt:32,ER4
+           <00000000>   
+    00000C 7A05006000             MOV.L       #6291456:32,ER5
+           00           
+    000012 7A06006001             MOV.L       #6291712:32,ER6
+           00           
+                   123:                    unsigned char   status0,status1;
+                   124:                    unsigned char   data;
+                   125:                    unsigned char   change;
+                   126:    
+                   127:                    ctrldata.HDLCBIT.WBIT.PRI = 0; 
+    000018 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00001E 7D007220               BCLR.B      #2,@ER0
+                   128:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    000022 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000028 68D8                   MOV.B       R0L,@ER5
+                   129:                    ctrldata.HDLCBIT.WBIT.INTACK = 0; 
+    00002A 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000030 7D007210               BCLR.B      #1,@ER0
+                   130:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    000034 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00003A 68D8                   MOV.B       R0L,@ER5
+                   131:                    ctrldata.HDLCBIT.WBIT.INTACK = 1; 
+    00003C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000042 7D007010               BSET.B      #1,@ER0
+                   132:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    000046 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00004C 68D8                   MOV.B       R0L,@ER5
+                   133:                    ctrldata.HDLCBIT.WBIT.PRI = 1; 
+    00004E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000054 7D007020               BSET.B      #2,@ER0
+                   134:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    000058 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00005E 68D8                   MOV.B       R0L,@ER5
+                   135:                    ctrldata.HDLCBIT.WBIT.INTACK = 0; 
+    000060 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000066 7D007210               BCLR.B      #1,@ER0
+                   136:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    00006A 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000070 68D8                   MOV.B       R0L,@ER5
+                   137:                    ctrldata.HDLCBIT.WBIT.INTACK = 1; 
+    000072 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000078 7D007010               BSET.B      #1,@ER0
+                   138:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    00007C 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000082 68D8                   MOV.B       R0L,@ER5
+                   139:    
+                   140:                    CH_SR_SET_A( 0, status0 );              /* Status Read */
+    000084 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00008A 7D007000               BSET.B      #0,@ER0
+    00008E 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000094 68D8                   MOV.B       R0L,@ER5
+    000096 1888                   SUB.B       R0L,R0L
+    000098 68E8                   MOV.B       R0L,@ER6
+    00009A 686B                   MOV.B       @ER6,R3L
+                   141:                    CH_SR_SET_A( 1, status1 );              /* Status Read */
+    00009C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0000A2 7D007000               BSET.B      #0,@ER0
+    0000A6 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0000AC 68D8                   MOV.B       R0L,@ER5
+    0000AE F801                   MOV.B       #1:8,R0L
+    0000B0 68E8                   MOV.B       R0L,@ER6
+    0000B2 6863                   MOV.B       @ER6,R3H
+                   142:    
+                   143:    // Tx/Rx Interrupt Check
+                   144:                    if( status0 & 0x01 ){           /* Rx Data ON? */
+    0000B4 730B                   BTST.B      #0,R3L
+    0000B6 4754                   BEQ         L168:8
+                   145:                            HDLCDataRead( data );
+    0000B8 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0000BE 7D007200               BCLR.B      #0,@ER0
+    0000C2 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0000C8 68D8                   MOV.B       R0L,@ER5
+    0000CA 6868                   MOV.B       @ER6,R0L
+    0000CC 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   146:                            if( recvcnt<sizeof(recvdata) ){
+    0000D0 6940                   MOV.W       @ER4,R0
+    0000D2 17F0                   EXTS.L      ER0
+    0000D4 7A20000001             CMP.L       #256:32,ER0
+           00           
+    0000DA 4416                   BCC         L169:8
+                   147:                                    recvdata[recvcnt++] = data;
+    0000DC 6940                   MOV.W       @ER4,R0
+    0000DE 0B50                   INC.W       #1,R0
+    0000E0 69C0                   MOV.W       R0,@ER4
+    0000E2 1B50                   DEC.W       #1,R0
+    0000E4 17F0                   EXTS.L      ER0
+    0000E6 6E790001               MOV.B       @(1:16,SP),R1L
+    0000EA 78006AA900             MOV.B       R1L,@(_$recvdata:24,ER0)
+           <000000>     
+    0000F2              L169:                             
+                   148:                            }
+                   149:    //                      first_receive = 0;
+                   150:    //                      ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   151:    //                      ITU.TSTR.BIT.STR1 = 1;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—ŠJŽn */
+                   152:                            CH_CR_SET_A( 0, 0x20 ); /* Next Rx Char */
+    0000F2 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0000F8 7D007000               BSET.B      #0,@ER0
+    0000FC 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000102 68D8                   MOV.B       R0L,@ER5
+    000104 1888                   SUB.B       R0L,R0L
+    000106 68E8                   MOV.B       R0L,@ER6
+    000108 F820                   MOV.B       #32:8,R0L
+    00010A 68E8                   MOV.B       R0L,@ER6
+    00010C              L168:                             
+                   153:                    }
+                   154:                    if( status0 & 0x04 ){           /* Tx Data ON? */
+    00010C 732B                   BTST.B      #2,R3L
+    00010E 475E                   BEQ         L170:8
+                   155:                            if( sending ){
+    000110 6A2800                 MOV.B       @_$sending:24,R0L
+           <000000>     
+    000116 4756                   BEQ         L171:8
+                   156:                                    if( sending_len==0 ){
+    000118 6B2000                 MOV.W       @_$sending_len:24,R0
+           <000000>     
+    00011E 461C                   BNE         L172:8
+                   157:                                            CH_CR_SET_A( 0, 0x28 ); /* Reset INT/DMA Pending */
+    000120 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000126 7D007000               BSET.B      #0,@ER0
+    00012A 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000130 68D8                   MOV.B       R0L,@ER5
+    000132 1888                   SUB.B       R0L,R0L
+    000134 68E8                   MOV.B       R0L,@ER6
+    000136 F828                   MOV.B       #40:8,R0L
+    000138 68E8                   MOV.B       R0L,@ER6
+    00013A 4032                   BRA         L173:8
+    00013C              L172:                             
+                   158:                                    }
+                   159:                                    else {
+                   160:                                            data = *sendbuff++;
+    00013C 01006B2000             MOV.L       @_$sendbuff:24,ER0
+           <000000>     
+    000144 6C09                   MOV.B       @ER0+,R1L
+    000146 01006BA000             MOV.L       ER0,@_$sendbuff:24
+           <000000>     
+                   161:                                            HDLCDataWrite( data );          /* Å‰‚Ì‚PƒoƒCƒg‚ð‘—M */
+    00014E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000154 7D007200               BCLR.B      #0,@ER0
+    000158 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00015E 68D8                   MOV.B       R0L,@ER5
+    000160 68E9                   MOV.B       R1L,@ER6
+                   162:                                            sending_len--;
+    000162 7A00                   MOV.L       #_$sending_len:32,ER0
+           <00000000>   
+    000168 6901                   MOV.W       @ER0,R1
+    00016A 1B51                   DEC.W       #1,R1
+    00016C 6981                   MOV.W       R1,@ER0
+    00016E              L173:                             
+    00016E              L171:                             
+    00016E              L170:                             
+                   163:                                    }
+                   164:                            }
+                   165:                    }
+                   166:    
+                   167:                    if( status0 & 0x02 ){           /* Tx Abort */
+    00016E 731B                   BTST.B      #1,R3L
+    000170 4762                   BEQ         L174:8
+                   168:                            if( sending ){
+    000172 6A2800                 MOV.B       @_$sending:24,R0L
+           <000000>     
+    000178 475A                   BEQ         L175:8
+                   169:    //                              first_receive = 1;
+                   170:                                    CH_CR_SET_A( 5, 0x61 );         /* Send Disable */
+    00017A 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000180 7D007000               BSET.B      #0,@ER0
+    000184 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00018A 68D8                   MOV.B       R0L,@ER5
+    00018C F805                   MOV.B       #5:8,R0L
+    00018E 68E8                   MOV.B       R0L,@ER6
+    000190 F861                   MOV.B       #97:8,R0L
+    000192 68E8                   MOV.B       R0L,@ER6
+                   171:                                    CH_CR_SET_A( 3, 0xDC );         /* Receive Disable */
+    000194 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00019A 7D007000               BSET.B      #0,@ER0
+    00019E 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0001A4 68D8                   MOV.B       R0L,@ER5
+    0001A6 F803                   MOV.B       #3:8,R0L
+    0001A8 68E8                   MOV.B       R0L,@ER6
+    0001AA F8DC                   MOV.B       #-36:8,R0L
+    0001AC 68E8                   MOV.B       R0L,@ER6
+                   172:    //                              HDLC_SendAbort();
+                   173:    //                              ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   174:                                    sending = 0;
+    0001AE 1888                   SUB.B       R0L,R0L
+    0001B0 6AA800                 MOV.B       R0L,@_$sending:24
+           <000000>     
+                   175:                                    recvcnt = 0;
+    0001B6 1900                   SUB.W       R0,R0
+    0001B8 69C0                   MOV.W       R0,@ER4
+                   176:                                    CH_CR_SET_A( 3, 0xDD );         /* Receive Enable, Adr Search, Enter Hunt */
+    0001BA 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0001C0 7D007000               BSET.B      #0,@ER0
+    0001C4 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0001CA 68D8                   MOV.B       R0L,@ER5
+    0001CC F803                   MOV.B       #3:8,R0L
+    0001CE 68E8                   MOV.B       R0L,@ER6
+    0001D0 F8DD                   MOV.B       #-35:8,R0L
+    0001D2 68E8                   MOV.B       R0L,@ER6
+    0001D4              L175:                             
+    0001D4              L174:                             
+                   177:                            }
+                   178:                    }
+                   179:    
+                   180:    // Special Condition Check
+                   181:    
+                   182:    //              if( status0 & 0x20 ){           // Over Run
+                   183:    //                      HDLCDataRead( data );
+                   184:    //                      HDLCDataRead( data );
+                   185:    //                      HDLCDataRead( data );
+                   186:    //                      status_flag |= 0x20;
+                   187:    //                      ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   188:    //              }
+                   189:                    if( sending==0 ){
+    0001D4 6A2800                 MOV.B       @_$sending:24,R0L
+           <000000>     
+    0001DA 4666                   BNE         L176:8
+                   190:                            if( status0 & 0x80 ){           // End of Frame
+    0001DC 737B                   BTST.B      #7,R3L
+    0001DE 4762                   BEQ         L177:8
+                   191:                                    if( status0 & 0x40 ){           // CRC Error
+    0001E0 736B                   BTST.B      #6,R3L
+    0001E2 470A                   BEQ         L178:8
+                   192:                                            status_flag |= 0x40;
+    0001E4 7A00                   MOV.L       #_$status_flag:32,ER0
+           <00000000>   
+    0001EA 7D007060               BSET.B      #6,@ER0
+    0001EE              L178:                             
+                   193:                                    }
+                   194:    //                              ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   195:                                    CH_CR_SET_A( 3, 0xDC );         /* Rx Disable */
+    0001EE 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0001F4 7D007000               BSET.B      #0,@ER0
+    0001F8 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0001FE 68D8                   MOV.B       R0L,@ER5
+    000200 F803                   MOV.B       #3:8,R0L
+    000202 68E8                   MOV.B       R0L,@ER6
+    000204 F8DC                   MOV.B       #-36:8,R0L
+    000206 68E8                   MOV.B       R0L,@ER6
+                   196:                                    HDLC_ReceiveEnd( recvdata, recvcnt, status_flag );
+    000208 6A2800                 MOV.B       @_$status_flag:24,R0L
+           <000000>     
+    00020E 6DF0                   PUSH.W      R0
+    000210 6941                   MOV.W       @ER4,R1
+    000212 7A00                   MOV.L       #_$recvdata:32,ER0
+           <00000000>   
+    000218 01006B2200             MOV.L       @_HDLC_ReceiveEnd:24,ER2
+           <000000>     
+    000220 5D20                   JSR         @ER2
+    000222 0B87                   ADDS.L      #2,SP
+                   197:                                    recvcnt = 0;
+    000224 1900                   SUB.W       R0,R0
+    000226 69C0                   MOV.W       R0,@ER4
+                   198:                                    CH_CR_SET_A( 3, 0xDD );         /* Receive Enable, Adr Search, Enter Hunt */
+    000228 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00022E 7D007000               BSET.B      #0,@ER0
+    000232 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000238 68D8                   MOV.B       R0L,@ER5
+    00023A F803                   MOV.B       #3:8,R0L
+    00023C 68E8                   MOV.B       R0L,@ER6
+    00023E F8DD                   MOV.B       #-35:8,R0L
+    000240 68E8                   MOV.B       R0L,@ER6
+    000242              L177:                             
+    000242              L176:                             
+                   199:                            }
+                   200:                    }
+                   201:    
+                   202:    // External Status Change Check
+                   203:    
+                   204:                    change = status1 ^ bef_esstatus;
+    000242 6A2800                 MOV.B       @_$bef_esstatus:24,R0L
+           <000000>     
+    000248 1538                   XOR.B       R3H,R0L
+    00024A 6EF80001               MOV.B       R0L,@(1:16,SP)
+                   205:                    if( sending==0 ){
+    00024E 6A2800                 MOV.B       @_$sending:24,R0L
+           <000000>     
+    000254 462C                   BNE         L179:8
+                   206:                            if( change & 0x80 ){    // Abort Detect change?
+    000256 6E780001               MOV.B       @(1:16,SP),R0L
+    00025A 4A12                   BPL         L180:8
+                   207:                                    if( status1 & 0x80 ){           // Abort Detect 0->1 
+    00025C 7373                   BTST.B      #7,R3H
+    00025E 470E                   BEQ         L181:8
+                   208:    //                                      ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   209:    //                                      CH_CR_SET_A( 3, 0xDC );         /* Rx Disable */
+                   210:                                            HDLC_ReceiveAbort();
+    000260 01006B2000             MOV.L       @_HDLC_ReceiveAbort:24,ER0
+           <000000>     
+    000268 5D00                   JSR         @ER0
+                   211:                                            recvcnt = 0;
+    00026A 1900                   SUB.W       R0,R0
+    00026C 69C0                   MOV.W       R0,@ER4
+    00026E              L181:                             
+    00026E              L180:                             
+                   212:    //                                      CH_CR_SET_A( 3, 0xDD );         /* Receive Enable, Adr Search, Enter Hunt */
+                   213:                                    }
+                   214:                            }
+                   215:                            if( change & 0x10 ){    // Hunt Phase Change?
+    00026E 6E780001               MOV.B       @(1:16,SP),R0L
+    000272 7348                   BTST.B      #4,R0L
+    000274 470C                   BEQ         L182:8
+                   216:                                    if( status1 & 0x10 ){           // Hunt Phase 0->1
+    000276 7343                   BTST.B      #4,R3H
+    000278 4608                   BNE         L184:8
+                   217:                                            ;
+                   218:                                    }
+                   219:                                    else {                                          // Hunt Phase 1->0
+                   220:    //                                      CH_CR_SET_A( 5, 0x61 );         /* Send Disable */
+                   221:    //                                      first_receive = 1;
+                   222:    //                                      ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   223:                                            status_flag = 0;
+    00027A 1888                   SUB.B       R0L,R0L
+    00027C 6AA800                 MOV.B       R0L,@_$status_flag:24
+           <000000>     
+    000282              L184:                             
+    000282              L182:                             
+    000282              L179:                             
+                   224:                                    }
+                   225:                            }
+                   226:                    }
+                   227:    
+                   228:                    if( change & 0x04 ){    // ALL Send Change?
+    000282 6E780001               MOV.B       @(1:16,SP),R0L
+    000286 7328                   BTST.B      #2,R0L
+    000288 4744                   BEQ         L185:8
+                   229:                            if( status1 & 0x04 ){           // ALL Sent 0->1
+    00028A 7323                   BTST.B      #2,R3H
+    00028C 4740                   BEQ         L186:8
+                   230:    //                              first_receive = 1;
+                   231:    //                              ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—’âŽ~ */
+                   232:    //                              HDLC_SendEnd();
+                   233:                                    CH_CR_SET_A( 5, 0x61 );         /* Send Disable */
+    00028E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000294 7D007000               BSET.B      #0,@ER0
+    000298 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00029E 68D8                   MOV.B       R0L,@ER5
+    0002A0 F805                   MOV.B       #5:8,R0L
+    0002A2 68E8                   MOV.B       R0L,@ER6
+    0002A4 F861                   MOV.B       #97:8,R0L
+    0002A6 68E8                   MOV.B       R0L,@ER6
+                   234:                                    sending = 0;
+    0002A8 1888                   SUB.B       R0L,R0L
+    0002AA 6AA800                 MOV.B       R0L,@_$sending:24
+           <000000>     
+                   235:                                    recvcnt = 0;
+    0002B0 1900                   SUB.W       R0,R0
+    0002B2 69C0                   MOV.W       R0,@ER4
+                   236:                                    CH_CR_SET_A( 3, 0xDD );         /* Receive Enable, Adr Search, Enter Hunt */
+    0002B4 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0002BA 7D007000               BSET.B      #0,@ER0
+    0002BE 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0002C4 68D8                   MOV.B       R0L,@ER5
+    0002C6 F803                   MOV.B       #3:8,R0L
+    0002C8 68E8                   MOV.B       R0L,@ER6
+    0002CA F8DD                   MOV.B       #-35:8,R0L
+    0002CC 68E8                   MOV.B       R0L,@ER6
+    0002CE              L186:                             
+    0002CE              L185:                             
+                   237:                            }
+                   238:                    }
+                   239:                    bef_esstatus = status1;
+    0002CE 6AA300                 MOV.B       R3H,@_$bef_esstatus:24
+           <000000>     
+                   240:    
+                   241:    // Reset Interrupt
+                   242:                    if( status0 & 0xA0 ){           // Over Run or End Frame 
+    0002D4 EBA0                   AND.B       #-96:8,R3L
+    0002D6 471A                   BEQ         L187:8
+                   243:                            CH_CR_SET_A( 0, 0x30 );         /* Error Reset */
+    0002D8 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0002DE 7D007000               BSET.B      #0,@ER0
+    0002E2 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0002E8 68D8                   MOV.B       R0L,@ER5
+    0002EA 1888                   SUB.B       R0L,R0L
+    0002EC 68E8                   MOV.B       R0L,@ER6
+    0002EE F830                   MOV.B       #48:8,R0L
+    0002F0 68E8                   MOV.B       R0L,@ER6
+    0002F2              L187:                             
+                   244:                    }
+                   245:    
+                   246:    //              if( change || status0 & 0x02 ){                         // E/S Change
+                   247:                            CH_CR_SET_A( 0, 0x10 );         /* Reset E/S Latch Bit */
+    0002F2 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0002F8 7D007000               BSET.B      #0,@ER0
+    0002FC 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000302 68D8                   MOV.B       R0L,@ER5
+    000304 1888                   SUB.B       R0L,R0L
+    000306 68E8                   MOV.B       R0L,@ER6
+    000308 F810                   MOV.B       #16:8,R0L
+    00030A 68E8                   MOV.B       R0L,@ER6
+                   248:    //              }
+                   249:                    CH_CR_SET_A( 0, 0x38 );         /* EOI */
+    00030C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000312 7D007000               BSET.B      #0,@ER0
+    000316 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00031C 68D8                   MOV.B       R0L,@ER5
+    00031E 1888                   SUB.B       R0L,R0L
+    000320 68E8                   MOV.B       R0L,@ER6
+    000322 F838                   MOV.B       #56:8,R0L
+    000324 68E8                   MOV.B       R0L,@ER6
+                   250:    }
+    000326 0B87                   ADDS.L      #2,SP
+    000328 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   251:    
+                   252:    
+                   253:    /************************************************************************
+                   254:    *                                                                                                                                               *
+                   255:    *       Function name   << HDLC_SendEnable >>   
+                   256:    *                                       ‘—M—v‹
+                   257:    *       Syntax                  HDLC_SendEnable( buffer, length );
+                   258:    *       Argument                none                                                                                            *
+                   259:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   260:            Revision                a00 2000/08/07
+                   261:                                    a01 2000/09/07
+                   262:    *                                                                                                                                               *
+                   263:    *************************************************************************/
+                   264:    /*. --------------------------y‹@”\Ú×z----------------------------[@@@S]
+                   265:    @E‚s‚l‚r‚Ö‰ž“š‚·‚éƒf[ƒ^‚ÍAˆê“x‚±‚ÌŠÖ”‚É‚æ‚Á‚Ä‘—MM†‚ð
+                   266:    @‘—M‚Å‚«‚éó‘Ô‚É‚·‚éB
+                   267:    @EOpening PAD ‚ð‘—M‚·‚é‚½‚ßAƒ^ƒCƒ}[Š„‚èž‚Ý‚É‚æ‚Á‚ÄŽžŠÔ‘Ò‚¿‚·‚é
+                   268:            ------------------------------------------------------------------[@@@E]*/
+                   269:    void HDLC_SendEnable( char *buff, int send_length )
+    00032C              _HDLC_SendEnable:                ; function: HDLC_SendEnable
+    00032C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   270:    {
+                   271:                    sendbuff = buff;
+    000330 01006BA000             MOV.L       ER0,@_$sendbuff:24
+           <000000>     
+                   272:    
+                   273:                    sending = 1;
+    000338 FA01                   MOV.B       #1:8,R2L
+    00033A 6AAA00                 MOV.B       R2L,@_$sending:24
+           <000000>     
+                   274:    
+                   275:                    CH_CR_SET_A( 3, 0xDC );         /* Rx Disable */
+    000340 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    000346 770A                   BLD.B       #0,R2L
+    000348 7D306700               BST.B       #0,@ER3
+    00034C 7A05006000             MOV.L       #6291456:32,ER5
+           00           
+    000352 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    000358 68DB                   MOV.B       R3L,@ER5
+    00035A 7A00006001             MOV.L       #6291712:32,ER0
+           00           
+    000360 FB03                   MOV.B       #3:8,R3L
+    000362 688B                   MOV.B       R3L,@ER0
+    000364 F2DC                   MOV.B       #-36:8,R2H
+    000366 6882                   MOV.B       R2H,@ER0
+                   276:    
+                   277:                    sending_len = send_length;
+    000368 6BA100                 MOV.W       R1,@_$sending_len:24
+           <000000>     
+                   278:    
+                   279:                    INTC.IER.BIT.IRQ5E = 0;         /* IRQ5 Use */  // 00/09/13
+    00036E 7FF57250               BCLR.B      #5,@16777205:8
+                   280:                    CH_CR_SET_A( 0, 0x28 );         /* Reset Tx INT/DMA Pending */
+    000372 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    000378 770A                   BLD.B       #0,R2L
+    00037A 7D306700               BST.B       #0,@ER3
+    00037E 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    000384 68DB                   MOV.B       R3L,@ER5
+    000386 18BB                   SUB.B       R3L,R3L
+    000388 688B                   MOV.B       R3L,@ER0
+    00038A FB28                   MOV.B       #40:8,R3L
+    00038C 688B                   MOV.B       R3L,@ER0
+                   281:                    CH_CR_SET_A( 5, 0x61 );         /* Send Disable */
+    00038E 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    000394 770A                   BLD.B       #0,R2L
+    000396 7D306700               BST.B       #0,@ER3
+    00039A 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    0003A0 68DB                   MOV.B       R3L,@ER5
+    0003A2 FB05                   MOV.B       #5:8,R3L
+    0003A4 688B                   MOV.B       R3L,@ER0
+    0003A6 F361                   MOV.B       #97:8,R3H
+    0003A8 6883                   MOV.B       R3H,@ER0
+                   282:                    CH_CR_SET_A( 8, send_length & 0x0FF );          /* Tx Data Length (Low)*/
+    0003AA 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    0003B0 770A                   BLD.B       #0,R2L
+    0003B2 7D306700               BST.B       #0,@ER3
+    0003B6 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    0003BC 68DB                   MOV.B       R3L,@ER5
+    0003BE FB08                   MOV.B       #8:8,R3L
+    0003C0 688B                   MOV.B       R3L,@ER0
+    0003C2 6889                   MOV.B       R1L,@ER0
+                   283:                    CH_CR_SET_A( 9, (send_length>>8) & 0x0FF );     /* Tx Data length (High) */
+    0003C4 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    0003CA 770A                   BLD.B       #0,R2L
+    0003CC 7D306700               BST.B       #0,@ER3
+    0003D0 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    0003D6 68DB                   MOV.B       R3L,@ER5
+    0003D8 FB09                   MOV.B       #9:8,R3L
+    0003DA 688B                   MOV.B       R3L,@ER0
+    0003DC 0C19                   MOV.B       R1H,R1L
+    0003DE 17D1                   EXTS.W      R1
+    0003E0 6889                   MOV.B       R1L,@ER0
+                   284:                    CH_CR_SET_A( 0, 0x28 );         /* Reset Tx INT/DMA Pending */
+    0003E2 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    0003E8 770A                   BLD.B       #0,R2L
+    0003EA 7D306700               BST.B       #0,@ER3
+    0003EE 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    0003F4 68DB                   MOV.B       R3L,@ER5
+    0003F6 18BB                   SUB.B       R3L,R3L
+    0003F8 688B                   MOV.B       R3L,@ER0
+    0003FA FB28                   MOV.B       #40:8,R3L
+    0003FC 688B                   MOV.B       R3L,@ER0
+                   285:                    CH_CR_SET_A( 13, 0x02 );        /* TxDCL Enable */
+    0003FE 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    000404 770A                   BLD.B       #0,R2L
+    000406 7D306700               BST.B       #0,@ER3
+    00040A 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    000410 68DB                   MOV.B       R3L,@ER5
+    000412 FB0D                   MOV.B       #13:8,R3L
+    000414 688B                   MOV.B       R3L,@ER0
+    000416 F302                   MOV.B       #2:8,R3H
+    000418 6883                   MOV.B       R3H,@ER0
+                   286:    //              CH_CR_SET_A( 0x80 | 5, 0x6B );          /* Init TxCRC: 8bit, Tx Enable, RTS ON */
+                   287:                    CH_CR_SET_A( 5, 0x6B );         /* Tx Enable, RTS ON */
+    00041A 7A03                   MOV.L       #_$ctrldata:32,ER3
+           <00000000>   
+    000420 770A                   BLD.B       #0,R2L
+    000422 7D306700               BST.B       #0,@ER3
+    000426 6A2B00                 MOV.B       @_$ctrldata:24,R3L
+           <000000>     
+    00042C 68DB                   MOV.B       R3L,@ER5
+    00042E FB05                   MOV.B       #5:8,R3L
+    000430 688B                   MOV.B       R3L,@ER0
+    000432 F36B                   MOV.B       #107:8,R3H
+    000434 6883                   MOV.B       R3H,@ER0
+                   288:    
+                   289:                    ITU1.TCNT = 0;                          /* ƒJƒEƒ“ƒ^[ƒNƒŠƒA */  // 00/09/13
+    000436 79020000               MOV.W       #0:16,R2
+    00043A 3272                   MOV.B       R2H,@16777074:8
+    00043C 3A73                   MOV.B       R2L,@16777075:8
+                   290:                    ITU1.GRA = 7373;
+    00043E 79021CCD               MOV.W       #7373:16,R2
+    000442 3274                   MOV.B       R2H,@16777076:8
+    000444 3A75                   MOV.B       R2L,@16777077:8
+                   291:                    ITU.TSTR.BIT.STR1 = 1;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—ŠJŽn */
+    000446 7F607010               BSET.B      #1,@16777056:8
+                   292:    }
+    00044A 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   293:    
+                   294:    
+                   295:    /************************************************************************
+                   296:    *                                                                                                                                               *
+                   297:    *       Function name   << timer_1_Intr >>      
+                   298:    *                                       ƒ^ƒCƒ}[Š„‚èž‚Ý‚É‚æ‚é‚c‚l‚`“]‘—
+                   299:    *       Syntax                  timer_1_Intr( void );
+                   300:    *       Argument                none                                                                                            *
+                   301:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   302:            Revision                a00 2000/08/07
+                   303:    *                                                                                                                                               *
+                   304:    *************************************************************************/
+                   305:    /*. --------------------------y‹@”\Ú×z----------------------------[@@@S]
+                   306:    @EOpening PAD ‚ÌI—¹‚ðŽžŠÔ‚É‚æ‚Á‚Ä§Œä‚·‚é
+                   307:    @E‘—M‚ðŠJŽn‚·‚é
+                   308:            ------------------------------------------------------------------[@@@E]*/
+                   309:    void    timer_1_Intr(void)
+    00044E              _timer_1_Intr:                   ; function: timer_1_Intr
+                   310:    {
+                   311:                    ITU.TSTR.BIT.STR1 = 0;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—ŠJŽn */
+    00044E 7F607210               BCLR.B      #1,@16777056:8
+                   312:    
+                   313:                    if( sending==0 ){
+    000452 6A2800                 MOV.B       @_$sending:24,R0L
+           <000000>     
+    000458 460C                   BNE         L188:8
+                   314:                            HDLC_SendStart();
+    00045A 01006B2000             MOV.L       @_HDLC_SendStart:24,ER0
+           <000000>     
+    000462 5D00                   JSR         @ER0
+    000464 5470                   RTS
+    000466              L188:                             
+                   315:                    }
+                   316:                    else {
+                   317:                            INTC.IER.BIT.IRQ5E = 1;         /* IRQ5 Use */
+    000466 7FF57050               BSET.B      #5,@16777205:8
+                   318:                    }
+                   319:    }
+    00046A 5470                   RTS
+                   320:    
+                   321:    /************************************************************************
+                   322:    *                                                                                                                                               *
+                   323:    *       Function name   << HDLC_Initialize >>   
+                   324:    *                                       ‰ŠúÝ’è
+                   325:    *       Syntax                  HDLC_Initialize( void );
+                   326:    *       Argument                none                                                                                            *
+                   327:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   328:            Revision                a00 2000/08/07
+                   329:    *                                                                                                                                               *
+                   330:    *************************************************************************/
+                   331:    void HDLC_Initialize( int baud, char lowadr, int send_length )
+    00046C              _HDLC_Initialize:                ; function: HDLC_Initialize
+    00046C 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                   332:    {
+    000470 0D04                   MOV.W       R0,R4
+    000472 0C9B                   MOV.B       R1L,R3L
+    000474 0D8C                   MOV.W       E0,E4
+                   333:                    int             clk,dpllclk;
+                   334:                    unsigned char   data;
+                   335:    
+                   336:                    ctrldata.HDLCBIT.BYTE = 0;
+    000476 18AA                   SUB.B       R2L,R2L
+    000478 6AAA00                 MOV.B       R2L,@_$ctrldata:24
+           <000000>     
+                   337:                    ctrldata.HDLCBIT.WBIT.PRI = 1; 
+    00047E 7A02                   MOV.L       #_$ctrldata:32,ER2
+           <00000000>   
+    000484 7D207020               BSET.B      #2,@ER2
+                   338:                    ctrldata.HDLCBIT.WBIT.INTACK = 1; 
+    000488 7D207010               BSET.B      #1,@ER2
+                   339:                    HDLCCTRL.HDLCBIT.BYTE = ctrldata.HDLCBIT.BYTE; 
+    00048C 7A05006000             MOV.L       #6291456:32,ER5
+           00           
+    000492 6A2A00                 MOV.B       @_$ctrldata:24,R2L
+           <000000>     
+    000498 68DA                   MOV.B       R2L,@ER5
+                   340:    
+                   341:                    clk =2400L*768L/(long)baud-2;           /* 14.7456MHz/4 = 3.6864MHz
+    00049A 0D46                   MOV.W       R4,R6
+    00049C 17F6                   EXTS.L      ER6
+    00049E 7A00001C20             MOV.L       #1843200:32,ER0
+           00           
+    0004A4 0FE1                   MOV.L       ER6,ER1
+    0004A6 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    0004AA 1BD0                   DEC.W       #2,R0
+    0004AC 0D04                   MOV.W       R0,R4
+                   342:                                                                                    2400bps = 766
+                   343:                                                                                    4800bps = 382
+                   344:                                                                                    9600bps = 190
+                   345:                                                                                    19200bps = 84
+                   346:                                                                            */
+                   347:                    dpllclk =2400L*24L/(long)baud-2;                /* 14.7456MHz/4 = 3.6864MHz
+    0004AE 1A80                   SUB.L       ER0,ER0
+    0004B0 F0E1                   MOV.B       #-31:8,R0H
+    0004B2 0FE1                   MOV.L       ER6,ER1
+    0004B4 5E                     JSR         @$DIVL$3:24
+           <000000>     
+    0004B8 1BD0                   DEC.W       #2,R0
+    0004BA 0D0B                   MOV.W       R0,E3
+                   348:                                                                                    2400bps = 24
+                   349:                                                                                    4800bps = 12
+                   350:                                                                                    9600bps = 6
+                   351:                                                                                    19200bps = 3
+                   352:                                                                            */
+                   353:    
+                   354:                    CH_CR_SET_A( 0, 0x18 );         /* CH. Reset */
+    0004BC 7A01                   MOV.L       #_$ctrldata:32,ER1
+           <00000000>   
+    0004C2 7D107000               BSET.B      #0,@ER1
+    0004C6 6A2900                 MOV.B       @_$ctrldata:24,R1L
+           <000000>     
+    0004CC 68D9                   MOV.B       R1L,@ER5
+    0004CE 7A06006001             MOV.L       #6291712:32,ER6
+           00           
+    0004D4 1899                   SUB.B       R1L,R1L
+    0004D6 68E9                   MOV.B       R1L,@ER6
+    0004D8 F918                   MOV.B       #24:8,R1L
+    0004DA 68E9                   MOV.B       R1L,@ER6
+                   355:                    CH_CR_SET_A( 1, 0x28 );         /* First Rx Int Mask, First Rx Int */
+    0004DC 7A02                   MOV.L       #_$ctrldata:32,ER2
+           <00000000>   
+    0004E2 7D207000               BSET.B      #0,@ER2
+    0004E6 6A2A00                 MOV.B       @_$ctrldata:24,R2L
+           <000000>     
+    0004EC 68DA                   MOV.B       R2L,@ER5
+    0004EE FA01                   MOV.B       #1:8,R2L
+    0004F0 68EA                   MOV.B       R2L,@ER6
+    0004F2 F128                   MOV.B       #40:8,R1H
+    0004F4 68E1                   MOV.B       R1H,@ER6
+                   356:    //              CH_CR_SET_A( 2, 0x92 );         /* Vector Use, Type A-3, DMA Use */
+                   357:    //              CH_CR_SET_A( 2, 0x90 );         /* Vector Use, Type A-3, INT Use */
+                   358:                    CH_CR_SET_A( 2, 0xA0 );         /* Vector Use, Type B-2, INT Use */
+    0004F6 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0004FC 770A                   BLD.B       #0,R2L
+    0004FE 7D006700               BST.B       #0,@ER0
+    000502 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000508 68D8                   MOV.B       R0L,@ER5
+    00050A F802                   MOV.B       #2:8,R0L
+    00050C 68E8                   MOV.B       R0L,@ER6
+    00050E F8A0                   MOV.B       #-96:8,R0L
+    000510 68E8                   MOV.B       R0L,@ER6
+                   359:                    CH_CR_SET_A( 4, 0x20 );         /* BOP(hdlc) mode */
+    000512 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000518 770A                   BLD.B       #0,R2L
+    00051A 7D006700               BST.B       #0,@ER0
+    00051E 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000524 68D8                   MOV.B       R0L,@ER5
+    000526 F804                   MOV.B       #4:8,R0L
+    000528 68E8                   MOV.B       R0L,@ER6
+    00052A F820                   MOV.B       #32:8,R0L
+    00052C 68E8                   MOV.B       R0L,@ER6
+                   360:    
+                   361:                    CH_CR_SET_A( 12, 0x81 );        /* RxBRG Set */
+    00052E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000534 770A                   BLD.B       #0,R2L
+    000536 7D006700               BST.B       #0,@ER0
+    00053A 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000540 68D8                   MOV.B       R0L,@ER5
+    000542 F80C                   MOV.B       #12:8,R0L
+    000544 68E8                   MOV.B       R0L,@ER6
+    000546 F881                   MOV.B       #-127:8,R0L
+    000548 68E8                   MOV.B       R0L,@ER6
+                   362:                    CH_CR_SET_A( dpllclk & 0x0FF, (dpllclk>>8) & 0x0FF );   /* BRG Set */
+    00054A 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000550 770A                   BLD.B       #0,R2L
+    000552 7D006700               BST.B       #0,@ER0
+    000556 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00055C 68D8                   MOV.B       R0L,@ER5
+    00055E 0DB0                   MOV.W       E3,R0
+    000560 68E8                   MOV.B       R0L,@ER6
+    000562 0C08                   MOV.B       R0H,R0L
+    000564 17D0                   EXTS.W      R0
+    000566 68E8                   MOV.B       R0L,@ER6
+                   363:                    CH_SR_SET_A( 0, data );         /* dummy read */
+    000568 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00056E 770A                   BLD.B       #0,R2L
+    000570 7D006700               BST.B       #0,@ER0
+    000574 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00057A 68D8                   MOV.B       R0L,@ER5
+    00057C 1888                   SUB.B       R0L,R0L
+    00057E 68E8                   MOV.B       R0L,@ER6
+    000580 6868                   MOV.B       @ER6,R0L
+                   364:    
+                   365:                    CH_CR_SET_A( 12, 0x82 );        /* TxBRG Set */
+    000582 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000588 770A                   BLD.B       #0,R2L
+    00058A 7D006700               BST.B       #0,@ER0
+    00058E 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000594 68D8                   MOV.B       R0L,@ER5
+    000596 F80C                   MOV.B       #12:8,R0L
+    000598 68E8                   MOV.B       R0L,@ER6
+    00059A F882                   MOV.B       #-126:8,R0L
+    00059C 68E8                   MOV.B       R0L,@ER6
+                   366:                    CH_CR_SET_A( clk & 0x0FF, (clk>>8) & 0x0FF );   /* BRG Set */
+    00059E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0005A4 770A                   BLD.B       #0,R2L
+    0005A6 7D006700               BST.B       #0,@ER0
+    0005AA 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0005B0 68D8                   MOV.B       R0L,@ER5
+    0005B2 68EC                   MOV.B       R4L,@ER6
+    0005B4 0C4C                   MOV.B       R4H,R4L
+    0005B6 17D4                   EXTS.W      R4
+    0005B8 68EC                   MOV.B       R4L,@ER6
+                   367:                    CH_SR_SET_A( 0, data );         /* dummy read */
+    0005BA 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0005C0 770A                   BLD.B       #0,R2L
+    0005C2 7D006700               BST.B       #0,@ER0
+    0005C6 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0005CC 68D8                   MOV.B       R0L,@ER5
+    0005CE 1888                   SUB.B       R0L,R0L
+    0005D0 68E8                   MOV.B       R0L,@ER6
+    0005D2 6868                   MOV.B       @ER6,R0L
+                   368:    
+                   369:                    CH_CR_SET_A( 15, 0x75 );        /* no XTal, RxClk = DPLL, TxCLK=TxBRG, TRxC=Out, TRxC=TxCLK */
+    0005D4 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0005DA 770A                   BLD.B       #0,R2L
+    0005DC 7D006700               BST.B       #0,@ER0
+    0005E0 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0005E6 68D8                   MOV.B       R0L,@ER5
+    0005E8 F80F                   MOV.B       #15:8,R0L
+    0005EA 68E8                   MOV.B       R0L,@ER6
+    0005EC F875                   MOV.B       #117:8,R0L
+    0005EE 68E8                   MOV.B       R0L,@ER6
+                   370:                    CH_CR_SET_A( 14, 0x07 );        /* DPLL: BRG=System, RxBRG,TxBRG=Enable */
+    0005F0 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0005F6 770A                   BLD.B       #0,R2L
+    0005F8 7D006700               BST.B       #0,@ER0
+    0005FC 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000602 68D8                   MOV.B       R0L,@ER5
+    000604 F80E                   MOV.B       #14:8,R0L
+    000606 68E8                   MOV.B       R0L,@ER6
+    000608 F807                   MOV.B       #7:8,R0L
+    00060A 68E8                   MOV.B       R0L,@ER6
+                   371:    
+                   372:                    CH_CR_SET_A( 10, 0xA0 );        /* CRC Initial 1, NRZI */
+    00060C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000612 770A                   BLD.B       #0,R2L
+    000614 7D006700               BST.B       #0,@ER0
+    000618 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00061E 68D8                   MOV.B       R0L,@ER5
+    000620 F80A                   MOV.B       #10:8,R0L
+    000622 68E8                   MOV.B       R0L,@ER6
+    000624 F8A0                   MOV.B       #-96:8,R0L
+    000626 68E8                   MOV.B       R0L,@ER6
+                   373:                    CH_CR_SET_A( 6, lowadr );       /* Low Address Set */
+    000628 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00062E 770A                   BLD.B       #0,R2L
+    000630 7D006700               BST.B       #0,@ER0
+    000634 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00063A 68D8                   MOV.B       R0L,@ER5
+    00063C F806                   MOV.B       #6:8,R0L
+    00063E 68E8                   MOV.B       R0L,@ER6
+    000640 68EB                   MOV.B       R3L,@ER6
+                   374:                    CH_CR_SET_A( 7, 0x7E );         /* Flag bit Set */
+    000642 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000648 770A                   BLD.B       #0,R2L
+    00064A 7D006700               BST.B       #0,@ER0
+    00064E 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000654 68D8                   MOV.B       R0L,@ER5
+    000656 F807                   MOV.B       #7:8,R0L
+    000658 68E8                   MOV.B       R0L,@ER6
+    00065A F87E                   MOV.B       #126:8,R0L
+    00065C 68E8                   MOV.B       R0L,@ER6
+                   375:                    CH_CR_SET_A( 8, (send_length-1) & 0x0FF );              /* Tx Data Length (Low)*/
+    00065E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000664 770A                   BLD.B       #0,R2L
+    000666 7D006700               BST.B       #0,@ER0
+    00066A 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000670 68D8                   MOV.B       R0L,@ER5
+    000672 F808                   MOV.B       #8:8,R0L
+    000674 68E8                   MOV.B       R0L,@ER6
+    000676 0DC0                   MOV.W       E4,R0
+    000678 18A8                   SUB.B       R2L,R0L
+    00067A 68E8                   MOV.B       R0L,@ER6
+                   376:                    CH_CR_SET_A( 9, ((send_length-1)>>8) & 0x0FF ); /* Tx Data length (High) */
+    00067C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000682 770A                   BLD.B       #0,R2L
+    000684 7D006700               BST.B       #0,@ER0
+    000688 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00068E 68D8                   MOV.B       R0L,@ER5
+    000690 F809                   MOV.B       #9:8,R0L
+    000692 68E8                   MOV.B       R0L,@ER6
+    000694 1B5C                   DEC.W       #1,E4
+    000696 0DC0                   MOV.W       E4,R0
+    000698 0C08                   MOV.B       R0H,R0L
+    00069A 17D0                   EXTS.W      R0
+    00069C 68E8                   MOV.B       R0L,@ER6
+                   377:    
+                   378:                    CH_CR_SET_A( 0x40 | 3, 0xC8 );  /* Init Rx CRC: 8bit, Rx Disable */
+    00069E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0006A4 770A                   BLD.B       #0,R2L
+    0006A6 7D006700               BST.B       #0,@ER0
+    0006AA 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0006B0 68D8                   MOV.B       R0L,@ER5
+    0006B2 F843                   MOV.B       #67:8,R0L
+    0006B4 68E8                   MOV.B       R0L,@ER6
+    0006B6 F8C8                   MOV.B       #-56:8,R0L
+    0006B8 68E8                   MOV.B       R0L,@ER6
+                   379:                    CH_CR_SET_A( 0x80 | 5, 0x61 );  /* Init Tx CRC:8bit, Tx Disable, RTS Off */
+    0006BA 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0006C0 770A                   BLD.B       #0,R2L
+    0006C2 7D006700               BST.B       #0,@ER0
+    0006C6 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0006CC 68D8                   MOV.B       R0L,@ER5
+    0006CE F885                   MOV.B       #-123:8,R0L
+    0006D0 68E8                   MOV.B       R0L,@ER6
+    0006D2 F861                   MOV.B       #97:8,R0L
+    0006D4 68E8                   MOV.B       R0L,@ER6
+                   380:    
+                   381:                    CH_CR_SET_A( 11, 0x54 );        /* Abort/TxUnder/SyncHunt/AllSent Use */
+    0006D6 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0006DC 770A                   BLD.B       #0,R2L
+    0006DE 7D006700               BST.B       #0,@ER0
+    0006E2 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    0006E8 68D8                   MOV.B       R0L,@ER5
+    0006EA F80B                   MOV.B       #11:8,R0L
+    0006EC 68E8                   MOV.B       R0L,@ER6
+    0006EE F854                   MOV.B       #84:8,R0L
+    0006F0 68E8                   MOV.B       R0L,@ER6
+                   382:    
+                   383:                    CH_CR_SET_A( 0x10 | 1, 0x0F );  /* Reset E/S : Overrun Error, E/S Int Enable, First Rx Int, DMA Use  */
+    0006F2 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0006F8 770A                   BLD.B       #0,R2L
+    0006FA 7D006700               BST.B       #0,@ER0
+    0006FE 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000704 68D8                   MOV.B       R0L,@ER5
+    000706 F811                   MOV.B       #17:8,R0L
+    000708 68E8                   MOV.B       R0L,@ER6
+    00070A F80F                   MOV.B       #15:8,R0L
+    00070C 68E8                   MOV.B       R0L,@ER6
+                   384:    
+                   385:                    CH_CR_SET_A( 14, 0x87 );        /* DPLL Source: RxBRG */
+    00070E 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000714 770A                   BLD.B       #0,R2L
+    000716 7D006700               BST.B       #0,@ER0
+    00071A 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000720 68D8                   MOV.B       R0L,@ER5
+    000722 F80E                   MOV.B       #14:8,R0L
+    000724 68E8                   MOV.B       R0L,@ER6
+    000726 F887                   MOV.B       #-121:8,R0L
+    000728 68E8                   MOV.B       R0L,@ER6
+                   386:                    CH_CR_SET_A( 14, 0xE7 );        /* NRZI receive */
+    00072A 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000730 770A                   BLD.B       #0,R2L
+    000732 7D006700               BST.B       #0,@ER0
+    000736 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00073C 68D8                   MOV.B       R0L,@ER5
+    00073E F80E                   MOV.B       #14:8,R0L
+    000740 68E8                   MOV.B       R0L,@ER6
+    000742 F8E7                   MOV.B       #-25:8,R0L
+    000744 68E8                   MOV.B       R0L,@ER6
+                   387:                    CH_CR_SET_A( 14, 0x27 );        /* Enter Search */
+    000746 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    00074C 770A                   BLD.B       #0,R2L
+    00074E 7D006700               BST.B       #0,@ER0
+    000752 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000758 68D8                   MOV.B       R0L,@ER5
+    00075A F80E                   MOV.B       #14:8,R0L
+    00075C 68E8                   MOV.B       R0L,@ER6
+    00075E F827                   MOV.B       #39:8,R0L
+    000760 68E8                   MOV.B       R0L,@ER6
+                   388:    
+                   389:                    ITU1.TCR.BYTE = 0;
+    000762 1888                   SUB.B       R0L,R0L
+    000764 386E                   MOV.B       R0L,@16777070:8
+                   390:                    ITU1.TCR.BIT.CCLR = 1;          /* ‚f‚q‚`ƒJƒEƒ“ƒg‚ÅƒNƒŠƒA */
+    000766 0CA9                   MOV.B       R2L,R1L
+    000768 286E                   MOV.B       @16777070:8,R0L
+    00076A 79020102               MOV.W       #258:16,R2
+    00076E 5E                     JSR         @$BFINCR$3:24
+           <000000>     
+    000772 386E                   MOV.B       R0L,@16777070:8
+                   391:                    ITU1.TCR.BIT.CKEG = 0;          /* ƒNƒƒbƒN‚ÌÙ‚¿ã‚ª‚è‚ÅƒJƒEƒ“ƒg */
+    000774 286E                   MOV.B       @16777070:8,R0L
+    000776 E8E7                   AND.B       #-25:8,R0L
+    000778 386E                   MOV.B       R0L,@16777070:8
+                   392:                    ITU1.TCR.BIT.TPSC = 2;          /* ƒ³^‚SƒNƒƒbƒN */
+    00077A 286E                   MOV.B       @16777070:8,R0L
+    00077C E8F8                   AND.B       #-8:8,R0L
+    00077E C802                   OR.B        #2:8,R0L
+    000780 386E                   MOV.B       R0L,@16777070:8
+                   393:                    ITU1.TIOR.BYTE = 0;                     /* ƒRƒ“ƒyƒAƒ}ƒbƒ`‚É‚æ‚éo—Í‹ÖŽ~ */
+    000782 1888                   SUB.B       R0L,R0L
+    000784 386F                   MOV.B       R0L,@16777071:8
+                   394:                    ITU1.TIER.BYTE = 0;
+    000786 3870                   MOV.B       R0L,@16777072:8
+                   395:                    ITU1.TIER.BIT.IMIEA = 1;        /* ‚h‚l‚e‚`ƒtƒ‰ƒO‚É‚æ‚éŠ„‚èž‚Ý */
+    000788 7F707000               BSET.B      #0,@16777072:8
+                   396:                    ITU1.TSR.BYTE = 0;                      /* ƒ^ƒCƒ}[ƒXƒe[ƒ^ƒXƒNƒŠƒA */
+    00078C 3871                   MOV.B       R0L,@16777073:8
+                   397:    
+                   398:                    ITU1.TCNT = 0;                          /* ƒJƒEƒ“ƒ^[ƒNƒŠƒA */
+    00078E 79000000               MOV.W       #0:16,R0
+    000792 3072                   MOV.B       R0H,@16777074:8
+    000794 3873                   MOV.B       R0L,@16777075:8
+                   399:                                                                                    /* 14.7456MHz -> ƒ³
+                   400:                                                                                    ƒ³^‚S = 3.6864MHz
+                   401:                                                                                    0.27126uS
+                   402:                                                                                    10mS / 0.27126uS = 36864(0x9000)
+                   403:                                                                                     3mS / 0.27126uS = 11060
+                   404:                                                                                     2mS / 0.27126uS = 7373
+                   405:                                                                                    ƒI[ƒvƒjƒ“ƒO‚o‚`‚c‚Ì‘—MŽžŠÔ
+                   406:                                                                            */
+                   407:                    ITU1.GRA = 7373;
+    000796 79001CCD               MOV.W       #7373:16,R0
+    00079A 3074                   MOV.B       R0H,@16777076:8
+    00079C 3875                   MOV.B       R0L,@16777077:8
+                   408:    
+                   409:                    IMIA1Jump = timer_1_Intr;
+    00079E 7A00                   MOV.L       #_timer_1_Intr:32,ER0
+           <00000000>   
+    0007A4 01006BA000             MOV.L       ER0,@_IMIA1Jump:24
+           <000000>     
+                   410:    
+                   411:                    first_receive = 1;
+    0007AC F801                   MOV.B       #1:8,R0L
+    0007AE 6AA800                 MOV.B       R0L,@_$first_receive:24
+           <000000>     
+                   412:    
+                   413:                    sending = 0;
+    0007B4 1888                   SUB.B       R0L,R0L
+    0007B6 6AA800                 MOV.B       R0L,@_$sending:24
+           <000000>     
+                   414:    
+                   415:                    IRQ5Jump = HDLC_Int;
+    0007BC 7A00                   MOV.L       #_HDLC_Int:32,ER0
+           <00000000>   
+    0007C2 01006BA000             MOV.L       ER0,@_IRQ5Jump:24
+           <000000>     
+                   416:                    INTC.IER.BIT.IRQ5E = 1;         /* IRQ5 Use */
+    0007CA 7FF57050               BSET.B      #5,@16777205:8
+                   417:    
+                   418:    }
+    0007CE 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   419:    
+                   420:    /************************************************************************
+                   421:    *                                                                                                                                               *
+                   422:    *       Function name   << HDLC_RecvEnable >>   
+                   423:    *                                       ŽóM—v‹
+                   424:    *       Syntax                  HDLC_RecvEnable( void );
+                   425:    *       Argument                none                                                                                            *
+                   426:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   427:            Revision                a00 2000/08/07
+                   428:    *                                                                                                                                               *
+                   429:    *************************************************************************/
+                   430:    void HDLC_RecvEnable( void )
+    0007D2              _HDLC_RecvEnable:                ; function: HDLC_RecvEnable
+    0007D2 01006DF5               PUSH.L      ER5
+                   431:    {
+                   432:                    char    data;
+                   433:    
+                   434:                    first_receive = 1;
+    0007D6 F801                   MOV.B       #1:8,R0L
+    0007D8 6AA800                 MOV.B       R0L,@_$first_receive:24
+           <000000>     
+                   435:    
+                   436:                    status_flag = 0;
+                   437:    
+                   438:                    sending=0;
+    0007DE 1888                   SUB.B       R0L,R0L
+    0007E0 6AA800                 MOV.B       R0L,@_$sending:24
+           <000000>     
+    0007E6 6AA800                 MOV.B       R0L,@_$status_flag:24
+           <000000>     
+                   439:    
+                   440:                    CH_CR_SET_A( 5, 0x61 );         /* Send Disable */
+    0007EC 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    0007F2 7D007000               BSET.B      #0,@ER0
+    0007F6 7A05006000             MOV.L       #6291456:32,ER5
+           00           
+    0007FC 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000802 68D8                   MOV.B       R0L,@ER5
+    000804 7A01006001             MOV.L       #6291712:32,ER1
+           00           
+    00080A F805                   MOV.B       #5:8,R0L
+    00080C 6898                   MOV.B       R0L,@ER1
+    00080E F861                   MOV.B       #97:8,R0L
+    000810 6898                   MOV.B       R0L,@ER1
+                   441:                    CH_CR_SET_A( 3, 0xDC );         /* Rx Disable */
+    000812 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000818 7D007000               BSET.B      #0,@ER0
+    00081C 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    000822 68D8                   MOV.B       R0L,@ER5
+    000824 F803                   MOV.B       #3:8,R0L
+    000826 6898                   MOV.B       R0L,@ER1
+    000828 F8DC                   MOV.B       #-36:8,R0L
+    00082A 6898                   MOV.B       R0L,@ER1
+                   442:    
+                   443:                    CH_CR_SET_A( 3, 0xDD );         /* Receive Enable, Adr Search, Enter Hunt */
+    00082C 7A00                   MOV.L       #_$ctrldata:32,ER0
+           <00000000>   
+    000832 7D007000               BSET.B      #0,@ER0
+    000836 6A2800                 MOV.B       @_$ctrldata:24,R0L
+           <000000>     
+    00083C 68D8                   MOV.B       R0L,@ER5
+    00083E F803                   MOV.B       #3:8,R0L
+    000840 6898                   MOV.B       R0L,@ER1
+    000842 F8DD                   MOV.B       #-35:8,R0L
+    000844 6898                   MOV.B       R0L,@ER1
+                   444:    }
+    000846 01006D75               POP.L       ER5
+    00084A 5470                   RTS
+                   445:    
+                   446:    
+                   447:    
+                   448:    /************************************************************************
+                   449:    *                                                                                                                                               *
+                   450:    *       Function name   << HDLC_RecvSendChange >>       
+                   451:    *                                       ‘—M—v‹
+                   452:    *       Syntax                  HDLC_RecvSendChange( void );
+                   453:    *       Argument                none                                                                                            *
+                   454:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   455:            Revision                a00 2000/08/07
+                   456:    *                                                                                                                                               *
+                   457:    *************************************************************************/
+                   458:    void HDLC_RecvSendChange( void )
+    00084C              _HDLC_RecvSendChange:            ; function: HDLC_RecvSendChange
+                   459:    {
+                   460:                    sending_len = 0;
+    00084C 1900                   SUB.W       R0,R0
+    00084E 6BA000                 MOV.W       R0,@_$sending_len:24
+           <000000>     
+                   461:                    sending = 0;
+    000854 6AA800                 MOV.B       R0L,@_$sending:24
+           <000000>     
+                   462:    
+                   463:                    INTC.IER.BIT.IRQ5E = 0;         /* IRQ5 Use */  // 00/09/13
+    00085A 7FF57250               BCLR.B      #5,@16777205:8
+                   464:                    ITU1.GRA = 1843;
+    00085E 79000733               MOV.W       #1843:16,R0
+    000862 3074                   MOV.B       R0H,@16777076:8
+    000864 3875                   MOV.B       R0L,@16777077:8
+                   465:                    ITU1.TCNT = 0;                          /* ƒJƒEƒ“ƒ^[ƒNƒŠƒA */
+    000866 79000000               MOV.W       #0:16,R0
+    00086A 3072                   MOV.B       R0H,@16777074:8
+    00086C 3873                   MOV.B       R0L,@16777075:8
+                   466:                    ITU.TSTR.BIT.STR1 = 1;          /* ƒ^ƒCƒ}[‚É‚æ‚é‚c‚l‚`“]‘—ŠJŽn */
+    00086E 7F607010               BSET.B      #1,@16777056:8
+                   467:    }
+    000872 5470                   RTS
+                   468:    
+  B                                                      ; section
+    000000              _HDLC_ReceiveEnd:                ; static: HDLC_ReceiveEnd
+    000000 00000004               .RES.L      1
+    000004              _HDLC_ReceiveAbort:              ; static: HDLC_ReceiveAbort
+    000004 00000004               .RES.L      1
+    000008              _HDLC_SendEnd:                   ; static: HDLC_SendEnd
+    000008 00000004               .RES.L      1
+    00000C              _HDLC_SendAbort:                 ; static: HDLC_SendAbort
+    00000C 00000004               .RES.L      1
+    000010              _HDLC_SendStart:                 ; static: HDLC_SendStart
+    000010 00000004               .RES.L      1
+    000014              _$ctrldata:                      ; static: ctrldata
+    000014 00000001               .RES.B      1
+    000015              _$first_receive:                 ; static: first_receive
+    000015 00000001               .RES.B      1
+    000016              _$sendbuff:                      ; static: sendbuff
+    000016 00000004               .RES.L      1
+    00001A              _$sending_len:                   ; static: sending_len
+    00001A 00000002               .RES.W      1
+    00001C              _$status_flag:                   ; static: status_flag
+    00001C 00000001               .RES.B      1
+    00001D              _$bef_esstatus:                  ; static: bef_esstatus
+    00001D 00000001               .RES.B      1
+    00001E              _$sending:                       ; static: sending
+    00001E 00000001               .RES.B      1
+    00001F              _$recvdata:                      ; static: recvdata
+    00001F 00000100               .RES.B      256
+    00011F 00000001               .RES.B      1
+    000120              _$recvcnt:                       ; static: recvcnt
+    000120 00000002               .RES.W      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:15  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x00000874 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x00000122 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x00000874 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x00000122 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000996 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:        6 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       11 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         46 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,.\inc\,.\inc\ .\src\hdlc.c -object=.\obj\hdlc.obj
+CPU         : 300ha:24

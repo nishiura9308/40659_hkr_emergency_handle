@@ -1,0 +1,255 @@
+;/*[mcpTimeA.ASM]***********************************************************
+;	【香港地下鉄　自動放送制御】
+;*-------------------------------------------------------------------*
+;	タイマーレベル０モジュール
+;*-------------------------------------------------------------------*
+;    Author	TOA Corporation   K.Honda
+;
+;    Revison	a00. 2000/06/26
+;
+;********************************************************************/
+	module	'香港地下鉄 AAU MCP S/W'
+$.\INC\MCPHW.INC
+
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;.	プログラム部
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	RSEG	RCODE:CODE
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< timer_0_initialize >>			*
+;*			タイマ０の初期化				*
+;*			１０ｍＳタイマーの作成
+;*	Syntax		timer_0_initialize();				*
+;*	Argument	none						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ●タイマ０の初期化を行う。
+;
+;   ・タイマ－デ－タレジスタに1をセット。
+;   ・タイマ－リロ－ドレジスタにTM0CNSTで示される値をセット。
+;   ・タイマ－コントロ－ルレジスタにタイマ０の動作許可、割り込み許可をセット。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	timer_0_initialize	;.(Function)
+timer_0_initialize:
+	push	af
+	push	hl
+
+	in0	a,(TCR)			;. timer control register
+	and		BINNOT 11h			;. timer0 initial
+	out0	(TCR),a
+
+	ld	hl,00FFh			;. set timer data resister
+	ld	a,l
+	out0	(TMDR0L),a
+	ld	a,h
+	out0	(TMDR0H),a
+
+	ld	hl,TM0CNST		;. set timer reload resister
+	ld	a,l			;. 10ms set
+	out0	(RLDR0L),a
+	ld	a,h
+	out0	(RLDR0H),a
+
+	in0	a,(TCR)			;. timer control register
+	or	11h			;. timer0 start
+	out0	(TCR),a
+
+	pop	hl
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< timer_0_ir >>				*
+;*			タイマ０の割り込み処理				*
+;*	Syntax		timer_0_ir();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/08 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;　10ms単位にこのルーチンが呼び出される。
+;	処理内容：
+;	　●　上位モジュール用タイマを減じる。　　　　　(Timer_Dec)
+;	　●　Ｉ／Ｏポ－トチャタリングマスクリ－ド処理。(port_read)
+;	　●　通信処理を行う。                          (network)
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	timer_0_ir		;.
+	extern	timer_0_func		;.(Function)
+	extern	io_disp_set
+timer_0_ir:
+	di				;. 割り込み禁止
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+;;	ex	af,af'			;. ﾚｼﾞｽﾀペアを裏ﾚｼﾞｽﾀに切り替え
+;;	exx
+
+	in0	a,(TCR)
+	and	40h			;. if TIF0==1 then irq
+	jp	z,timer_0_ir999
+
+	in0	a,(TMDR0L)		;. reset int timer
+	in0	a,(TMDR0H)		;.
+
+;;	ld	hl, timer_0_ir100	;. ﾀｲﾏｰ割り込みよりも、下位の割り込みを
+;;	push	hl			;. 受け付けるためにﾀｲﾏｰの割り込み要求を
+;;	reti				;. 消す。
+	
+;;timer_0_ir100:
+;;	call	timer_0_func
+	call	io_disp_set
+
+timer_0_ir999:				;. ﾀｲﾏ-非処理時の終了処理
+;;timer_0_ir900:				;. ﾀｲﾏｰ処理時の終了処理
+;;
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ei				;. 割り込み許可
+	reti
+
+;;timer_0_ir999:				;. ﾀｲﾏ-非処理時の終了処理
+;;	exx
+;;	ex	af,af'
+;;	ei				;. 割り込み許可
+;;	reti
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< timer_1_initialize >>			*
+;*			タイマ１の初期化				*
+;*			１ｍＳタイマーの作成
+;*	Syntax		timer_1_initialize();				*
+;*	Argument	none						*
+;*    Author	TOA Corporation   K.Honda
+;*    Revison	a00. 2000/06/26
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+; ●タイマ１の初期化を行う。
+;
+;   ・タイマ－デ－タレジスタに1をセット。
+;   ・タイマ－リロ－ドレジスタにTM1CNSTで示される値をセット。
+;   ・タイマ－コントロ－ルレジスタにタイマ１の動作許可、割り込み許可をセット。
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	timer_1_initialize	;.(Function)
+timer_1_initialize:
+	push	af
+	push	hl
+
+	in0	a,(TCR)			;. timer control register
+	and	BINNOT 22h			;. timer1 initial
+	out0	(TCR),a
+
+	ld	hl,000FFh		;. set timer data resister
+	ld	a,l
+	out0	(TMDR1L),a
+	ld	a,h
+	out0	(TMDR1H),a
+
+	ld	hl,TM1CNST		;. set timer reload resister
+	ld	a,l			;. 1ms set
+	out0	(RLDR1L),a
+	ld	a,h
+	out0	(RLDR1H),a
+
+	in0	a,(TCR)			;. timer control register
+	or	22h			;. timer1 start
+	out0	(TCR),a
+	
+	pop	hl
+	pop	af
+	ret
+
+
+;/***********************************************************************
+;*									*
+;*	Function name	<< timer_1_ir >>				*
+;*			タイマ１の割り込み処理				*
+;*	Syntax		timer_1_ir();					*
+;*	Argument	none						*
+;*	Author		TOA Corporation  T.takehisa			*
+;*	Revision	a00 1993/06/08 					*
+;*									*
+;************************************************************************/
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+;　1ms単位にこのルーチンが呼び出される。
+;	処理内容：
+;	　●　上位モジュール用タイマを減じる。　　　　　(Timer_Dec)
+;	　●　Ｉ／Ｏポ－トチャタリングマスクリ－ド処理。(port_read)
+;	　●　通信処理を行う。                          (network)
+;.・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・・
+	public	timer_1_ir		;.
+	extern	timer_1_func		;.(Function)
+timer_1_ir:
+	di				;. 割り込み禁止
+	push	af
+	push	bc
+	push	de
+	push	hl
+	push	ix
+	push	iy
+
+	in0	a,(TCR)
+	BIT	7,A			;. if TIF1==1 then irq
+	jp	z,timer_1_ir999
+
+	AND	BINNOT 22h
+	OUT0	(TCR),A
+
+	ld	hl, timer_1_ir100	;. ﾀｲﾏｰ割り込みよりも、下位の割り込みを
+	push	hl			;. 受け付けるためにﾀｲﾏｰの割り込み要求を
+	reti				;. 消す。
+	
+timer_1_ir100:
+	ei
+	call	timer_1_func
+
+	di
+	IN0		A,(TCR)
+	OR		22h
+	OUT0	(TCR),A
+
+	in0	a,(TMDR1L)		;. reset int timer
+	in0	a,(TMDR1H)		;.
+
+timer_1_ir900:				;. ﾀｲﾏｰ処理時の終了処理
+
+
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ei				;. 割り込み許可
+	ret
+
+timer_1_ir999:				;. ﾀｲﾏ-非処理時の終了処理
+	pop	iy
+	pop	ix
+	pop	hl
+	pop	de
+	pop	bc
+	pop	af
+	ei				;. 割り込み許可
+	reti
+
+
+
+	END
+

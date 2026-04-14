@@ -1,0 +1,329 @@
+               H SERIES LINKAGE EDITOR Ver. 6.0E
+
+
+LINK COMMAND LINE
+
+LNK -noecho -sub=J:\$OP5F.tmp 
+
+
+
+LINK SUBCOMMANDS
+
+INPUT J:\$OP60.tmp
+OUTPUT .\DVA2BOOT.abs
+FORM A
+START DVECTTBL,DINTTBL(00)
+START PResetPRG,PIntPRG(0400)
+START P,D,C$DSEC,C$BSEC(0800)
+START ROMSUM(01ffff)
+START RAMTOP(080000)
+START B,R(09e000)
+START BDataWatchDog,BBootCheck(09e800)
+START S(09f000)
+START BIntChgTable(0fffd10)
+ROM (D,R)
+SYSROF
+DEBUG
+PRINT .\DVA2BOOT.map
+EXIT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     1
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+DVECTTBL                          H'00000000  -  H'00000003  H'00000004
+              vecttbl                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000000  -  H'00000003  H'00000004
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+DINTTBL                           H'00000004  -  H'000000F3  H'000000F0
+              vecttbl                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000004  -  H'000000F3  H'000000F0
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+PResetPRG                         H'00000400  -  H'00000437  H'00000038
+              resetprg                         DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000400  -  H'00000437  H'00000038
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+PIntPRG                           H'00000438  -  H'00000723  H'000002EC
+              dvainit                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000438  -  H'00000723  H'000002EC
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'00000800  -  H'00000803  H'00000004
+              lowlvl                           DVA2BOOT                        
+                                  H'00000804  -  H'00000837  H'00000034
+              sbrk                             DVA2BOOT                        
+                                  H'00000838  -  H'00000869  H'00000032
+              dvaumain                         DVA2BOOT                        
+                                  H'0000086A  -  H'0000086F  H'00000006
+              jump                             DVA2BOOT                        
+                                  H'00000870  -  H'00000A81  H'00000212
+              dvainit                          DVA2BOOT                        
+                                  H'00000A82  -  H'00000D65  H'000002E4
+              boot                             DVA2BOOT                        
+                                  H'00000D66  -  H'00000DD1  H'0000006C
+              _initsct                         DVA2BOOT                        
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     2
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   CODE  NOSHR
+
+P                                 H'00000DD2  -  H'00000E11  H'00000040
+              memset                           DVA2BOOT                        
+                                  H'00000E12  -  H'00000E33  H'00000022
+              spregsv3                         DVA2BOOT                        
+                                  H'00000E34  -  H'00000E49  H'00000016
+              sprgld23                         DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000800  -  H'00000E49  H'0000064A
+
+
+ATTRIBUTE  :   DATA  NOSHR ROM
+
+D                                 H'00000E4A  -  H'00000E4A  H'00000000
+              dbsct                            DVA2BOOT                        
+                                  H'00000E4A  -  H'00000E4D  H'00000004
+              sbrk                             DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000E4A  -  H'00000E4D  H'00000004
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+C$DSEC                            H'00000E4E  -  H'00000E59  H'0000000C
+              dbsct                            DVA2BOOT                        
+                                  H'00000E5A  -  H'00000E5A  H'00000000
+              _initsct                         DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000E4E  -  H'00000E59  H'0000000C
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+C$BSEC                            H'00000E5A  -  H'00000E61  H'00000008
+              dbsct                            DVA2BOOT                        
+                                  H'00000E62  -  H'00000E62  H'00000000
+              _initsct                         DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00000E5A  -  H'00000E61  H'00000008
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+ROMSUM                            H'0001FFFF  -  H'0001FFFF  H'00000001
+              jump                             DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0001FFFF  -  H'0001FFFF  H'00000001
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     3
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+RAMTOP                            H'00080000  -  H'00080000  H'00000000
+              jump                             DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00080000  -  H'00080000  H'00000000
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+B                                 H'0009E000  -  H'0009E000  H'00000000
+              dbsct                            DVA2BOOT                        
+                                  H'0009E000  -  H'0009E07F  H'00000080
+              sbrk                             DVA2BOOT                        
+                                  H'0009E080  -  H'0009E081  H'00000002
+              boot                             DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0009E000  -  H'0009E081  H'00000082
+
+
+ATTRIBUTE  :   DATA  NOSHR RAM
+
+R                                 H'0009E082  -  H'0009E082  H'00000000
+              dbsct                            DVA2BOOT                        
+                                  H'0009E082  -  H'0009E085  H'00000004
+              sbrk                             DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0009E082  -  H'0009E085  H'00000004
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BDataWatchDog                     H'0009E800  -  H'0009E802  H'00000003
+              dvainit                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0009E800  -  H'0009E802  H'00000003
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BBootCheck                        H'0009E804  -  H'0009E80B  H'00000008
+              dvainit                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0009E804  -  H'0009E80B  H'00000008
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     4
+
+                  ***     LINKAGE EDITOR LINK MAP LIST      ***
+
+
+SECTION NAME                         START    -     END        LENGTH
+              UNIT NAME                        MODULE NAME
+
+
+ATTRIBUTE  :   STACK NOSHR
+
+S                                 H'0009F000  -  H'0009FFFF  H'00001000
+              resetprg                         DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'0009F000  -  H'0009FFFF  H'00001000
+
+
+ATTRIBUTE  :   DATA  NOSHR
+
+BIntChgTable                      H'00FFFD10  -  H'00FFFD47  H'00000038
+              dvainit                          DVA2BOOT                        
+
+* TOTAL ADDRESS *                 H'00FFFD10  -  H'00FFFD47  H'00000038
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     1
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+$sp_regsv$3                       H'00000E12               DAT
+$spregld2$3                       H'00000E34               DAT
+_Dummy                            H'00000722               ENT
+_ERI0Jump                         H'00FFFD28               DAT
+_ERI1Jump                         H'00FFFD38               DAT
+_Halt                             H'00000800               DAT
+_HardwareSetup                    H'000008F0               ENT
+_IMIA0Jump                        H'00FFFD14               DAT
+_IMIA1Jump                        H'00FFFD18               DAT
+_IMIA2Jump                        H'00FFFD1C               DAT
+_IMIA3Jump                        H'00FFFD20               DAT
+_IMIA4Jump                        H'00FFFD24               DAT
+_INT_ADI                          H'00000720               ENT
+_INT_CMI                          H'0000047C               ENT
+_INT_DEND0A                       H'000005A8               ENT
+_INT_DEND0B                       H'000005AA               ENT
+_INT_DEND1A                       H'000005AC               ENT
+_INT_DEND1B                       H'000005AE               ENT
+_INT_ERI0                         H'000005B0               ENT
+_INT_ERI1                         H'00000668               ENT
+_INT_IMIA0                        H'0000047E               ENT
+_INT_IMIA1                        H'000004BA               ENT
+_INT_IMIA2                        H'000004F6               ENT
+_INT_IMIA3                        H'00000532               ENT
+_INT_IMIA4                        H'0000056C               ENT
+_INT_IMIB0                        H'000004B6               ENT
+_INT_IMIB1                        H'000004F2               ENT
+_INT_IMIB2                        H'0000052E               ENT
+_INT_IMIB3                        H'00000568               ENT
+_INT_IMIB4                        H'000005A4               ENT
+_INT_IRQ0                         H'00000440               ENT
+_INT_IRQ1                         H'00000442               ENT
+_INT_IRQ2                         H'00000444               ENT
+_INT_IRQ3                         H'00000446               ENT
+_INT_IRQ4                         H'00000448               ENT
+_INT_IRQ5                         H'0000047A               ENT
+_INT_NMI                          H'00000438               ENT
+_INT_OVI0                         H'000004B8               ENT
+_INT_OVI1                         H'000004F4               ENT
+_INT_OVI2                         H'00000530               ENT
+_INT_OVI3                         H'0000056A               ENT
+_INT_OVI4                         H'000005A6               ENT
+_INT_RXI0                         H'000005DE               ENT
+_INT_RXI1                         H'00000696               ENT
+_INT_TEI0                         H'0000063A               ENT
+_INT_TEI1                         H'000006F2               ENT
+_INT_TRAP1                        H'0000043A               ENT
+_INT_TRAP2                        H'0000043C               ENT
+_INT_TRAP3                        H'0000043E               ENT
+_INT_TRAP4                        H'00000420               ENT
+_INT_TXI0                         H'0000060C               ENT
+
+
+
+               H SERIES LINKAGE EDITOR Ver. 6.0E       PAGE :     2
+
+             ***  LINKAGE EDITOR EXTERNALLY DEFINED SYMBOLS LIST  ***
+
+SYMBOL NAME                          ADDR                 TYPE
+
+_INT_TXI1                         H'000006C4               ENT
+_INT_Vectors                      H'00000004               DAT
+_INT_WOVI                         H'00000A46               ENT
+_IRQ4Jump                         H'00FFFD10               DAT
+_Manual_Reset                     H'0000041E               ENT
+_PowerON_Reset                    H'00000400               ENT
+_RAMCheck                         H'00000870               ENT
+_RESET_Vectors                    H'00000000               DAT
+_ROMCheck                         H'000008CE               ENT
+_RXI0Jump                         H'00FFFD2C               DAT
+_RXI1Jump                         H'00FFFD3C               DAT
+_TEI0Jump                         H'00FFFD34               DAT
+_TEI1Jump                         H'00FFFD44               DAT
+_TXI0Jump                         H'00FFFD30               DAT
+_TXI1Jump                         H'00FFFD40               DAT
+_WatchDogDisable                  H'00000A2C               ENT
+_WatchDogReset                    H'00000A12               ENT
+__INITSCT                         H'00000D66               DAT
+_boot                             H'00000CB4               ENT
+_boot_int                         H'00000A82               ENT
+_check_all_bytes                  H'0009E808               DAT
+_check_date                       H'0009E804               DAT
+_check_time                       H'0009E806               DAT
+_jump_app                         H'0000086A               DAT
+_main                             H'00000838               ENT
+_memset                           H'00000DD2               DAT
+_sbrk                             H'00000804               ENT
+_watchDogCount                    H'0009E800               DAT
+_watchDogFlag                     H'0009E801               DAT
+_watchDogON                       H'0009E802               DAT

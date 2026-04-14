@@ -1,0 +1,496 @@
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:15  PAGE   1
+
+************ OBJECT LISTING ************
+
+FILE NAME: .\src\dvatms.c
+
+SCT OFFSET CODE       C LABEL     INSTRUCTION OPERAND    COMMENT
+
+  P                                                      ; section
+                     1:    /********************************************************************
+                     2:    *       y`’n‰º“SŒü‚¯Ž©“®—ñŽÔ•ú‘—§Œä‘•’uz                                                  *
+                     3:    *-------------------------------------------------------------------*
+                     4:    *       ’ÊM§Œäƒ‚ƒWƒ…[ƒ‹                                                                                              *
+                     5:    *-------------------------------------------------------------------*
+                     6:    *       Author          TOA Corporation                                                                 *
+                     7:    *                                                                                                                                       *
+                     8:    *       Revision        a00. 2000/06/27         K.Honda                                                 *
+                     9:    *                                                                                                                                       *
+                    10:    *********************************************************************/
+                    11:    
+                    12:    #include    <machine.h>
+                    13:    #include        "iodefine.h"
+                    14:    #include        "table.h"
+                    15:    
+                    16:    #include        "timer.h"
+                    17:    
+                    18:    /*@@@S*/
+                    19:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    20:            ƒOƒ[ƒoƒ‹•Ï”
+                    21:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    22:    union SDFORM    tms_sd_data;            // ‚s‚l‚r‚Ö‚ÌŽóMƒf[ƒ^
+                    23:    union SDRFORM   tms_sdr_data;   // ‚s‚l‚r‚©‚ç‚Ì‘—Mƒf[ƒ^
+                    24:    union SDFORM    tms_ld_data;            // ‚s‚l‚r‚Ö‚ÌŽóMƒf[ƒ^
+                    25:    union SDRFORM   tms_ldr_data;   // ‚s‚l‚r‚©‚ç‚Ì‘—Mƒf[ƒ^
+                    26:    
+                    27:    int     send_abort;
+                    28:    int     recv_abort;
+                    29:    
+                    30:    int     send_ldr;
+                    31:    int     recv_ldr;
+                    32:    
+                    33:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    34:            ’è”’è‹`
+                    35:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    36:    
+                    37:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    38:            \‘¢‘Ì’è‹`
+                    39:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    40:    
+                    41:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    42:            ƒe[ƒuƒ‹
+                    43:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    44:    
+                    45:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    46:                    ŠO•”ŽQÆ
+                    47:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    48:    extern  unsigned short  VERSION;                                // ƒo[ƒWƒ‡ƒ“î•ñ
+                    49:    extern  struct  BACKUP_DATA             backup_data;    // ƒoƒbƒNƒAƒbƒvƒf[ƒ^
+                    50:    
+                    51:    extern  struct st_ReadSIGNAL nowSignal;                 // ÅV“Ç‚Ý‚¾‚µ’l
+                    52:    extern  struct  TIMER_CONTROL   timedata;               // ƒ^ƒCƒ}[î•ñ
+                    53:    
+                    54:    extern  void HDLC_Initialize( int baud, char lowadr, int send_length );
+                    55:    extern  void HDLC_RecvEnable( void );
+                    56:    extern  void HDLC_SendEnable( char *buff, int send_length );
+                    57:    
+                    58:    extern  int (*HDLC_ReceiveEnd)( char *recvdata, short recvcnt, unsigned char status );
+                    59:    extern  int (*HDLC_ReceiveAbort)( void );
+                    60:    extern  int (*HDLC_SendEnd)( void );
+                    61:    extern  int (*HDLC_SendAbort)( void );
+                    62:    extern  int (*HDLC_SendStart)( void );
+                    63:    
+                    64:    /*†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£
+                    65:                    ƒ[ƒJƒ‹•Ï”
+                    66:    †£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£†£*/
+                    67:    
+                    68:    static  char                    recvdata[256];
+                    69:    static  int                             recvcnt;                // ŽóMƒoƒCƒg”‚ÌƒJƒEƒ“ƒg
+                    70:    
+                    71:    /*@@@E*/
+                    72:    /************************************************************************
+                    73:    *                                                                                                                                               *
+                    74:    *       Function name   << tms_receive_end >>   
+                    75:    *                                       ŽóMˆ—
+                    76:    *       Syntax                  tms_receive_end( status );
+                    77:    *       Argument                none                                                                                            *
+                    78:    *       Author                  TOA Corporation  K.Honda                                                        *
+                    79:    *       Revision                a00 2000/06/27                                                                          *
+                    80:    *                                                                                                                                               *
+                    81:    *************************************************************************/
+                    82:    int tms_receive_end( char *recvdata, short recvcnt, unsigned char status )
+    000000              _tms_receive_end:                ; function: tms_receive_end
+    000000 5E                     JSR         @$sp_regsv$3:24
+           <000000>     
+                    83:    {
+    000004 0F86                   MOV.L       ER0,ER6
+    000006 0D15                   MOV.W       R1,R5
+                    84:                    union SDFORM    *recvp;
+                    85:                    int             i;
+                    86:                    unsigned char   onoff,on;
+                    87:    
+                    88:                    // ’ÊMƒGƒ‰[‚Ì‚Æ‚«‚Í@‰½‚à‚µ‚È‚¢
+                    89:                    if( status & 0x60 ){    /* CRC ERROR? or Over RUN Error? */
+    000008 6E7A0019               MOV.B       @(25:16,SP),R2L
+    00000C EA60                   AND.B       #96:8,R2L
+    00000E 4654                   BNE         L114:8
+                    90:                            recvcnt = 0;
+                    91:                            return 1;
+                    92:                    }
+                    93:    
+                    94:                    recvp = (union SDFORM *)recvdata;
+                    95:    
+                    96:                    // ŽóMƒAƒhƒŒƒXƒ`ƒFƒbƒN
+                    97:                    // Ž©ƒAƒhƒŒƒXˆÈŠO‚Í@‰½‚à‚µ‚È‚¢
+                    98:                    if( recvp->SD.lowadr!=0x60 ){
+    000010 6868                   MOV.B       @ER6,R0L
+    000012 A860                   CMP.B       #96:8,R0L
+    000014 464E                   BNE         L114:8
+                    99:                            recvcnt = 0;
+                   100:                            return 1;
+                   101:                    }
+                   102:                    if( recvp->SD.highadr!=0x01 ){
+    000016 6E680001               MOV.B       @(1:16,ER6),R0L
+    00001A A801                   CMP.B       #1:8,R0L
+    00001C 4646                   BNE         L114:8
+                   103:                            recvcnt = 0;
+                   104:                            return 1;
+                   105:                    }
+                   106:                    if( recvp->SD.control!=0x13 ){
+    00001E 6E680002               MOV.B       @(2:16,ER6),R0L
+    000022 A813                   CMP.B       #19:8,R0L
+    000024 463E                   BNE         L114:8
+                   107:                            recvcnt = 0;
+                   108:                            return 1;
+                   109:                    }
+                   110:    
+                   111:                    if( recvp->LD.code==0x32 ){             /* LD Command */
+    000026 6E680003               MOV.B       @(3:16,ER6),R0L
+    00002A A832                   CMP.B       #50:8,R0L
+    00002C 462C                   BNE         L106:8
+                   112:                            memcpy( &tms_ld_data, recvp, sizeof(tms_ld_data.LD) );
+    00002E 1A80                   SUB.L       ER0,ER0
+    000030 F806                   MOV.B       #6:8,R0L
+    000032 01006DF0               PUSH.L      ER0
+    000036 0FE1                   MOV.L       ER6,ER1
+    000038 7A00                   MOV.L       #_tms_ld_data:32,ER0
+           <00000000>   
+    00003E 5E                     JSR         @_memcpy:24
+           <000000>     
+    000042 0B97                   ADDS.L      #4,SP
+                   113:                            recv_ldr = tms_ld_data.LD.blockNo;
+    000044 6A2800                 MOV.B       @_tms_ld_data+4:24,R0L
+           <000000>     
+    00004A 1750                   EXTU.W      R0
+    00004C 6BA000                 MOV.W       R0,@_recv_ldr:24
+           <000000>     
+                   114:                            send_ldr = 0;
+    000052 1900                   SUB.W       R0,R0
+    000054 6BA000                 MOV.W       R0,@_send_ldr:24
+           <000000>     
+    00005A              L106:                             
+                   115:                    }
+                   116:    
+                   117:                    if( recvcnt < sizeof(recvp->SD) ){
+    00005A 17F5                   EXTS.L      ER5
+    00005C 7A25000000             CMP.L       #43:32,ER5
+           2B           
+    000062 4406                   BCC         L107:8
+                   118:                            return 1;
+    000064              L114:                             
+    000064 79000001               MOV.W       #1:16,R0
+    000068 402E                   BRA         L102:8
+    00006A              L107:                             
+                   119:                    }
+                   120:    
+                   121:                    timedata.tmstimeout = 0;
+    00006A 79000000               MOV.W       #0:16,R0
+    00006E 6AA000                 MOV.B       R0H,@_timedata+9:24
+           <000000>     
+    000074 6AA800                 MOV.B       R0L,@_timedata+10:24
+           <000000>     
+                   122:    
+                   123:                    if( recvp->SD.code==0x30 ){             /* SD Command */
+    00007A 6E680003               MOV.B       @(3:16,ER6),R0L
+    00007E A830                   CMP.B       #48:8,R0L
+    000080 4616                   BNE         L108:8
+                   124:                            memcpy( &tms_sd_data, recvp, sizeof(tms_sd_data.SD) );
+    000082 1A80                   SUB.L       ER0,ER0
+    000084 F82B                   MOV.B       #43:8,R0L
+    000086 01006DF0               PUSH.L      ER0
+    00008A 0FE1                   MOV.L       ER6,ER1
+    00008C 7A00                   MOV.L       #_tms_sd_data:32,ER0
+           <00000000>   
+    000092 5E                     JSR         @_memcpy:24
+           <000000>     
+    000096 0B97                   ADDS.L      #4,SP
+    000098              L108:                             
+                   125:                    }
+                   126:    }
+    000098              L102:                             
+    000098 5A                     JMP         @$spregld2$3:24
+           <000000>     
+                   127:    
+                   128:    
+                   129:    /************************************************************************
+                   130:    *                                                                                                                                               *
+                   131:    *       Function name   << tms_send >>  
+                   132:    *                                       ‘—Mˆ—
+                   133:    *       Syntax                  tms_send( void );
+                   134:    *       Argument                none                                                                                            *
+                   135:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   136:    *       Revision                a00 2000/06/27                                                                          *
+                   137:    *                                                                                                                                               *
+                   138:    *************************************************************************/
+                   139:    int tms_send( void )
+    00009C              _tms_send:                       ; function: tms_send
+                   140:    {
+                   141:                    timedata.tms_timer = 20;                // Cyclic Polling Time Set
+    00009C 79000014               MOV.W       #20:16,R0
+    0000A0 6AA000                 MOV.B       R0H,@_timedata+7:24
+           <000000>     
+    0000A6 6AA800                 MOV.B       R0L,@_timedata+8:24
+           <000000>     
+                   142:                    HDLC_RecvSendChange();
+    0000AC 5E                     JSR         @_HDLC_RecvSendChange:24
+           <000000>     
+                   143:    }
+    0000B0 5470                   RTS
+                   144:    
+                   145:    /************************************************************************
+                   146:    *                                                                                                                                               *
+                   147:    *       Function name   << tms_send_end >>      
+                   148:    *                                       ‘—MI—¹ˆ—
+                   149:    *       Syntax                  tms_send_end( void );
+                   150:    *       Argument                none                                                                                            *
+                   151:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   152:    *       Revision                a00 2000/06/27                                                                          *
+                   153:    *                                                                                                                                               *
+                   154:    *************************************************************************/
+                   155:    int tms_send_end( void )
+    0000B2              _tms_send_end:                   ; function: tms_send_end
+                   156:    {
+                   157:                    HDLC_RecvEnable();
+    0000B2 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   158:    }
+                   159:    
+                   160:    
+                   161:    /************************************************************************
+                   162:    *                                                                                                                                               *
+                   163:    *       Function name   << tms_send_abort >>    
+                   164:    *                                       ‘—M’†’fˆ—
+                   165:    *       Syntax                  tms_send_abort( void );
+                   166:    *       Argument                none                                                                                            *
+                   167:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   168:    *       Revision                a00 2000/06/27                                                                          *
+                   169:    *                                                                                                                                               *
+                   170:    *************************************************************************/
+                   171:    int tms_send_abort( void )
+    0000B6              _tms_send_abort:                 ; function: tms_send_abort
+                   172:    {
+                   173:            send_abort++;
+    0000B6 7A00                   MOV.L       #_send_abort:32,ER0
+           <00000000>   
+    0000BC 6901                   MOV.W       @ER0,R1
+    0000BE 0B51                   INC.W       #1,R1
+    0000C0 6981                   MOV.W       R1,@ER0
+                   174:                    HDLC_RecvEnable();
+    0000C2 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   175:    }
+                   176:    
+                   177:    /************************************************************************
+                   178:    *                                                                                                                                               *
+                   179:    *       Function name   << tms_recv_abort >>    
+                   180:    *                                       ŽóM’†’fˆ—
+                   181:    *       Syntax                  tms_recv_abort( void );
+                   182:    *       Argument                none                                                                                            *
+                   183:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   184:    *       Revision                a00 2000/06/27                                                                          *
+                   185:    *                                                                                                                                               *
+                   186:    *************************************************************************/
+                   187:    int tms_recv_abort( void )
+    0000C6              _tms_recv_abort:                 ; function: tms_recv_abort
+                   188:    {
+                   189:            recv_abort++;
+    0000C6 7A00                   MOV.L       #_recv_abort:32,ER0
+           <00000000>   
+    0000CC 6901                   MOV.W       @ER0,R1
+    0000CE 0B51                   INC.W       #1,R1
+    0000D0 6981                   MOV.W       R1,@ER0
+                   190:                    HDLC_RecvEnable();
+    0000D2 5A                     JMP         @_HDLC_RecvEnable:24
+           <000000>     
+                   191:    }
+                   192:    
+                   193:    
+                   194:    int tms_send_start( void )
+    0000D6              _tms_send_start:                 ; function: tms_send_start
+                   195:    {
+                   196:                    if( send_ldr ){
+    0000D6 6B2000                 MOV.W       @_send_ldr:24,R0
+           <000000>     
+    0000DC 470C                   BEQ         L109:8
+                   197:                            HDLC_SendEnable( (char *)&tms_ldr_data, sizeof(tms_ldr_data) );
+    0000DE 7901006A               MOV.W       #106:16,R1
+    0000E2 7A00                   MOV.L       #_tms_ldr_data:32,ER0
+           <00000000>   
+    0000E8 400A                   BRA         L115:8
+    0000EA              L109:                             
+                   198:                    }
+                   199:                    else {
+                   200:                            HDLC_SendEnable( (char *)&tms_sdr_data, sizeof(tms_sdr_data) );
+    0000EA 7901006A               MOV.W       #106:16,R1
+    0000EE 7A00                   MOV.L       #_tms_sdr_data:32,ER0
+           <00000000>   
+    0000F4              L115:                             
+    0000F4 5A                     JMP         @_HDLC_SendEnable:24
+           <000000>     
+                   201:                    }
+                   202:    }
+                   203:    
+                   204:    /************************************************************************
+                   205:    *                                                                                                                                               *
+                   206:    *       Function name   << tms_initialize >>    
+                   207:    *                                       ‰ŠúÝ’è
+                   208:    *       Syntax                  tms_initialize( void );
+                   209:    *       Argument                none                                                                                            *
+                   210:    *       Author                  TOA Corporation  K.Honda                                                        *
+                   211:    *       Revision                a00 2000/06/27                                                                          *
+                   212:    *                                                                                                                                               *
+                   213:    *************************************************************************/
+                   214:    void tms_initialize( void )
+    0000F8              _tms_initialize:                 ; function: tms_initialize
+    0000F8 6DF6                   PUSH.W      R6
+                   215:    {
+                   216:                    /** ‚g‚c‚k‚b’ÊM•”‚ð‰ŠúÝ’è **/
+                   217:                    HDLC_Initialize( 9600, 0x60, sizeof(tms_sdr_data) );
+    0000FA 7908006A               MOV.W       #106:16,E0
+    0000FE F960                   MOV.B       #96:8,R1L
+    000100 79002580               MOV.W       #9600:16,R0
+    000104 5E                     JSR         @_HDLC_Initialize:24
+           <000000>     
+                   218:    
+                   219:                    // ‘—Mî•ñ‚Ì‰ŠúÝ’è
+                   220:                    memset( &tms_sdr_data, 0, sizeof(tms_sdr_data) );       // ‰Šú‚ÍƒŠƒZƒbƒgó‘Ô
+    000108 1966                   SUB.W       R6,R6
+    00010A 1A80                   SUB.L       ER0,ER0
+    00010C F86A                   MOV.B       #106:8,R0L
+    00010E 01006DF0               PUSH.L      ER0
+    000112 0D61                   MOV.W       R6,R1
+    000114 7A00                   MOV.L       #_tms_sdr_data:32,ER0
+           <00000000>   
+    00011A 5E                     JSR         @_memset:24
+           <000000>     
+    00011E 0B97                   ADDS.L      #4,SP
+                   221:                    tms_sdr_data.SDR.lowadr = 0x60;                                 // ƒAƒhƒŒƒXÝ’è
+    000120 F860                   MOV.B       #96:8,R0L
+    000122 6AA800                 MOV.B       R0L,@_tms_sdr_data:24
+           <000000>     
+                   222:                    tms_sdr_data.SDR.highadr = 0x01;
+    000128 F801                   MOV.B       #1:8,R0L
+    00012A 6AA800                 MOV.B       R0L,@_tms_sdr_data+1:24
+           <000000>     
+                   223:                    tms_sdr_data.SDR.control = 0x13;                                        // ‚t‚hƒR[ƒhÝ’è
+    000130 F813                   MOV.B       #19:8,R0L
+    000132 6AA800                 MOV.B       R0L,@_tms_sdr_data+2:24
+           <000000>     
+                   224:    
+                   225:                    tms_sdr_data.SDR.code = 0x20;                                           // ‚r‚c‚qƒtƒH[ƒ}ƒbƒg‚ÌƒR[ƒh
+    000138 F820                   MOV.B       #32:8,R0L
+    00013A 6AA800                 MOV.B       R0L,@_tms_sdr_data+3:24
+           <000000>     
+                   226:    
+                   227:                    memset( &tms_ldr_data, 0, sizeof(tms_sdr_data) );       // ‰Šú‚ÍƒŠƒZƒbƒgó‘Ô
+    000140 1A80                   SUB.L       ER0,ER0
+    000142 F86A                   MOV.B       #106:8,R0L
+    000144 01006DF0               PUSH.L      ER0
+    000148 0D61                   MOV.W       R6,R1
+    00014A 7A00                   MOV.L       #_tms_ldr_data:32,ER0
+           <00000000>   
+    000150 5E                     JSR         @_memset:24
+           <000000>     
+    000154 0B97                   ADDS.L      #4,SP
+                   228:                    tms_ldr_data.LDR.lowadr = 0x60;                                 // ƒAƒhƒŒƒXÝ’è
+    000156 F860                   MOV.B       #96:8,R0L
+    000158 6AA800                 MOV.B       R0L,@_tms_ldr_data:24
+           <000000>     
+                   229:                    tms_ldr_data.LDR.highadr = 0x01;
+    00015E F801                   MOV.B       #1:8,R0L
+    000160 6AA800                 MOV.B       R0L,@_tms_ldr_data+1:24
+           <000000>     
+                   230:                    tms_ldr_data.LDR.control = 0x13;                                        // ‚t‚hƒR[ƒhÝ’è
+    000166 F813                   MOV.B       #19:8,R0L
+    000168 6AA800                 MOV.B       R0L,@_tms_ldr_data+2:24
+           <000000>     
+                   231:    
+                   232:                    tms_ldr_data.LDR.code = 0x22;                                           // ‚k‚c‚qƒtƒH[ƒ}ƒbƒg‚ÌƒR[ƒh
+    00016E F822                   MOV.B       #34:8,R0L
+    000170 6AA800                 MOV.B       R0L,@_tms_ldr_data+3:24
+           <000000>     
+                   233:    
+                   234:                    send_ldr = 0;
+    000176 6BA600                 MOV.W       R6,@_send_ldr:24
+           <000000>     
+                   235:    
+                   236:    
+                   237:                    HDLC_ReceiveEnd = tms_receive_end;
+    00017C 7A00                   MOV.L       #_tms_receive_end:32,ER0
+           <00000000>   
+    000182 01006BA000             MOV.L       ER0,@_HDLC_ReceiveEnd:24
+           <000000>     
+                   238:                    HDLC_ReceiveAbort = tms_recv_abort;
+    00018A 7A00                   MOV.L       #_tms_recv_abort:32,ER0
+           <00000000>   
+    000190 01006BA000             MOV.L       ER0,@_HDLC_ReceiveAbort:24
+           <000000>     
+                   239:                    HDLC_SendEnd = tms_send_end;
+    000198 7A00                   MOV.L       #_tms_send_end:32,ER0
+           <00000000>   
+    00019E 01006BA000             MOV.L       ER0,@_HDLC_SendEnd:24
+           <000000>     
+                   240:                    HDLC_SendAbort = tms_send_abort;
+    0001A6 7A00                   MOV.L       #_tms_send_abort:32,ER0
+           <00000000>   
+    0001AC 01006BA000             MOV.L       ER0,@_HDLC_SendAbort:24
+           <000000>     
+                   241:                    HDLC_SendStart = tms_send_start;
+    0001B4 7A00                   MOV.L       #_tms_send_start:32,ER0
+           <00000000>   
+    0001BA 01006BA000             MOV.L       ER0,@_HDLC_SendStart:24
+           <000000>     
+                   242:                    timedata.tms_timer = 20;                // Cyclic Polling Time Set
+    0001C2 79000014               MOV.W       #20:16,R0
+    0001C6 6AA000                 MOV.B       R0H,@_timedata+7:24
+           <000000>     
+    0001CC 6AA800                 MOV.B       R0L,@_timedata+8:24
+           <000000>     
+                   243:    }
+    0001D2 6D76                   POP.W       R6
+    0001D4 5470                   RTS
+                   244:    
+                   245:    
+  B                                                      ; section
+    000000              _tms_sd_data:                    ; static: tms_sd_data
+    000000 0000006A               .RES.B      106
+    00006A              _tms_sdr_data:                   ; static: tms_sdr_data
+    00006A 0000006A               .RES.B      106
+    0000D4              _tms_ld_data:                    ; static: tms_ld_data
+    0000D4 0000006A               .RES.B      106
+    00013E              _tms_ldr_data:                   ; static: tms_ldr_data
+    00013E 0000006A               .RES.B      106
+    0001A8              _send_abort:                     ; static: send_abort
+    0001A8 00000002               .RES.W      1
+    0001AA              _recv_abort:                     ; static: recv_abort
+    0001AA 00000002               .RES.W      1
+    0001AC              _send_ldr:                       ; static: send_ldr
+    0001AC 00000002               .RES.W      1
+    0001AE              _recv_ldr:                       ; static: recv_ldr
+    0001AE 00000002               .RES.W      1
+    0001B0              _$recvdata:                      ; static: recvdata
+    0001B0 00000100               .RES.B      256
+    0002B0              _$recvcnt:                       ; static: recvcnt
+    0002B0 00000002               .RES.W      1
+
+
+H8S,H8/300 SERIES C/C++ COMPILER (Ver. 3.0C)     25-Aug-2025  10:22:15  PAGE   1
+
+******* SECTION SIZE INFORMATION *******
+
+PROGRAM  SECTION(P):                                0x000001D6 Byte(s)
+CONSTANT SECTION(C):                                0x00000000 Byte(s)
+DATA     SECTION(D):                                0x00000000 Byte(s)
+BSS      SECTION(B):                                0x000002B2 Byte(s)
+
+TOTAL PROGRAM  SECTION: 0x000001D6 Byte(s)
+TOTAL CONSTANT SECTION: 0x00000000 Byte(s)
+TOTAL DATA     SECTION: 0x00000000 Byte(s)
+TOTAL BSS      SECTION: 0x000002B2 Byte(s)
+
+    TOTAL PROGRAM SIZE: 0x00000488 Byte(s)
+
+
+
+** ASSEMBLER/LINKAGE EDITOR LIMITS INFORMATION **
+
+NUMBER OF EXTERNAL REFERENCE  SYMBOLS:       14 
+NUMBER OF EXTERNAL DEFINITION SYMBOLS:       15 
+NUMBER OF INTERNAL/EXTERNAL SYMBOLS:         38 
+
+
+
+**** COMPILE CONDITION INFORMATION ****
+
+COMMAND LINE: -cpu=300ha:24 -debug -list -show=object -chgincpath -pack=1 -lang=c -include=.\inc\,.\inc\,.\inc\ .\src\dvatms.c -object=.\obj\dvatms.obj
+CPU         : 300ha:24
