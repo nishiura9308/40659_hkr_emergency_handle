@@ -147,6 +147,7 @@ int tms_sendsetup( void )
 				a03 2001/07/09  ドア信号は、ＴＥＸＴ３１に変更
 				a04 2021/02/07 h.nishiura RTTF対応
 
+					a05 2025/09/12 PADリモートリセット・ドライ接点制御の仕様変更
 *************************************************************************/
 int tms_receive_end( char *recvdata, short recvcnt, unsigned char status )
 {

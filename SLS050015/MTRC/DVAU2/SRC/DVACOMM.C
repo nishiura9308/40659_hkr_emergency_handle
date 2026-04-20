@@ -478,7 +478,8 @@ void dvauRTTFSend( unsigned char *senddata, int length, unsigned char *senddata_
 	Syntax			dvauPadResetDryContactCmdSend( void )
 	Argument		none
 	Author			TOA Corporation  h.nishiura
-	Revision		a00 2025/06/23
+	Revision		a00 2025/09/12
+
 *************************************************************************/
 void dvauPadResetDryContactSend( unsigned char *senddata )
 {
@@ -1139,7 +1140,8 @@ unsigned short FilterPriorityMCPNo( unsigned short adr )
 	Syntax			r=CheckPADReset();
 	Argument		unsigned cher r	o 	  : PADリセット要求 1:変化あり / 0:変化なし
 					Author			TOA Corporation  h.nishiura
-	Revision		a00 2025/06/23
+	Revision		a00 2025/09/12
+
 *************************************************************************/
 unsigned char PADResetDrycontCtrl()
 {
@@ -1182,8 +1184,9 @@ unsigned char PADResetDrycontCtrl()
 	Syntax			r=CheckPADReset();
 	Argument		unsigned cher r	o 	  : ドライコンタクト状態 1:変化あり / 0:変化なし
 					Author			TOA Corporation  h.nishiura
-	Revision		a00 2025/06/23
-*************************************************************************/
+	Revision		a00 2025/09/12
+
+	*************************************************************************/
 unsigned char DryContactCtrl()
 {
 	int i;
